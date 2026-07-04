@@ -40,8 +40,8 @@ class PetIdleState: PetBaseState {
         brain.currentAction = .idle
         brain.currentEmotion = .normal
         idleTime = 0
-        nextWanderTime = TimeInterval.random(in: 4...10) // Wander autonomously fairly often
-        // We do NOT reset aiTimer here, so it resumes its 60s cooldown across states
+        // Very short pause before wandering again — 1 to 3 seconds max
+        nextWanderTime = TimeInterval.random(in: 1.0...3.0)
         brain.agent.behavior = nil // Stop moving
     }
     
@@ -49,12 +49,12 @@ class PetIdleState: PetBaseState {
         idleTime += seconds
         aiTimer += seconds
         
-        // Every 20 seconds, ask the AI what to do (free local inference!)
-        if aiTimer > 20.0 {
+        // Every 25 seconds, ask the AI what to do (free local inference!)
+        if aiTimer > 25.0 {
             aiTimer = 0
             brain.queryAI()
         } else if idleTime > nextWanderTime {
-            // Autonomously wander between API calls to stay active!
+            // Autonomously wander — always active, always exploring!
             brain.currentAction = .wander
             stateMachine?.enter(PetWanderState.self)
         }
@@ -70,16 +70,16 @@ class PetWanderState: PetBaseState {
     override func didEnter(from previousState: GKState?) {
         brain.currentEmotion = .normal
         wanderTime = 0
-        maxWanderTime = TimeInterval.random(in: 6...14)
-        brain.agent.behavior = nil // Disable GKAgent driving — we drive manually now
+        maxWanderTime = TimeInterval.random(in: 8...18) // Walk for a good while
+        brain.agent.behavior = nil
         
         // Pick a random X within visible screen bounds (camera shows ±6 world units)
         let currentX = CGFloat(brain.agent.position.x)
         let goRight = currentX <= 0
         targetX = goRight ? CGFloat.random(in: 2.0...5.5) : CGFloat.random(in: -5.5...(-2.0))
         
-        // Pick a random Y within visible screen bounds (Y goes from -5.0 to 5.0)
-        targetY = CGFloat.random(in: -4.5...4.5)
+        // Pick a random Y within visible screen bounds (Y goes from -2.8 to 4.5)
+        targetY = CGFloat.random(in: -2.5...4.5)
         
         brain.currentAction = .wander
         

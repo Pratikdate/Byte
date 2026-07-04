@@ -25,5 +25,9 @@
         <key>NSAllowsLocalNetworking</key>
         <true/>
     </dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Desktop Pet needs microphone access to listen to your voice commands.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Desktop Pet needs speech recognition to transcribe your questions.</string>
 </dict>
 </plist>

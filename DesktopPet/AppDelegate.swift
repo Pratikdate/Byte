@@ -84,6 +84,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupKeyboardShortcuts()
     }
     
+    private var shiftSHeld = false
+    
     private func setupKeyboardShortcuts() {
         // Request macOS Accessibility permissions (needed to listen to global keystrokes)
         let options = ["AXTrustedCheckOptionPrompt" as NSString: true as NSNumber] as CFDictionary
@@ -92,23 +94,48 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Local keyboard monitor (runs when the app has focus)
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            // Shift = flag 131072, D = keycode 2
+            guard let self = self else { return event }
             let isShift = event.modifierFlags.contains(.shift)
+            // Track S being held (keycode 1)
+            if isShift && event.keyCode == 1 { self.shiftSHeld = true }
+            // Shift+D = text chat (keycode 2)
             if isShift && event.keyCode == 2 {
-                self?.presentChatPrompt()
-                return nil // Consume event
+                if self.shiftSHeld {
+                    // Shift+S+D = voice input
+                    self.shiftSHeld = false
+                    self.startVoiceInput()
+                } else {
+                    self.presentChatPrompt()
+                }
+                return nil
             }
+            return event
+        }
+        
+        NSEvent.addLocalMonitorForEvents(matching: .keyUp) { [weak self] event in
+            if event.keyCode == 1 { self?.shiftSHeld = false }
             return event
         }
         
         // Global keyboard monitor (runs when other apps have focus)
         NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self = self else { return }
             let isShift = event.modifierFlags.contains(.shift)
+            if isShift && event.keyCode == 1 { self.shiftSHeld = true }
             if isShift && event.keyCode == 2 {
                 DispatchQueue.main.async {
-                    self?.presentChatPrompt()
+                    if self.shiftSHeld {
+                        self.shiftSHeld = false
+                        self.startVoiceInput()
+                    } else {
+                        self.presentChatPrompt()
+                    }
                 }
             }
+        }
+        
+        NSEvent.addGlobalMonitorForEvents(matching: .keyUp) { [weak self] event in
+            if event.keyCode == 1 { self?.shiftSHeld = false }
         }
     }
     

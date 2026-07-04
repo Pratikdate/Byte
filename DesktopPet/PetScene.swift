@@ -38,7 +38,7 @@ class PetScene: SCNScene {
     private var walkTargetY: CGFloat = 0
     private var walkDirectionX: CGFloat = 1
     private var walkDirectionY: CGFloat = 0
-    private let groundY: CGFloat = -5.0  // Visible bottom of orthographic camera (scale=7, cam at y=1 → bottom ≈ -6)
+    private let groundY: CGFloat = -3.0  // Raised to -3.0 so it stands above the macOS Dock
     private var isWalking = false
     
     override init() {
@@ -118,8 +118,8 @@ class PetScene: SCNScene {
     
     private func setup3DRobot() {
         petContainer = SCNNode()
-        petContainer.position = SCNVector3(x: 0, y: -5.0, z: 0) // Start at ground level (groundY = -5.0)
-        petContainer.scale = SCNVector3(0.25, 0.25, 0.25) // Make it small and compact!
+        petContainer.position = SCNVector3(x: 0, y: 0, z: 0) // Start in center — always visible!
+        petContainer.scale = SCNVector3(0.25, 0.25, 0.25)
         rootNode.addChildNode(petContainer)
         
         let shellMaterial = SCNMaterial()
@@ -156,36 +156,36 @@ class PetScene: SCNScene {
         headNode.addChildNode(rightHeadphone)
         
         // LEGS — built as pivot node (hip) + geometry child below it
-        // This means eulerAngles rotation swings the whole leg+shoe from the hip.
-        let legGeo = SCNBox(width: 0.6, height: 1.0, length: 0.6, chamferRadius: 0.12)
+        // Hip pivot sits at the BOTTOM EDGE of the body so rotation swings from the joint.
+        let legGeo = SCNBox(width: 0.55, height: 0.9, length: 0.55, chamferRadius: 0.10)
         legGeo.materials = [darkMaterial]
         
-        leftLeg = SCNNode() // This is the HIP pivot node
-        leftLeg.position = SCNVector3(-0.8, -1.3, 0) // Position at the hip
+        leftLeg = SCNNode() // HIP pivot — no geometry, sits at bottom edge of body
+        leftLeg.position = SCNVector3(-0.55, -1.6, 0) // x=±0.55 snug under body, y=-1.6 = bottom edge
         petContainer.addChildNode(leftLeg)
         
         let leftLegGeom = SCNNode(geometry: legGeo)
-        leftLegGeom.position = SCNVector3(0, -0.5, 0) // Hang down from hip by half leg height
+        leftLegGeom.position = SCNVector3(0, -0.45, 0) // Hang down from hip pivot
         leftLeg.addChildNode(leftLegGeom)
         
-        rightLeg = SCNNode() // This is the HIP pivot node
-        rightLeg.position = SCNVector3(0.8, -1.3, 0)
+        rightLeg = SCNNode() // HIP pivot
+        rightLeg.position = SCNVector3(0.55, -1.6, 0)
         petContainer.addChildNode(rightLeg)
         
         let rightLegGeom = SCNNode(geometry: legGeo)
-        rightLegGeom.position = SCNVector3(0, -0.5, 0)
+        rightLegGeom.position = SCNVector3(0, -0.45, 0)
         rightLeg.addChildNode(rightLegGeom)
         
-        // SHOES — attached to leg geometry, hanging at the bottom
-        let shoeGeo = SCNBox(width: 1.4, height: 0.3, length: 1.8, chamferRadius: 0.1)
+        // SHOES — small and compact, attached to bottom of leg geometry
+        let shoeGeo = SCNBox(width: 1.0, height: 0.25, length: 1.4, chamferRadius: 0.08)
         shoeGeo.materials = [shellMaterial]
         
         let leftShoe = SCNNode(geometry: shoeGeo)
-        leftShoe.position = SCNVector3(0, -0.55, 0.4) // Bottom of leg, poke forward
+        leftShoe.position = SCNVector3(0, -0.5, 0.3) // Bottom of leg, slight forward poke
         leftLegGeom.addChildNode(leftShoe)
         
         let rightShoe = SCNNode(geometry: shoeGeo)
-        rightShoe.position = SCNVector3(0, -0.55, 0.4)
+        rightShoe.position = SCNVector3(0, -0.5, 0.3)
         rightLegGeom.addChildNode(rightShoe)
         
         // SCREEN & GLOWING EYES (2D SKScene wrapped onto 3D)
@@ -273,11 +273,12 @@ class PetScene: SCNScene {
         
         switch brain.currentAction {
         case .wander, .investigate, .peekWindow, .followCursor:
-            // Step movement — clamp so pet never goes off screen edges
+            // Step movement — clamp so pet never goes off screen edges (Y is clamped above Dock)
             let screenEdgeX: CGFloat = 6.0
-            let screenEdgeY: CGFloat = 5.0
+            let screenEdgeYMin: CGFloat = -2.8
+            let screenEdgeYMax: CGFloat = 5.0
             petContainer.position.x = max(-screenEdgeX, min(screenEdgeX, petContainer.position.x))
-            petContainer.position.y = max(-screenEdgeY, min(screenEdgeY, petContainer.position.y))
+            petContainer.position.y = max(screenEdgeYMin, min(screenEdgeYMax, petContainer.position.y))
             
             // Check arrival distance for both X and Y
             let distToTargetX = abs(walkTargetX - petContainer.position.x)
@@ -301,7 +302,10 @@ class PetScene: SCNScene {
             brain.agent.position = vector_float2(x: Float(petContainer.position.x), y: Float(petContainer.position.y))
             
         case .idle, .sleep, .sit, .spin, .jump, .sulk, .dizzy, .tickled:
-            // Free floating on Y — no locking
+            // Clamp Y above Dock even when idle/floating
+            let screenEdgeYMin: CGFloat = -2.8
+            petContainer.position.y = max(screenEdgeYMin, petContainer.position.y)
+            
             if brain.currentAction == .idle {
                 let dx = CGFloat(petContainer.position.x) + CGFloat(sin(currentTime) * 5)
                 let dy = CGFloat(petContainer.position.y) + CGFloat(cos(currentTime) * 2)
@@ -351,7 +355,7 @@ class PetScene: SCNScene {
     func startWalk(toX requestedX: CGFloat, toY requestedY: CGFloat) {
         // Clamp target to visible screen area (camera scale=7, so ~±5.5 width, ±5.0 height)
         let clampedX = max(-5.5, min(5.5, requestedX))
-        let clampedY = max(-4.8, min(4.8, requestedY))
+        let clampedY = max(-2.8, min(4.8, requestedY))
         
         walkTargetX = clampedX
         walkTargetY = clampedY
