@@ -47,7 +47,7 @@ class AIEngine {
 
         Respond ONLY with valid JSON, no markdown, no extra text:
         {
-            "emotion": "happy|sad|sleepy|excited|curious|bored|thinking",
+            "emotion": "happy|sad|sleepy|excited|curious|bored|thinking|love|shock|embarrassed|angry",
             "action": "wander|peekWindow|sitOnTaskbar|idle|sleep|jump|spin",
             "thought": "your genuine comment or reply here"
         }

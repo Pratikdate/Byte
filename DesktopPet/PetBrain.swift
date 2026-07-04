@@ -5,10 +5,11 @@ import GameplayKit
 enum PetAction {
     case idle, wander, followCursor, sleep, jump, sit, spin, sulk, dizzy, tickled
     case peekWindow, sitOnTaskbar, investigate
+    case stepBack, dance, bow, stretch, roll, hide
 }
 
 enum PetEmotion {
-    case normal, happy, sad, angry, sleepy, love, shock, thinking, dizzy, bored, excited, curious
+    case normal, happy, sad, angry, sleepy, love, shock, thinking, dizzy, bored, excited, curious, embarrassed
 }
 
 // MARK: - GKAgent
@@ -207,11 +208,15 @@ class PetBrain {
         switch decision.emotion.lowercased() {
         case "happy": currentEmotion = .happy
         case "sad": currentEmotion = .sad
+        case "angry": currentEmotion = .angry
         case "sleepy": currentEmotion = .sleepy
         case "excited": currentEmotion = .excited
         case "curious": currentEmotion = .curious
         case "bored": currentEmotion = .bored
         case "thinking": currentEmotion = .thinking
+        case "love": currentEmotion = .love
+        case "shock": currentEmotion = .shock
+        case "embarrassed": currentEmotion = .embarrassed
         default: currentEmotion = .normal
         }
         
@@ -219,13 +224,19 @@ class PetBrain {
         case "wander": stateMachine.enter(PetWanderState.self)
         case "peekwindow":
             currentAction = .peekWindow
-            stateMachine.enter(PetWanderState.self) // Let wander handle pathing
+            stateMachine.enter(PetWanderState.self)
         case "sitontaskbar":
             currentAction = .sitOnTaskbar
             stateMachine.enter(PetWanderState.self)
         case "sleep": stateMachine.enter(PetSleepState.self)
         case "jump": currentAction = .jump
         case "spin": currentAction = .spin
+        case "stepback": currentAction = .stepBack
+        case "dance": currentAction = .dance
+        case "bow": currentAction = .bow
+        case "stretch": currentAction = .stretch
+        case "roll": currentAction = .roll
+        case "hide": currentAction = .hide
         case "idle": stateMachine.enter(PetIdleState.self)
         default: break
         }

@@ -19,6 +19,12 @@ class PetScene: SCNScene {
     private var leftEye: SKShapeNode!
     private var rightEye: SKShapeNode!
     
+    // Emotion specific nodes
+    private var leftTear: SKShapeNode!
+    private var rightTear: SKShapeNode!
+    private var leftBlush: SKShapeNode!
+    private var rightBlush: SKShapeNode!
+    
     // Speech
     private var speechBubble: SKLabelNode!
     private let synthesizer = AVSpeechSynthesizer()
@@ -221,8 +227,40 @@ class PetScene: SCNScene {
         rightEye.blendMode = .add
         rightEye.position = CGPoint(x: 40, y: 0)
         
+        // Tears for Sad
+        let tearPath = CGPath(ellipseIn: CGRect(x: -8, y: -8, width: 16, height: 16), transform: nil)
+        leftTear = SKShapeNode(path: tearPath)
+        leftTear.fillColor = NSColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1.0)
+        leftTear.strokeColor = .clear
+        leftTear.alpha = 0
+        leftTear.position = CGPoint(x: -40, y: -40)
+        
+        rightTear = SKShapeNode(path: tearPath)
+        rightTear.fillColor = NSColor(red: 0.2, green: 0.6, blue: 1.0, alpha: 1.0)
+        rightTear.strokeColor = .clear
+        rightTear.alpha = 0
+        rightTear.position = CGPoint(x: 40, y: -40)
+        
+        // Blush for Embarrassed
+        let blushPath = CGPath(ellipseIn: CGRect(x: -15, y: -10, width: 30, height: 20), transform: nil)
+        leftBlush = SKShapeNode(path: blushPath)
+        leftBlush.fillColor = NSColor(red: 1.0, green: 0.4, blue: 0.4, alpha: 1.0)
+        leftBlush.strokeColor = .clear
+        leftBlush.alpha = 0
+        leftBlush.position = CGPoint(x: -60, y: -20)
+        
+        rightBlush = SKShapeNode(path: blushPath)
+        rightBlush.fillColor = NSColor(red: 1.0, green: 0.4, blue: 0.4, alpha: 1.0)
+        rightBlush.strokeColor = .clear
+        rightBlush.alpha = 0
+        rightBlush.position = CGPoint(x: 60, y: -20)
+        
         eyeContainer.addChild(leftEye)
         eyeContainer.addChild(rightEye)
+        eyeContainer.addChild(leftTear)
+        eyeContainer.addChild(rightTear)
+        eyeContainer.addChild(leftBlush)
+        eyeContainer.addChild(rightBlush)
         
         // SPEECH BUBBLE
         speechBubble = SKLabelNode(fontNamed: "HelveticaNeue-Bold")
@@ -274,9 +312,9 @@ class PetScene: SCNScene {
         switch brain.currentAction {
         case .wander, .investigate, .peekWindow, .followCursor:
             // Step movement — clamp so pet never goes off screen edges (Y is clamped above Dock)
-            let screenEdgeX: CGFloat = 6.0
-            let screenEdgeYMin: CGFloat = -2.8
-            let screenEdgeYMax: CGFloat = 5.0
+            let screenEdgeX: CGFloat = 17.0
+            let screenEdgeYMin: CGFloat = -3.2
+            let screenEdgeYMax: CGFloat = 9.0
             petContainer.position.x = max(-screenEdgeX, min(screenEdgeX, petContainer.position.x))
             petContainer.position.y = max(screenEdgeYMin, min(screenEdgeYMax, petContainer.position.y))
             
@@ -303,7 +341,7 @@ class PetScene: SCNScene {
             
         case .idle, .sleep, .sit, .spin, .jump, .sulk, .dizzy, .tickled:
             // Clamp Y above Dock even when idle/floating
-            let screenEdgeYMin: CGFloat = -2.8
+            let screenEdgeYMin: CGFloat = -3.2
             petContainer.position.y = max(screenEdgeYMin, petContainer.position.y)
             
             if brain.currentAction == .idle {
@@ -348,14 +386,15 @@ class PetScene: SCNScene {
         case .sulk: startSulkAnimation()
         case .dizzy: startDizzyAnimation()
         case .tickled: startTickledAnimation()
+        default: break // New actions (stepBack, dance, bow, stretch, roll, hide) will be implemented in later phases
         }
     }
     
     // Called by PetWanderState to begin a proper step-based walk
     func startWalk(toX requestedX: CGFloat, toY requestedY: CGFloat) {
-        // Clamp target to visible screen area (camera scale=7, so ~±5.5 width, ±5.0 height)
-        let clampedX = max(-5.5, min(5.5, requestedX))
-        let clampedY = max(-2.8, min(4.8, requestedY))
+        // Expanded to allow reaching the far corners of wide monitors
+        let clampedX = max(-16.0, min(16.0, requestedX))
+        let clampedY = max(-3.2, min(9.0, requestedY))
         
         walkTargetX = clampedX
         walkTargetY = clampedY
@@ -416,6 +455,10 @@ class PetScene: SCNScene {
         case .bored:
             scaleY = 0.4
             scaleX = 0.9
+        case .embarrassed:
+            leftRot = 0.15; rightRot = -0.15
+            scaleY = 0.5
+            scaleX = 0.8
         default:
             break
         }
@@ -429,6 +472,34 @@ class PetScene: SCNScene {
             SKAction.rotate(toAngle: rightRot, duration: duration, shortestUnitArc: true),
             SKAction.scaleX(to: scaleX, y: scaleY, duration: duration)
         ]))
+        
+        // Handle Tears
+        if emotion == .sad {
+            let cry = SKAction.sequence([
+                SKAction.moveBy(x: 0, y: -10, duration: 0.5),
+                SKAction.fadeAlpha(to: 0, duration: 0.2),
+                SKAction.moveBy(x: 0, y: 10, duration: 0),
+                SKAction.fadeAlpha(to: 1.0, duration: 0.2)
+            ])
+            leftTear.run(SKAction.repeatForever(cry))
+            rightTear.run(SKAction.repeatForever(cry))
+            leftTear.run(SKAction.fadeAlpha(to: 1.0, duration: duration))
+            rightTear.run(SKAction.fadeAlpha(to: 1.0, duration: duration))
+        } else {
+            leftTear.removeAllActions()
+            rightTear.removeAllActions()
+            leftTear.run(SKAction.fadeAlpha(to: 0, duration: duration))
+            rightTear.run(SKAction.fadeAlpha(to: 0, duration: duration))
+        }
+        
+        // Handle Blush
+        if emotion == .embarrassed {
+            leftBlush.run(SKAction.fadeAlpha(to: 0.8, duration: duration))
+            rightBlush.run(SKAction.fadeAlpha(to: 0.8, duration: duration))
+        } else {
+            leftBlush.run(SKAction.fadeAlpha(to: 0, duration: duration))
+            rightBlush.run(SKAction.fadeAlpha(to: 0, duration: duration))
+        }
         
         if emotion == .thinking {
             leftEye.run(SKAction.repeatForever(SKAction.sequence([SKAction.fadeAlpha(to: 0.2, duration: 0.5), SKAction.fadeAlpha(to: 1.0, duration: 0.5)])))
@@ -468,7 +539,7 @@ class PetScene: SCNScene {
     private func getEyePath(for emotion: PetEmotion) -> CGPath {
         let rect = CGRect(x: -20, y: -30, width: 40, height: 60)
         switch emotion {
-        case .normal, .happy, .sad, .angry, .sleepy, .bored, .dizzy, .excited, .curious:
+        case .normal, .happy, .sad, .angry, .sleepy, .bored, .dizzy, .excited, .curious, .embarrassed:
             // Use the same base shape for most emotions so they morph smoothly via SKAction.scale
             return CGPath(roundedRect: rect, cornerWidth: 20, cornerHeight: 20, transform: nil)
         case .shock: return CGPath(ellipseIn: CGRect(x: -25, y: -25, width: 50, height: 50), transform: nil)
