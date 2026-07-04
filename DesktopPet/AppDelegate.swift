@@ -42,9 +42,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var window: PetWindow!
     var scnView: PetSCNView!
     var updateTimer: Timer?
+    var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Create the transparent click-through overlay window
         let screenRect = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         
         window = PetWindow(
@@ -54,15 +54,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         
-        window.level = .floating // Always on top
+        window.level = .floating
         window.backgroundColor = .clear
         window.isOpaque = false
-        window.ignoresMouseEvents = true // START COMPLETELY UNBLOCKING
+        window.ignoresMouseEvents = true
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        window.hasShadow = false
         
-        // 3D SceneKit View
-        scnView = PetSCNView(frame: window.frame)
-        scnView.backgroundColor = .clear // Transparent background
+        scnView = PetSCNView(frame: screenRect)
+        scnView.backgroundColor = .clear
+        scnView.allowsCameraControl = false
         scnView.antialiasingMode = .multisampling4X
         scnView.autoenablesDefaultLighting = false
         scnView.wantsLayer = true
@@ -76,31 +77,74 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         window.makeKeyAndOrderFront(nil)
         
-        // Dynamically toggle click-through based on mouse position!
         updateTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             self?.checkMousePosition()
         }
         
+        setupMenuBar()
         setupKeyboardShortcuts()
     }
     
-    private var isListening = false
-    private var isShiftDDown = false
+    // MARK: - Menu Bar Settings
+    private func setupMenuBar() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        if let button = statusItem?.button {
+            button.image = NSImage(systemSymbolName: "dog.fill", accessibilityDescription: "Desktop Pet")
+            // Fallback if symbol not available
+            if button.image == nil {
+                button.title = "🤖"
+            }
+        }
+        
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: "🤖 Desktop Pet Settings", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem.separator())
+        
+        // Feature list
+        let features = [
+            ("🎤 Talk to Pet", "Hold Shift+D, speak, release to send"),
+            ("📝 Voice Dictation", "Long press ⌘ (0.6s), speak, release to type"),
+            ("🖱️ Drag Pet", "Click and drag the pet anywhere"),
+            ("👆 Pet / Tickle", "Click on the pet"),
+            ("👀 Pet Awareness", "Pet watches your mouse and active apps"),
+        ]
+        
+        for (title, shortcut) in features {
+            let item = NSMenuItem()
+            item.title = "\(title)  —  \(shortcut)"
+            item.isEnabled = false
+            menu.addItem(item)
+        }
+        
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: "Quit Desktop Pet", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        
+        statusItem?.menu = menu
+    }
+    
+    // MARK: - Keyboard Shortcuts
+    private var isListeningForPet = false     // Shift+D: talk to pet
+    private var isDictating = false            // Long Command: voice-to-text at cursor
+    private var commandPressTime: Date?       // Tracks when Command was first pressed
+    private var commandLongPressTimer: Timer?  // Timer for long-press detection
+    private var otherKeyPressed = false        // Tracks if another key was pressed during Command hold
     
     private func setupKeyboardShortcuts() {
-        // Request macOS Accessibility permissions (needed to listen to global keystrokes)
         let options = ["AXTrustedCheckOptionPrompt" as NSString: true as NSNumber] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
         
-        // PUSH-TO-TALK: Hold Shift+D to record, release D to send.
-        // No popups — completely seamless.
-        
-        // keyDown: start listening when Shift+D is first pressed
+        // === SHIFT+D: Push-to-talk with pet ===
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return event }
+            // Shift+D (non-repeat)
             if event.modifierFlags.contains(.shift) && event.keyCode == 2 && !event.isARepeat {
-                self.beginListening()
+                self.beginPetListening()
                 return nil
+            }
+            // Any key pressed while Command is held → cancel long-press
+            if event.modifierFlags.contains(.command) {
+                self.otherKeyPressed = true
+                self.commandLongPressTimer?.invalidate()
             }
             return event
         }
@@ -108,15 +152,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return }
             if event.modifierFlags.contains(.shift) && event.keyCode == 2 && !event.isARepeat {
-                DispatchQueue.main.async { self.beginListening() }
+                DispatchQueue.main.async { self.beginPetListening() }
+            }
+            if event.modifierFlags.contains(.command) {
+                self.otherKeyPressed = true
+                self.commandLongPressTimer?.invalidate()
             }
         }
         
-        // keyUp: release D key → stop listening and send transcript
+        // keyUp for Shift+D release
         NSEvent.addLocalMonitorForEvents(matching: .keyUp) { [weak self] event in
             guard let self = self else { return event }
-            if event.keyCode == 2 && self.isListening {
-                self.finishListening()
+            if event.keyCode == 2 && self.isListeningForPet {
+                self.finishPetListening()
                 return nil
             }
             return event
@@ -124,44 +172,73 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         NSEvent.addGlobalMonitorForEvents(matching: .keyUp) { [weak self] event in
             guard let self = self else { return }
-            if event.keyCode == 2 && self.isListening {
-                DispatchQueue.main.async { self.finishListening() }
+            if event.keyCode == 2 && self.isListeningForPet {
+                DispatchQueue.main.async { self.finishPetListening() }
             }
         }
         
-        // Safety: if Shift is released mid-hold, also stop
+        // === FLAGS CHANGED: Detect Command press/release for long-press dictation ===
         NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             guard let self = self else { return event }
-            if self.isListening && !event.modifierFlags.contains(.shift) {
-                self.finishListening()
+            self.handleFlagsChanged(event)
+            // Safety: stop pet listening if Shift released
+            if self.isListeningForPet && !event.modifierFlags.contains(.shift) {
+                self.finishPetListening()
             }
             return event
         }
         
         NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             guard let self = self else { return }
-            if self.isListening && !event.modifierFlags.contains(.shift) {
-                DispatchQueue.main.async { self.finishListening() }
+            DispatchQueue.main.async {
+                self.handleFlagsChanged(event)
+                if self.isListeningForPet && !event.modifierFlags.contains(.shift) {
+                    self.finishPetListening()
+                }
             }
         }
     }
     
-    private func beginListening() {
-        guard !isListening else { return }
+    // MARK: - Command Long-Press Detection
+    private func handleFlagsChanged(_ event: NSEvent) {
+        let commandDown = event.modifierFlags.contains(.command)
+        
+        if commandDown && commandPressTime == nil && !isDictating {
+            // Command just pressed — start long-press timer
+            commandPressTime = Date()
+            otherKeyPressed = false
+            commandLongPressTimer?.invalidate()
+            commandLongPressTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false) { [weak self] _ in
+                guard let self = self else { return }
+                if !self.otherKeyPressed && !self.isDictating {
+                    self.beginDictation()
+                }
+            }
+        } else if !commandDown {
+            // Command released
+            commandLongPressTimer?.invalidate()
+            commandLongPressTimer = nil
+            commandPressTime = nil
+            
+            if isDictating {
+                finishDictation()
+            }
+        }
+    }
+    
+    // MARK: - Shift+D: Talk to Pet
+    private func beginPetListening() {
+        guard !isListeningForPet && !isDictating else { return }
         guard let scene = scnView.scene as? PetScene else { return }
-        isListening = true
-        
-        // Pet shows it's listening
+        isListeningForPet = true
         scene.showListeningState(true)
-        
         VoiceInputManager.shared.startListening { _ in }
     }
     
-    private func finishListening() {
-        guard isListening else { return }
+    private func finishPetListening() {
+        guard isListeningForPet else { return }
         guard let scene = scnView.scene as? PetScene else { return }
-        isListening = false
-        
+        isListeningForPet = false
         scene.showListeningState(false)
         
         let transcript = VoiceInputManager.shared.currentTranscript
@@ -172,6 +249,62 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
+    // MARK: - Long Command: Voice-to-Text Dictation
+    private func beginDictation() {
+        guard !isDictating && !isListeningForPet else { return }
+        guard let scene = scnView.scene as? PetScene else { return }
+        isDictating = true
+        
+        scene.showDictationState(true)
+        VoiceInputManager.shared.startListening { _ in }
+    }
+    
+    private func finishDictation() {
+        guard isDictating else { return }
+        guard let scene = scnView.scene as? PetScene else { return }
+        isDictating = false
+        
+        let transcript = VoiceInputManager.shared.currentTranscript
+        VoiceInputManager.shared.stopListening()
+        scene.showDictationState(false)
+        
+        if !transcript.isEmpty {
+            typeAtCursor(transcript)
+        }
+    }
+    
+    // MARK: - Type Text at Cursor
+    private func typeAtCursor(_ text: String) {
+        // Save current clipboard, paste text, restore clipboard
+        let pasteboard = NSPasteboard.general
+        let previousContents = pasteboard.string(forType: .string)
+        
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+        
+        // Small delay to ensure pasteboard is ready
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            // Simulate Cmd+V paste
+            let source = CGEventSource(stateID: .hidSystemState)
+            let vKeyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) // V = 0x09
+            vKeyDown?.flags = .maskCommand
+            let vKeyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
+            vKeyUp?.flags = .maskCommand
+            
+            vKeyDown?.post(tap: .cghidEventTap)
+            vKeyUp?.post(tap: .cghidEventTap)
+            
+            // Restore previous clipboard after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                if let prev = previousContents {
+                    pasteboard.clearContents()
+                    pasteboard.setString(prev, forType: .string)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Mouse Position Check
     func checkMousePosition() {
         guard let window = window, let scnView = scnView, let scene = scnView.scene as? PetScene else { return }
         if scene.isDragging { return }

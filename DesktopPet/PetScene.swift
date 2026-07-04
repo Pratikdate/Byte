@@ -729,6 +729,21 @@ class PetScene: SCNScene {
         }
     }
     
+    func showDictationState(_ dictating: Bool) {
+        if dictating {
+            applyEmotion(.excited)
+            speechBubble.removeAllActions()
+            speechBubble.text = "📝 Dictating..."
+            speechBubble.alpha = 1.0
+        } else {
+            let fadeOut = SKAction.sequence([
+                SKAction.wait(forDuration: 1.0),
+                SKAction.fadeAlpha(to: 0, duration: 0.5)
+            ])
+            speechBubble.run(fadeOut)
+        }
+    }
+    
     // MARK: - Event Handling for Drag
     private var isActuallyDragged = false
     
