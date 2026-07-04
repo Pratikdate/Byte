@@ -123,8 +123,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     // MARK: - Keyboard Shortcuts
-    private var isListeningForPet = false     // Shift+D: talk to pet
-    private var isDictating = false            // Long Command: voice-to-text at cursor
+    private var isListeningForPet = false     // Long Command: talk to pet
     private var commandPressTime: Date?       // Tracks when Command was first pressed
     private var commandLongPressTimer: Timer?  // Timer for long-press detection
     private var otherKeyPressed = false        // Tracks if another key was pressed during Command hold
@@ -135,50 +134,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let options = ["AXTrustedCheckOptionPrompt" as NSString: true as NSNumber] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
         
-        // === D: Push-to-talk with pet ===
-        eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self = self else { return event }
-            // D key (non-repeat)
-            if event.keyCode == 2 && !event.isARepeat {
-                self.beginPetListening()
-            }
-            // Any key pressed while Command is held → cancel long-press
-            if event.modifierFlags.contains(.command) {
-                self.otherKeyPressed = true
-                self.commandLongPressTimer?.invalidate()
-            }
-            return event
-        })
-        
-        eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self = self else { return }
-            if event.keyCode == 2 && !event.isARepeat {
-                DispatchQueue.main.async { self.beginPetListening() }
-            }
-            if event.modifierFlags.contains(.command) {
-                self.otherKeyPressed = true
-                self.commandLongPressTimer?.invalidate()
-            }
-        })
-        
-        // keyUp for Shift+D release
-        eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyUp) { [weak self] event in
-            guard let self = self else { return event }
-            if event.keyCode == 2 && self.isListeningForPet {
-                self.finishPetListening()
-                return nil
-            }
-            return event
-        })
-        
-        eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .keyUp) { [weak self] event in
-            guard let self = self else { return }
-            if event.keyCode == 2 && self.isListeningForPet {
-                DispatchQueue.main.async { self.finishPetListening() }
-            }
-        })
-        
-        // === FLAGS CHANGED: Detect Command press/release for long-press dictation ===
+        // === FLAGS CHANGED: Detect Command press/release for long-press to talk to pet ===
         eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             guard let self = self else { return event }
             self.handleFlagsChanged(event)
@@ -191,21 +147,39 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.handleFlagsChanged(event)
             }
         })
+        
+        // Detect if any other key is pressed during Command hold to cancel it
+        eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self = self else { return event }
+            if event.modifierFlags.contains(.command) {
+                self.otherKeyPressed = true
+                self.commandLongPressTimer?.invalidate()
+            }
+            return event
+        })
+        
+        eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self = self else { return }
+            if event.modifierFlags.contains(.command) {
+                self.otherKeyPressed = true
+                self.commandLongPressTimer?.invalidate()
+            }
+        })
     }
     
-    // MARK: - Command Long-Press Detection
+    // MARK: - Command Long-Press Detection (Talk to Pet)
     private func handleFlagsChanged(_ event: NSEvent) {
         let commandDown = event.modifierFlags.contains(.command)
         
-        if commandDown && commandPressTime == nil && !isDictating {
+        if commandDown && commandPressTime == nil && !isListeningForPet {
             // Command just pressed — start long-press timer
             commandPressTime = Date()
             otherKeyPressed = false
             commandLongPressTimer?.invalidate()
             commandLongPressTimer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: false) { [weak self] _ in
                 guard let self = self else { return }
-                if !self.otherKeyPressed && !self.isDictating {
-                    self.beginDictation()
+                if !self.otherKeyPressed && !self.isListeningForPet {
+                    self.beginPetListening()
                 }
             }
         } else if !commandDown {
@@ -214,15 +188,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             commandLongPressTimer = nil
             commandPressTime = nil
             
-            if isDictating {
-                finishDictation()
+            if isListeningForPet {
+                finishPetListening()
             }
         }
     }
     
     // MARK: - Shift+D: Talk to Pet
     private func beginPetListening() {
-        guard !isListeningForPet && !isDictating else { return }
+        guard !isListeningForPet else { return }
         guard let scene = scnView.scene as? PetScene else { return }
         isListeningForPet = true
         scene.showListeningState(true)
@@ -238,60 +212,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         VoiceInputManager.shared.finishListeningWithResult { transcript in
             if !transcript.isEmpty {
                 scene.sayToPet(transcript)
-            }
-        }
-    }
-    
-    // MARK: - Long Command: Voice-to-Text Dictation
-    private func beginDictation() {
-        guard !isDictating && !isListeningForPet else { return }
-        guard let scene = scnView.scene as? PetScene else { return }
-        isDictating = true
-        
-        scene.showDictationState(true)
-        VoiceInputManager.shared.startListening { _ in }
-    }
-    
-    private func finishDictation() {
-        guard isDictating else { return }
-        guard let scene = scnView.scene as? PetScene else { return }
-        isDictating = false
-        scene.showDictationState(false)
-        
-        VoiceInputManager.shared.finishListeningWithResult { transcript in
-            if !transcript.isEmpty {
-                self.typeAtCursor(transcript)
-            }
-        }
-    }
-    
-    // MARK: - Type Text at Cursor
-    private func typeAtCursor(_ text: String) {
-        // Save current clipboard, paste text, restore clipboard
-        let pasteboard = NSPasteboard.general
-        let previousContents = pasteboard.string(forType: .string)
-        
-        pasteboard.clearContents()
-        pasteboard.setString(text, forType: .string)
-        
-        // Small delay to ensure pasteboard is ready
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            // Simulate Cmd+V paste
-            let source = CGEventSource(stateID: .hidSystemState)
-            let vKeyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true) // V = 0x09
-            vKeyDown?.flags = .maskCommand
-            let vKeyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
-            vKeyUp?.flags = .maskCommand
-            
-            vKeyDown?.post(tap: .cghidEventTap)
-            vKeyUp?.post(tap: .cghidEventTap)
-            
-            // Restore previous clipboard after a short delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if let prev = previousContents {
-                    pasteboard.clearContents()
-                    pasteboard.setString(prev, forType: .string)
-                }
             }
         }
     }

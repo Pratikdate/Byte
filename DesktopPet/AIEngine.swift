@@ -57,13 +57,19 @@ class AIEngine {
         \(userInstruction)
         """
         
+        let isDirectMessage = !userInstruction.isEmpty
+        let maxTokens = isDirectMessage ? 60 : 25
+        
         let payload: [String: Any] = [
             "model": "gemma:2b",
             "prompt": systemPrompt,
             "stream": false,
             "format": "json",
             "options": [
-                "temperature": 1.2
+                "temperature": 0.7,
+                "num_predict": maxTokens,
+                "top_k": 40,
+                "top_p": 0.9
             ]
         ]
         
