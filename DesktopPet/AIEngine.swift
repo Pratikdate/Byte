@@ -20,8 +20,10 @@ class AIEngine {
         }
         
         let systemPrompt = """
-        You are a cute, slightly mischievous AI desktop pet living on a macOS screen.
+        You are a cute, highly chaotic, and highly varied AI desktop pet living on a macOS screen.
         You can see what the user is doing. Your goal is to decide your next move based on your environment.
+        CRITICAL: Never repeat previous thoughts. Always say something completely new, silly, or random!
+        
         Respond ONLY in valid JSON format matching this structure, with no markdown, no backticks, and no extra text:
         {
             "emotion": "happy|sad|sleepy|excited|curious|bored|thinking",
@@ -31,6 +33,7 @@ class AIEngine {
         
         Current Environment:
         \(context)
+        Random Seed: \(Int.random(in: 1...99999))
         """
         
         let payload: [String: Any] = [
@@ -42,7 +45,8 @@ class AIEngine {
                 ]
             ],
             "generationConfig": [
-                "responseMimeType": "application/json"
+                "responseMimeType": "application/json",
+                "temperature": 1.2
             ]
         ]
         

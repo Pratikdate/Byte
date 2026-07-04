@@ -146,11 +146,13 @@ class PetScene: SCNScene {
         legGeo.materials = [darkMaterial]
         
         leftLeg = SCNNode(geometry: legGeo)
-        leftLeg.position = SCNVector3(-0.8, -1.9, 0)
+        leftLeg.pivot = SCNMatrix4MakeTranslation(0, 0.4, 0) // Pivot at top of leg
+        leftLeg.position = SCNVector3(-0.8, -1.5, 0) // Shifted up by 0.4 to compensate
         petContainer.addChildNode(leftLeg)
         
         rightLeg = SCNNode(geometry: legGeo)
-        rightLeg.position = SCNVector3(0.8, -1.9, 0)
+        rightLeg.pivot = SCNMatrix4MakeTranslation(0, 0.4, 0)
+        rightLeg.position = SCNVector3(0.8, -1.5, 0)
         petContainer.addChildNode(rightLeg)
         
         // TINY SHOES
@@ -452,9 +454,9 @@ class PetScene: SCNScene {
         
         headNode.position.y = 0
         headNode.eulerAngles = SCNVector3(0, 0, 0)
-        leftLeg.position = SCNVector3(-0.8, -1.9, 0)
+        leftLeg.position = SCNVector3(-0.8, -1.5, 0)
         leftLeg.eulerAngles = SCNVector3(0, 0, 0)
-        rightLeg.position = SCNVector3(0.8, -1.9, 0)
+        rightLeg.position = SCNVector3(0.8, -1.5, 0)
         rightLeg.eulerAngles = SCNVector3(0, 0, 0)
     }
     
@@ -532,40 +534,17 @@ class PetScene: SCNScene {
         headNode.runAction(SCNAction.repeatForever(SCNAction.sequence([leanRight, leanLeft])))
         
         // --- ALTERNATING PENDULUM WALK CYCLE ---
-        let lForwardPos = SCNVector3(-0.8, -1.3, 0.8) // Lifted up and forward
-        let lBackwardPos = SCNVector3(-0.8, -1.9, -0.8) // Planted on ground and sliding back
+        // With pivots set to the top of the legs, we just rotate them forward/backward!
+        let swingRot: CGFloat = 0.8
         
-        let rForwardPos = SCNVector3(0.8, -1.3, 0.8)
-        let rBackwardPos = SCNVector3(0.8, -1.9, -0.8)
+        let swingForward = SCNAction.rotateTo(x: swingRot, y: 0, z: 0, duration: duration)
+        swingForward.timingMode = .easeInEaseOut
         
-        // Left Leg Actions
-        let lSwingForward = SCNAction.group([
-            SCNAction.rotateTo(x: 0.6, y: 0, z: 0, duration: duration),
-            SCNAction.move(to: lForwardPos, duration: duration)
-        ])
-        lSwingForward.timingMode = .easeInEaseOut
+        let swingBackward = SCNAction.rotateTo(x: -swingRot, y: 0, z: 0, duration: duration)
+        swingBackward.timingMode = .easeInEaseOut
         
-        let lSwingBackward = SCNAction.group([
-            SCNAction.rotateTo(x: -0.6, y: 0, z: 0, duration: duration),
-            SCNAction.move(to: lBackwardPos, duration: duration)
-        ])
-        lSwingBackward.timingMode = .easeInEaseOut
-        
-        // Right Leg Actions
-        let rSwingForward = SCNAction.group([
-            SCNAction.rotateTo(x: 0.6, y: 0, z: 0, duration: duration),
-            SCNAction.move(to: rForwardPos, duration: duration)
-        ])
-        rSwingForward.timingMode = .easeInEaseOut
-        
-        let rSwingBackward = SCNAction.group([
-            SCNAction.rotateTo(x: -0.6, y: 0, z: 0, duration: duration),
-            SCNAction.move(to: rBackwardPos, duration: duration)
-        ])
-        rSwingBackward.timingMode = .easeInEaseOut
-        
-        leftLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([lSwingForward, lSwingBackward])))
-        rightLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([rSwingBackward, rSwingForward])))
+        leftLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([swingForward, swingBackward])))
+        rightLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([swingBackward, swingForward])))
     }
     
     private func startPeekAnimation() {
@@ -668,6 +647,8 @@ class PetScene: SCNScene {
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         utterance.volume = 0.5
+        utterance.pitchMultiplier = 1.4 // Cuter voice
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.1 // Slightly faster
         
         // Dispatch to avoid main thread stutters
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
