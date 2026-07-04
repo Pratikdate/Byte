@@ -129,12 +129,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var commandLongPressTimer: Timer?  // Timer for long-press detection
     private var otherKeyPressed = false        // Tracks if another key was pressed during Command hold
     
+    private var eventMonitors: [Any?] = []
+    
     private func setupKeyboardShortcuts() {
         let options = ["AXTrustedCheckOptionPrompt" as NSString: true as NSNumber] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
         
         // === SHIFT+D: Push-to-talk with pet ===
-        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return event }
             // Shift+D (non-repeat)
             if event.modifierFlags.contains(.shift) && event.keyCode == 2 && !event.isARepeat {
@@ -147,9 +149,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.commandLongPressTimer?.invalidate()
             }
             return event
-        }
+        })
         
-        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return }
             if event.modifierFlags.contains(.shift) && event.keyCode == 2 && !event.isARepeat {
                 DispatchQueue.main.async { self.beginPetListening() }
@@ -158,27 +160,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.otherKeyPressed = true
                 self.commandLongPressTimer?.invalidate()
             }
-        }
+        })
         
         // keyUp for Shift+D release
-        NSEvent.addLocalMonitorForEvents(matching: .keyUp) { [weak self] event in
+        eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyUp) { [weak self] event in
             guard let self = self else { return event }
             if event.keyCode == 2 && self.isListeningForPet {
                 self.finishPetListening()
                 return nil
             }
             return event
-        }
+        })
         
-        NSEvent.addGlobalMonitorForEvents(matching: .keyUp) { [weak self] event in
+        eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .keyUp) { [weak self] event in
             guard let self = self else { return }
             if event.keyCode == 2 && self.isListeningForPet {
                 DispatchQueue.main.async { self.finishPetListening() }
             }
-        }
+        })
         
         // === FLAGS CHANGED: Detect Command press/release for long-press dictation ===
-        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+        eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             guard let self = self else { return event }
             self.handleFlagsChanged(event)
             // Safety: stop pet listening if Shift released
@@ -186,9 +188,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self.finishPetListening()
             }
             return event
-        }
+        })
         
-        NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+        eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             guard let self = self else { return }
             DispatchQueue.main.async {
                 self.handleFlagsChanged(event)
@@ -196,7 +198,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     self.finishPetListening()
                 }
             }
-        }
+        })
     }
     
     // MARK: - Command Long-Press Detection
