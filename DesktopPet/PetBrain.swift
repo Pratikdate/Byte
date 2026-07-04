@@ -33,7 +33,7 @@ class PetBaseState: GKState {
 
 class PetIdleState: PetBaseState {
     private var idleTime: TimeInterval = 0
-    private var aiTimer: TimeInterval = 60.0 // Start high so it queries immediately on boot
+    private var aiTimer: TimeInterval = 20.0 // Start high so it queries immediately on boot
     private var nextWanderTime: TimeInterval = 0
     
     override func didEnter(from previousState: GKState?) {
@@ -49,8 +49,8 @@ class PetIdleState: PetBaseState {
         idleTime += seconds
         aiTimer += seconds
         
-        // Every 60 seconds, ask the AI what to do (to save API limits)
-        if aiTimer > 60.0 {
+        // Every 20 seconds, ask the AI what to do (free local inference!)
+        if aiTimer > 20.0 {
             aiTimer = 0
             brain.queryAI()
         } else if idleTime > nextWanderTime {
