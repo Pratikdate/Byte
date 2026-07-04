@@ -9,13 +9,12 @@ struct AIPetDecision: Codable {
 class AIEngine {
     static let shared = AIEngine()
     
-    // We default to a local Ollama server running Llama 3 or Phi 3
-    // You can install Ollama from ollama.com and run `ollama run llama3` in terminal
-    private let endpoint = "http://localhost:11434/api/generate"
-    private let model = "llama3" // or "phi3" or "mistral"
+    // Gemini API Configuration
+    private let apiKey = "AIzaSyB3a979Ex_luKKD6xiNPJjad18p9Dt-zjE"
+    private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     
     func decideNextMove(context: String, completion: @escaping (AIPetDecision?) -> Void) {
-        guard let url = URL(string: endpoint) else {
+        guard let url = URL(string: "\(endpoint)?key=\(apiKey)") else {
             completion(nil)
             return
         }
@@ -35,10 +34,16 @@ class AIEngine {
         """
         
         let payload: [String: Any] = [
-            "model": model,
-            "prompt": systemPrompt,
-            "format": "json",
-            "stream": false
+            "contents": [
+                [
+                    "parts": [
+                        ["text": systemPrompt]
+                    ]
+                ]
+            ],
+            "generationConfig": [
+                "responseMimeType": "application/json"
+            ]
         ]
         
         var request = URLRequest(url: url)
@@ -60,13 +65,20 @@ class AIEngine {
             }
             
             do {
+                // Parse Gemini's nested response format
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let responseString = json["response"] as? String,
+                   let candidates = json["candidates"] as? [[String: Any]],
+                   let firstCandidate = candidates.first,
+                   let content = firstCandidate["content"] as? [String: Any],
+                   let parts = content["parts"] as? [[String: Any]],
+                   let firstPart = parts.first,
+                   let responseString = firstPart["text"] as? String,
                    let responseData = responseString.data(using: .utf8) {
                     
                     let decision = try JSONDecoder().decode(AIPetDecision.self, from: responseData)
                     completion(decision)
                 } else {
+                    print("AIEngine Error: Unexpected JSON format from Gemini")
                     completion(nil)
                 }
             } catch {
