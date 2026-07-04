@@ -36,7 +36,7 @@ class PetScene: SCNScene {
     // Step-based Walk System
     private var walkTargetX: CGFloat = 0
     private var walkDirection: CGFloat = 1
-    private let groundY: CGFloat = -7.5
+    private let groundY: CGFloat = -5.0  // Visible bottom of orthographic camera (scale=7, cam at y=1 → bottom ≈ -6)
     private var isWalking = false
     
     override init() {
@@ -55,8 +55,7 @@ class PetScene: SCNScene {
             self?.startWalk(toX: targetX)
         }
         
-        // Snap to ground immediately on start
-        petContainer.position.y = groundY
+        // (petContainer Y is already set to groundY in setup3DRobot)
         
         // Setup Update Loop
         let updateNode = SCNNode()
@@ -117,7 +116,7 @@ class PetScene: SCNScene {
     
     private func setup3DRobot() {
         petContainer = SCNNode()
-        petContainer.position = SCNVector3(x: 0, y: 0, z: 0)
+        petContainer.position = SCNVector3(x: 0, y: -5.0, z: 0) // Start at ground level (groundY = -5.0)
         petContainer.scale = SCNVector3(0.25, 0.25, 0.25) // Make it small and compact!
         rootNode.addChildNode(petContainer)
         
