@@ -47,8 +47,8 @@ class PetIdleState: PetBaseState {
         idleTime += seconds
         aiTimer += seconds
         
-        // Every 10 seconds, ask the AI what to do
-        if aiTimer > 10.0 {
+        // Every 60 seconds, ask the AI what to do (to save API limits)
+        if aiTimer > 60.0 {
             aiTimer = 0
             brain.queryAI()
         }
