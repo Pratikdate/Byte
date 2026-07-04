@@ -676,9 +676,9 @@ class PetScene: SCNScene {
         
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        utterance.volume = 0.5
-        utterance.pitchMultiplier = 1.4 // Cuter voice
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.1 // Slightly faster
+        utterance.volume = 0.6
+        utterance.pitchMultiplier = 1.18 // Cuter but has depth and resonance
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.90 // Slower, more thoughtful delivery
         
         // Dispatch to avoid main thread stutters
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
