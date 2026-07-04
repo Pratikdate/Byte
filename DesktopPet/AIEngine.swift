@@ -12,10 +12,21 @@ class AIEngine {
     // Ollama Local API Configuration
     private let endpoint = "http://localhost:11434/api/generate"
     
-    func decideNextMove(context: String, completion: @escaping (AIPetDecision?) -> Void) {
+    func decideNextMove(context: String, userMessage: String? = nil, completion: @escaping (AIPetDecision?) -> Void) {
         guard let url = URL(string: endpoint) else {
             completion(nil)
             return
+        }
+        
+        var userInstruction = ""
+        if let msg = userMessage, !msg.isEmpty {
+            userInstruction = """
+            
+            USER DIRECTLY SPOKE TO YOU:
+            "\(msg)"
+            
+            You MUST reply to what the user said in the "thought" field. Still keep it to 5 words max!
+            """
         }
         
         let systemPrompt = """
@@ -40,6 +51,7 @@ class AIEngine {
 
         Current Screen:
         \(context)
+        \(userInstruction)
         """
         
         let payload: [String: Any] = [

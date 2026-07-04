@@ -159,7 +159,7 @@ class PetBrain {
         stateMachine.enter(PetIdleState.self) // Start idle — let AI decide what to do first
     }
     
-    func queryAI() {
+    func queryAI(userMessage: String? = nil) {
         guard !isQueryingAI else { return }
         isQueryingAI = true
         
@@ -184,7 +184,7 @@ class PetBrain {
         if hasDock { context += " Dock is visible." }
         context += " Energy: \(Int(energy)). Mood: \(currentEmotion)."
         
-        AIEngine.shared.decideNextMove(context: context) { [weak self] decision in
+        AIEngine.shared.decideNextMove(context: context, userMessage: userMessage) { [weak self] decision in
             DispatchQueue.main.async {
                 self?.isQueryingAI = false
                 guard let self = self, let decision = decision else { return }

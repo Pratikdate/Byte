@@ -692,6 +692,12 @@ class PetScene: SCNScene {
         speechBubble.run(fadeOut)
     }
     
+    func sayToPet(_ message: String) {
+        // Show "thinking..." emotion nodes and query AI with user message!
+        applyEmotion(.thinking)
+        brain.queryAI(userMessage: message)
+    }
+    
     // MARK: - Event Handling for Drag
     private var isActuallyDragged = false
     

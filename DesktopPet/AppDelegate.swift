@@ -79,6 +79,54 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         updateTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             self?.checkMousePosition()
         }
+        
+        setupKeyboardShortcuts()
+    }
+    
+    private func setupKeyboardShortcuts() {
+        // Local keyboard monitor (runs when the app has focus)
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.modifierFlags.contains(.shift) && event.keyCode == 2 {
+                self?.presentChatPrompt()
+                return nil // Consume event
+            }
+            return event
+        }
+        
+        // Global keyboard monitor (runs when other apps have focus)
+        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.modifierFlags.contains(.shift) && event.keyCode == 2 {
+                DispatchQueue.main.async {
+                    self?.presentChatPrompt()
+                }
+            }
+        }
+    }
+    
+    private func presentChatPrompt() {
+        guard let scene = scnView.scene as? PetScene else { return }
+        
+        // Temporarily activate the app to bring the alert dialog forward
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let alert = NSAlert()
+        alert.messageText = "Talk to your Desktop Pet"
+        alert.informativeText = "What do you want to say to your pet?"
+        
+        let inputTextField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        inputTextField.placeholderString = "Type message here..."
+        alert.accessoryView = inputTextField
+        
+        alert.addButton(withTitle: "Send")
+        alert.addButton(withTitle: "Cancel")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            let message = inputTextField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !message.isEmpty {
+                scene.sayToPet(message)
+            }
+        }
     }
     
     func checkMousePosition() {
