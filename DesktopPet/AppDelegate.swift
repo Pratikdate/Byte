@@ -89,10 +89,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "dog.fill", accessibilityDescription: "Desktop Pet")
+            button.image = NSImage(systemSymbolName: "pawprint.fill", accessibilityDescription: "Desktop Pet")
             // Fallback if symbol not available
             if button.image == nil {
-                button.title = "🤖"
+                button.title = "🐾"
             }
         }
         
