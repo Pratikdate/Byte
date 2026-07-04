@@ -221,7 +221,7 @@ class PetBrain {
     private var isQueryingAI = false
     
     init() {
-        stateMachine.enter(PetWanderState.self)
+        stateMachine.enter(PetIdleState.self) // Start idle — let AI decide what to do first
     }
     
     func queryAI() {
