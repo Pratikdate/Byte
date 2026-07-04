@@ -107,9 +107,15 @@ class PetWanderState: PetBaseState {
                 behavior.setWeight(1.0, for: GKGoal(toSeekAgent: targetAgent))
             }
         } else {
-            targetAction = nil
-            targetPoint = nil
-            behavior.setWeight(1.0, for: GKGoal(toWander: 2.0))
+            // Pick a random point far left or far right to walk across the screen
+            let worldX = Float.random(in: -14.0...14.0)
+            let worldY = Float.random(in: -5.0...5.0)
+            targetPoint = vector_float2(x: worldX, y: worldY)
+            targetAction = .wander // We still use wander as the string action
+            
+            let targetAgent = GKAgent2D()
+            targetAgent.position = targetPoint!
+            behavior.setWeight(1.0, for: GKGoal(toSeekAgent: targetAgent))
         }
         
         behavior.setWeight(0.5, for: GKGoal(toReachTargetSpeed: 1.0))

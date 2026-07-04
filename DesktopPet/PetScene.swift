@@ -250,7 +250,7 @@ class PetScene: SCNScene {
         }
         
         switch brain.currentAction {
-        case .wander:
+        case .wander, .investigate, .peekWindow, .sitOnTaskbar, .followCursor:
             // Agent is driving! Update physical position from agent
             petContainer.position.x = CGFloat(brain.agent.position.x)
             petContainer.position.y = CGFloat(brain.agent.position.y)
