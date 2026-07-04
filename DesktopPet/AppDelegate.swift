@@ -1,0 +1,105 @@
+import AppKit
+import SwiftUI
+import SceneKit
+import SpriteKit // For the 2D screen material
+
+class PetWindow: NSWindow {
+    override var canBecomeKey: Bool { return false }
+    override var canBecomeMain: Bool { return false }
+}
+
+class PetSCNView: SCNView {
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Only accept clicks if they actually hit the 3D pet model
+        let localPoint = convert(point, from: superview)
+        let hits = self.hitTest(localPoint, options: [:])
+        
+        // Ignore hits on the invisible SCNFloor (which is infinitely large)
+        let validHits = hits.filter { $0.node.geometry is SCNBox || $0.node.geometry is SCNPlane || $0.node.geometry is SCNCylinder }
+        
+        if validHits.isEmpty {
+            return nil // Click passes perfectly through to the desktop
+        }
+        
+        return super.hitTest(point)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        (scene as? PetScene)?.handleMouseDown(at: location, viewSize: bounds.size)
+    }
+    override func mouseDragged(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        (scene as? PetScene)?.handleMouseDragged(at: location, viewSize: bounds.size)
+    }
+    override func mouseUp(with event: NSEvent) {
+        (scene as? PetScene)?.handleMouseUp()
+    }
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var window: PetWindow!
+    var scnView: PetSCNView!
+    var updateTimer: Timer?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Create the transparent click-through overlay window
+        let screenRect = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+        
+        window = PetWindow(
+            contentRect: screenRect,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        
+        window.level = .floating // Always on top
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.ignoresMouseEvents = true // START COMPLETELY UNBLOCKING
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+        
+        // 3D SceneKit View
+        scnView = PetSCNView(frame: window.frame)
+        scnView.backgroundColor = .clear // Transparent background
+        scnView.antialiasingMode = .multisampling4X
+        scnView.autoenablesDefaultLighting = false
+        scnView.wantsLayer = true
+        scnView.layer?.isOpaque = false
+        
+        window.contentView = scnView
+        
+        let scene = PetScene()
+        scnView.scene = scene
+        scnView.isPlaying = true
+        
+        window.makeKeyAndOrderFront(nil)
+        
+        // Dynamically toggle click-through based on mouse position!
+        updateTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
+            self?.checkMousePosition()
+        }
+    }
+    
+    func checkMousePosition() {
+        guard let window = window, let scnView = scnView, let scene = scnView.scene as? PetScene else { return }
+        if scene.isDragging { return } // Never disable while dragging
+        
+        let mouseLoc = NSEvent.mouseLocation
+        let localPoint = window.convertPoint(fromScreen: mouseLoc)
+        let viewPoint = scnView.convert(localPoint, from: nil)
+        
+        let hits = scnView.hitTest(viewPoint, options: [:])
+        let validHits = hits.filter { $0.node.geometry is SCNBox || $0.node.geometry is SCNPlane || $0.node.geometry is SCNCylinder }
+        
+        if !validHits.isEmpty {
+            if window.ignoresMouseEvents {
+                window.ignoresMouseEvents = false
+            }
+        } else {
+            if !window.ignoresMouseEvents {
+                window.ignoresMouseEvents = true
+            }
+        }
+    }
+}
