@@ -48,9 +48,7 @@ class VoiceInputManager {
     func stopListening() {
         audioEngine.stop()
         recognitionRequest?.endAudio()
-        if audioEngine.inputNode.numberOfInputs > 0 {
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
+        audioEngine.inputNode.removeTap(onBus: 0)
         
         recognitionRequest = nil
         recognitionTask = nil
@@ -59,9 +57,7 @@ class VoiceInputManager {
     func finishListeningWithResult(completion: @escaping (String) -> Void) {
         audioEngine.stop()
         recognitionRequest?.endAudio()
-        if audioEngine.inputNode.numberOfInputs > 0 {
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
+        audioEngine.inputNode.removeTap(onBus: 0)
         
         // Give the speech recognizer 0.6 seconds to process the final words
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
@@ -78,6 +74,11 @@ class VoiceInputManager {
         recognitionTask = nil
         
         let inputNode = audioEngine.inputNode
+        
+        // CRITICAL FIX: Always explicitly remove any lingering tap before installing a new one 
+        // to prevent "nullptr == Tap()" crash!
+        inputNode.removeTap(onBus: 0)
+        
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
         guard let recognitionRequest = recognitionRequest else { return }
         recognitionRequest.shouldReportPartialResults = true
