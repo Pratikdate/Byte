@@ -34,11 +34,13 @@ class PetBaseState: GKState {
 class PetIdleState: PetBaseState {
     private var idleTime: TimeInterval = 0
     private var aiTimer: TimeInterval = 60.0 // Start high so it queries immediately on boot
+    private var nextWanderTime: TimeInterval = 0
     
     override func didEnter(from previousState: GKState?) {
         brain.currentAction = .idle
         brain.currentEmotion = .normal
         idleTime = 0
+        nextWanderTime = TimeInterval.random(in: 4...10) // Wander autonomously fairly often
         // We do NOT reset aiTimer here, so it resumes its 60s cooldown across states
         brain.agent.behavior = nil // Stop moving
     }
@@ -51,6 +53,10 @@ class PetIdleState: PetBaseState {
         if aiTimer > 60.0 {
             aiTimer = 0
             brain.queryAI()
+        } else if idleTime > nextWanderTime {
+            // Autonomously wander between API calls to stay active!
+            brain.currentAction = .wander
+            stateMachine?.enter(PetWanderState.self)
         }
     }
 }
