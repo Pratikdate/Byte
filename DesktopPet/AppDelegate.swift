@@ -84,102 +84,97 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupKeyboardShortcuts()
     }
     
-    private var shiftSHeld = false
+    private var isListening = false
+    private var isShiftDDown = false
     
     private func setupKeyboardShortcuts() {
         // Request macOS Accessibility permissions (needed to listen to global keystrokes)
         let options = ["AXTrustedCheckOptionPrompt" as NSString: true as NSNumber] as CFDictionary
-        let isTrusted = AXIsProcessTrustedWithOptions(options)
-        print("🔒 Accessibility Trusted Status: \(isTrusted)")
+        AXIsProcessTrustedWithOptions(options)
         
-        // Local keyboard monitor (runs when the app has focus)
+        // PUSH-TO-TALK: Hold Shift+D to record, release D to send.
+        // No popups — completely seamless.
+        
+        // keyDown: start listening when Shift+D is first pressed
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return event }
-            let isShift = event.modifierFlags.contains(.shift)
-            // Track S being held (keycode 1)
-            if isShift && event.keyCode == 1 { self.shiftSHeld = true }
-            // Shift+D = text chat (keycode 2)
-            if isShift && event.keyCode == 2 {
-                if self.shiftSHeld {
-                    // Shift+S+D = voice input
-                    self.shiftSHeld = false
-                    self.startVoiceInput()
-                } else {
-                    self.presentChatPrompt()
-                }
+            if event.modifierFlags.contains(.shift) && event.keyCode == 2 && !event.isARepeat {
+                self.beginListening()
                 return nil
             }
             return event
         }
         
+        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self = self else { return }
+            if event.modifierFlags.contains(.shift) && event.keyCode == 2 && !event.isARepeat {
+                DispatchQueue.main.async { self.beginListening() }
+            }
+        }
+        
+        // keyUp: release D key → stop listening and send transcript
         NSEvent.addLocalMonitorForEvents(matching: .keyUp) { [weak self] event in
-            if event.keyCode == 1 { self?.shiftSHeld = false }
+            guard let self = self else { return event }
+            if event.keyCode == 2 && self.isListening {
+                self.finishListening()
+                return nil
+            }
             return event
         }
         
-        // Global keyboard monitor (runs when other apps have focus)
-        NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        NSEvent.addGlobalMonitorForEvents(matching: .keyUp) { [weak self] event in
             guard let self = self else { return }
-            let isShift = event.modifierFlags.contains(.shift)
-            if isShift && event.keyCode == 1 { self.shiftSHeld = true }
-            if isShift && event.keyCode == 2 {
-                DispatchQueue.main.async {
-                    if self.shiftSHeld {
-                        self.shiftSHeld = false
-                        self.startVoiceInput()
-                    } else {
-                        self.presentChatPrompt()
-                    }
-                }
+            if event.keyCode == 2 && self.isListening {
+                DispatchQueue.main.async { self.finishListening() }
             }
         }
         
-        NSEvent.addGlobalMonitorForEvents(matching: .keyUp) { [weak self] event in
-            if event.keyCode == 1 { self?.shiftSHeld = false }
+        // Safety: if Shift is released mid-hold, also stop
+        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            guard let self = self else { return event }
+            if self.isListening && !event.modifierFlags.contains(.shift) {
+                self.finishListening()
+            }
+            return event
+        }
+        
+        NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+            guard let self = self else { return }
+            if self.isListening && !event.modifierFlags.contains(.shift) {
+                DispatchQueue.main.async { self.finishListening() }
+            }
         }
     }
     
-    private func presentChatPrompt() {
+    private func beginListening() {
+        guard !isListening else { return }
         guard let scene = scnView.scene as? PetScene else { return }
+        isListening = true
         
-        // Temporarily allow the window to accept keyboard focus
-        window.acceptsKey = true
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        // Pet shows it's listening
+        scene.showListeningState(true)
         
-        let alert = NSAlert()
-        alert.messageText = "Talk to your Desktop Pet"
-        alert.informativeText = "What do you want to say to your pet?"
+        VoiceInputManager.shared.startListening { _ in }
+    }
+    
+    private func finishListening() {
+        guard isListening else { return }
+        guard let scene = scnView.scene as? PetScene else { return }
+        isListening = false
         
-        let inputTextField = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        inputTextField.placeholderString = "Type message here..."
-        alert.accessoryView = inputTextField
+        scene.showListeningState(false)
         
-        alert.addButton(withTitle: "Send")
-        alert.addButton(withTitle: "Cancel")
+        let transcript = VoiceInputManager.shared.currentTranscript
+        VoiceInputManager.shared.stopListening()
         
-        // Set focus to input field once the alert is ready
-        DispatchQueue.main.async {
-            self.window.makeFirstResponder(inputTextField)
-        }
-        
-        let response = alert.runModal()
-        
-        // Reset window so it is click-through / ignores mouse and key events again
-        window.acceptsKey = false
-        window.ignoresMouseEvents = true
-        
-        if response == .alertFirstButtonReturn {
-            let message = inputTextField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !message.isEmpty {
-                scene.sayToPet(message)
-            }
+        if !transcript.isEmpty {
+            scene.sayToPet(transcript)
         }
     }
     
     func checkMousePosition() {
         guard let window = window, let scnView = scnView, let scene = scnView.scene as? PetScene else { return }
-        if scene.isDragging { return } // Never disable while dragging
+        if scene.isDragging { return }
         
         let mouseLoc = NSEvent.mouseLocation
         let localPoint = window.convertPoint(fromScreen: mouseLoc)
@@ -189,62 +184,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let validHits = hits.filter { $0.node.geometry is SCNBox || $0.node.geometry is SCNPlane || $0.node.geometry is SCNCylinder }
         
         if !validHits.isEmpty {
-            if window.ignoresMouseEvents {
-                window.ignoresMouseEvents = false
-            }
+            if window.ignoresMouseEvents { window.ignoresMouseEvents = false }
         } else {
-            if !window.ignoresMouseEvents {
-                window.ignoresMouseEvents = true
-            }
-        }
-    }
-    
-    private func startVoiceInput() {
-        guard let scene = scnView.scene as? PetScene else { return }
-        
-        // Show a "Listening..." alert while recording
-        window.acceptsKey = true
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        
-        let alert = NSAlert()
-        alert.messageText = "🎙️ Listening..."
-        alert.informativeText = "Speak now. Click Stop when done."
-        alert.addButton(withTitle: "Stop & Send")
-        alert.addButton(withTitle: "Cancel")
-        
-        // Pet reacts immediately
-        scene.sayToPet("I'm listening...")
-        
-        var finalTranscript = ""
-        
-        VoiceInputManager.shared.onTranscriptionUpdate = { text in
-            finalTranscript = text
-            // Update alert text in real time
-            DispatchQueue.main.async {
-                alert.informativeText = "🎤 \"\(text)\""
-            }
-        }
-        
-        VoiceInputManager.shared.startListening { success in
-            if !success {
-                DispatchQueue.main.async {
-                    let errAlert = NSAlert()
-                    errAlert.messageText = "Microphone permission denied"
-                    errAlert.informativeText = "Please enable Microphone access in System Settings > Privacy."
-                    errAlert.runModal()
-                }
-            }
-        }
-        
-        let response = alert.runModal()
-        VoiceInputManager.shared.stopListening()
-        
-        window.acceptsKey = false
-        window.ignoresMouseEvents = true
-        
-        if response == .alertFirstButtonReturn && !finalTranscript.isEmpty {
-            scene.sayToPet(finalTranscript)
+            if !window.ignoresMouseEvents { window.ignoresMouseEvents = true }
         }
     }
 }

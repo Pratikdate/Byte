@@ -718,6 +718,17 @@ class PetScene: SCNScene {
         brain.queryAI(userMessage: message)
     }
     
+    func showListeningState(_ listening: Bool) {
+        if listening {
+            applyEmotion(.curious)
+            speechBubble.removeAllActions()
+            speechBubble.text = "🎤 Listening..."
+            speechBubble.alpha = 1.0
+        } else {
+            speechBubble.text = "🤔 Thinking..."
+        }
+    }
+    
     // MARK: - Event Handling for Drag
     private var isActuallyDragged = false
     
@@ -754,6 +765,15 @@ class PetScene: SCNScene {
         isActuallyDragged = false
         brain.setDragged(true)
         applyEmotion(.angry)
+        
+        // CRITICAL: Stop all running animations immediately!
+        // The walk stepMovement action fights with drag position updates,
+        // causing legs to visually separate from the body.
+        stopAll()
+        isWalking = false
+        // Reset legs to neutral hanging position
+        leftLeg.eulerAngles = SCNVector3Zero
+        rightLeg.eulerAngles = SCNVector3Zero
         
         let ratioX = (location.x / viewSize.width) - 0.5
         let ratioY = (location.y / viewSize.height) - 0.5

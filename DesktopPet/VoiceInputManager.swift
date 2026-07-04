@@ -12,8 +12,10 @@ class VoiceInputManager {
     
     var onTranscriptionUpdate: ((String) -> Void)?
     var onFinishedTranscribing: ((String) -> Void)?
+    private(set) var currentTranscript: String = ""
     
     func startListening(completion: @escaping (Bool) -> Void) {
+        currentTranscript = "" // Reset on new session
         // Request Speech Recognition permission
         SFSpeechRecognizer.requestAuthorization { authStatus in
             DispatchQueue.main.async {
@@ -73,6 +75,7 @@ class VoiceInputManager {
         recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
             if let result = result {
                 let transcription = result.bestTranscription.formattedString
+                self.currentTranscript = transcription
                 self.onTranscriptionUpdate?(transcription)
                 
                 if result.isFinal {
