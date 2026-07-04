@@ -265,7 +265,11 @@ class PetScene: SCNScene {
             let vy = CGFloat(brain.agent.velocity.y)
             
             if abs(vx) > 0.1 || abs(vy) > 0.1 {
-                let targetAngleY: CGFloat = vx >= 0 ? (.pi / 2) : (-.pi / 2)
+                // Use .pi / 4 (45 degrees) instead of .pi / 2 (90 degrees).
+                // This creates a 3/4 isometric perspective! Since the camera uses orthographic projection,
+                // a perfect 90 degree turn makes the left and right legs overlap exactly and look glitchy.
+                // At 45 degrees, you can see the face, the side, and BOTH legs swinging clearly!
+                let targetAngleY: CGFloat = vx >= 0 ? (.pi / 4) : (-.pi / 4)
                 
                 // Slow down if turn is sharp to simulate a pivot before walking
                 let angleDiff = abs(targetAngleY - petContainer.eulerAngles.y)
