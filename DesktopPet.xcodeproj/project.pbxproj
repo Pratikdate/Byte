@@ -7,97 +7,100 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		180EF78D75F9095E0D0F62BE /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 02FEB36CF3FAF93FE2BE5045 /* Cocoa.framework */; };
-		572FE8FBEACDCB85F85E6E77 /* DesktopEnvironmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5FB1C94EEC633E3A0A744B3 /* DesktopEnvironmentManager.swift */; };
-		5E7D8EBEF631C545DC09CCBB /* EnvironmentMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA928CADB2907659845B7C2A /* EnvironmentMonitor.swift */; };
-		ACF94AC5E396A45FB523ECCE /* DesktopPetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06C6CC9513739A905C0C8B0 /* DesktopPetApp.swift */; };
-		B4F327B2915F5873CB9FEBC5 /* PetScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C61EE1C2AE9A4E926EF82B3 /* PetScene.swift */; };
-		D203CC601EF9B5F169222927 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A368A906A5E8D62656D782D3 /* AppDelegate.swift */; };
-		F2C2274652CAEEDD57EDE87E /* PetBrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C32FD74F7F26EA29AC43DC6 /* PetBrain.swift */; };
+		2442F98B8875151D31FAC3E7 /* PetScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330F93A8A6C1F041603F22B9 /* PetScene.swift */; };
+		3A467A195077AC259C5FDA4B /* EnvironmentMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED488F29515D6F8F656B23C /* EnvironmentMonitor.swift */; };
+		412825B1A6574AAC42469AA8 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 876CB15E9530806E4E89BA7A /* Cocoa.framework */; };
+		5C5A4371C7C7AD0C2198E386 /* DesktopEnvironmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29B47E975927BDC63809CED6 /* DesktopEnvironmentManager.swift */; };
+		65F48B9BA47C0FF92860E566 /* DesktopPetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5149C488C595BF2D5CD5020C /* DesktopPetApp.swift */; };
+		D2E1F9FBEE3196F16F52E19E /* PetBrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5BDE1A5345D2905D2E1C3B2 /* PetBrain.swift */; };
+		FC04256D1D295C2EDFC9922B /* AIEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF6CC1C9A988569D994DD4C /* AIEngine.swift */; };
+		FCFE6983DB1D79241BCFDDB8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A3F5505318DC72EA7657D2 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		02FEB36CF3FAF93FE2BE5045 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
-		2C32FD74F7F26EA29AC43DC6 /* PetBrain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PetBrain.swift; sourceTree = "<group>"; };
-		3C61EE1C2AE9A4E926EF82B3 /* PetScene.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PetScene.swift; sourceTree = "<group>"; };
-		443ECB8939527632CB19A8FC /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		6FD8E92F98DAFF85FAD024B1 /* DesktopPet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DesktopPet.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A06C6CC9513739A905C0C8B0 /* DesktopPetApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopPetApp.swift; sourceTree = "<group>"; };
-		A368A906A5E8D62656D782D3 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		C5FB1C94EEC633E3A0A744B3 /* DesktopEnvironmentManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopEnvironmentManager.swift; sourceTree = "<group>"; };
-		EA928CADB2907659845B7C2A /* EnvironmentMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnvironmentMonitor.swift; sourceTree = "<group>"; };
+		29B47E975927BDC63809CED6 /* DesktopEnvironmentManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopEnvironmentManager.swift; sourceTree = "<group>"; };
+		330F93A8A6C1F041603F22B9 /* PetScene.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PetScene.swift; sourceTree = "<group>"; };
+		412CAA980B4828D3C2E551D0 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5149C488C595BF2D5CD5020C /* DesktopPetApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopPetApp.swift; sourceTree = "<group>"; };
+		6ED488F29515D6F8F656B23C /* EnvironmentMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnvironmentMonitor.swift; sourceTree = "<group>"; };
+		876CB15E9530806E4E89BA7A /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
+		A5BDE1A5345D2905D2E1C3B2 /* PetBrain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PetBrain.swift; sourceTree = "<group>"; };
+		C7A3F5505318DC72EA7657D2 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		DBF6CC1C9A988569D994DD4C /* AIEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AIEngine.swift; sourceTree = "<group>"; };
+		E8B6C54E2048EC3CB99972A3 /* DesktopPet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DesktopPet.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		EE313384A46F0D57BC82130F /* Frameworks */ = {
+		9747ADCD7662E0CB84BA147E /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				180EF78D75F9095E0D0F62BE /* Cocoa.framework in Frameworks */,
+				412825B1A6574AAC42469AA8 /* Cocoa.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		2AE0687A4DA30F78E37DC4A6 = {
+		3B96E20D48CF8308FE98299C /* DesktopPet */ = {
 			isa = PBXGroup;
 			children = (
-				BB6109A0D2017D7281A2C961 /* Products */,
-				413632DFFB5A30C6D21BB89E /* Frameworks */,
-				68FD126F7D719DE9F21E9853 /* DesktopPet */,
-			);
-			sourceTree = "<group>";
-		};
-		4127EFF99284EDE775D17493 /* OS X */ = {
-			isa = PBXGroup;
-			children = (
-				02FEB36CF3FAF93FE2BE5045 /* Cocoa.framework */,
-			);
-			name = "OS X";
-			sourceTree = "<group>";
-		};
-		413632DFFB5A30C6D21BB89E /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				4127EFF99284EDE775D17493 /* OS X */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		68FD126F7D719DE9F21E9853 /* DesktopPet */ = {
-			isa = PBXGroup;
-			children = (
-				443ECB8939527632CB19A8FC /* Info.plist */,
-				3C61EE1C2AE9A4E926EF82B3 /* PetScene.swift */,
-				C5FB1C94EEC633E3A0A744B3 /* DesktopEnvironmentManager.swift */,
-				A368A906A5E8D62656D782D3 /* AppDelegate.swift */,
-				A06C6CC9513739A905C0C8B0 /* DesktopPetApp.swift */,
-				EA928CADB2907659845B7C2A /* EnvironmentMonitor.swift */,
-				2C32FD74F7F26EA29AC43DC6 /* PetBrain.swift */,
+				412CAA980B4828D3C2E551D0 /* Info.plist */,
+				DBF6CC1C9A988569D994DD4C /* AIEngine.swift */,
+				330F93A8A6C1F041603F22B9 /* PetScene.swift */,
+				29B47E975927BDC63809CED6 /* DesktopEnvironmentManager.swift */,
+				C7A3F5505318DC72EA7657D2 /* AppDelegate.swift */,
+				5149C488C595BF2D5CD5020C /* DesktopPetApp.swift */,
+				6ED488F29515D6F8F656B23C /* EnvironmentMonitor.swift */,
+				A5BDE1A5345D2905D2E1C3B2 /* PetBrain.swift */,
 			);
 			name = DesktopPet;
 			path = DesktopPet;
 			sourceTree = "<group>";
 		};
-		BB6109A0D2017D7281A2C961 /* Products */ = {
+		5ECF268C106925E28CB658FD = {
 			isa = PBXGroup;
 			children = (
-				6FD8E92F98DAFF85FAD024B1 /* DesktopPet.app */,
+				A41BBFE93969C09D0F0FF4C8 /* Products */,
+				7D0DE7948AF819652D66EF8B /* Frameworks */,
+				3B96E20D48CF8308FE98299C /* DesktopPet */,
+			);
+			sourceTree = "<group>";
+		};
+		7D0DE7948AF819652D66EF8B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BF6B0C7E4AE20042E41224C1 /* OS X */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A41BBFE93969C09D0F0FF4C8 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E8B6C54E2048EC3CB99972A3 /* DesktopPet.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		BF6B0C7E4AE20042E41224C1 /* OS X */ = {
+			isa = PBXGroup;
+			children = (
+				876CB15E9530806E4E89BA7A /* Cocoa.framework */,
+			);
+			name = "OS X";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		BB7EC679F3BDDF180B486449 /* DesktopPet */ = {
+		8E5FACCD238330DCA5D16C78 /* DesktopPet */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 14D119A2139D954DDA6BDC98 /* Build configuration list for PBXNativeTarget "DesktopPet" */;
+			buildConfigurationList = DCB530C5CB9ECA40E79F79CC /* Build configuration list for PBXNativeTarget "DesktopPet" */;
 			buildPhases = (
-				CEFF2A3C26633F23FF7C5928 /* Sources */,
-				EE313384A46F0D57BC82130F /* Frameworks */,
-				02821CB0D12DECA6F8B587A7 /* Resources */,
+				47247ACB097A42DD68570AE3 /* Sources */,
+				9747ADCD7662E0CB84BA147E /* Frameworks */,
+				B2A0ADA0B3A23F31E4E645AA /* Resources */,
 			);
 			buildRules = (
 			);
@@ -105,19 +108,19 @@
 			);
 			name = DesktopPet;
 			productName = DesktopPet;
-			productReference = 6FD8E92F98DAFF85FAD024B1 /* DesktopPet.app */;
+			productReference = E8B6C54E2048EC3CB99972A3 /* DesktopPet.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		F2DF0BD5942EBB65904FD059 /* Project object */ = {
+		37000A07D2D22564FC0BF8E1 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 			};
-			buildConfigurationList = 9A5E6C9D7876711A6882B704 /* Build configuration list for PBXProject "DesktopPet" */;
+			buildConfigurationList = 8FE1C1BA2D3DC8F1552C9A2D /* Build configuration list for PBXProject "DesktopPet" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -125,20 +128,20 @@
 				en,
 				Base,
 			);
-			mainGroup = 2AE0687A4DA30F78E37DC4A6;
+			mainGroup = 5ECF268C106925E28CB658FD;
 			minimizedProjectReferenceProxies = 0;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = BB6109A0D2017D7281A2C961 /* Products */;
+			productRefGroup = A41BBFE93969C09D0F0FF4C8 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				BB7EC679F3BDDF180B486449 /* DesktopPet */,
+				8E5FACCD238330DCA5D16C78 /* DesktopPet */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		02821CB0D12DECA6F8B587A7 /* Resources */ = {
+		B2A0ADA0B3A23F31E4E645AA /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -148,77 +151,24 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		CEFF2A3C26633F23FF7C5928 /* Sources */ = {
+		47247ACB097A42DD68570AE3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B4F327B2915F5873CB9FEBC5 /* PetScene.swift in Sources */,
-				572FE8FBEACDCB85F85E6E77 /* DesktopEnvironmentManager.swift in Sources */,
-				D203CC601EF9B5F169222927 /* AppDelegate.swift in Sources */,
-				ACF94AC5E396A45FB523ECCE /* DesktopPetApp.swift in Sources */,
-				5E7D8EBEF631C545DC09CCBB /* EnvironmentMonitor.swift in Sources */,
-				F2C2274652CAEEDD57EDE87E /* PetBrain.swift in Sources */,
+				FC04256D1D295C2EDFC9922B /* AIEngine.swift in Sources */,
+				2442F98B8875151D31FAC3E7 /* PetScene.swift in Sources */,
+				5C5A4371C7C7AD0C2198E386 /* DesktopEnvironmentManager.swift in Sources */,
+				FCFE6983DB1D79241BCFDDB8 /* AppDelegate.swift in Sources */,
+				65F48B9BA47C0FF92860E566 /* DesktopPetApp.swift in Sources */,
+				3A467A195077AC259C5FDA4B /* EnvironmentMonitor.swift in Sources */,
+				D2E1F9FBEE3196F16F52E19E /* PetBrain.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		CA3E8BA8D484B6D4E574B18F /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		D0DFB0FE0D8E94E2CD80BAE4 /* Release */ = {
+		226DE62EFD6771EE1CB68F1B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -233,22 +183,7 @@
 			};
 			name = Release;
 		};
-		E312933C2F228B3640D08781 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = DesktopPet/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.DesktopPet;
-				SDKROOT = macosx;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		F8A61CA3290BF622242E5AFE /* Debug */ = {
+		6BC828F4A230C8CB6FC77FD8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -309,28 +244,97 @@
 			};
 			name = Debug;
 		};
+		D7EAEB11005707B1991D2BBC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = DesktopPet/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DesktopPet;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E8D1E9A242E65DA7A1F0629A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		14D119A2139D954DDA6BDC98 /* Build configuration list for PBXNativeTarget "DesktopPet" */ = {
+		8FE1C1BA2D3DC8F1552C9A2D /* Build configuration list for PBXProject "DesktopPet" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				D0DFB0FE0D8E94E2CD80BAE4 /* Release */,
-				E312933C2F228B3640D08781 /* Debug */,
+				6BC828F4A230C8CB6FC77FD8 /* Debug */,
+				E8D1E9A242E65DA7A1F0629A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		9A5E6C9D7876711A6882B704 /* Build configuration list for PBXProject "DesktopPet" */ = {
+		DCB530C5CB9ECA40E79F79CC /* Build configuration list for PBXNativeTarget "DesktopPet" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F8A61CA3290BF622242E5AFE /* Debug */,
-				CA3E8BA8D484B6D4E574B18F /* Release */,
+				226DE62EFD6771EE1CB68F1B /* Release */,
+				D7EAEB11005707B1991D2BBC /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = F2DF0BD5942EBB65904FD059 /* Project object */;
+	rootObject = 37000A07D2D22564FC0BF8E1 /* Project object */;
 }

@@ -41,6 +41,10 @@ class PetScene: SCNScene {
         setup3DRobot()
         startIdleAnimation()
         
+        brain.onThoughtGenerated = { [weak self] thought in
+            self?.say(thought)
+        }
+        
         // Setup Update Loop
         let updateNode = SCNNode()
         self.rootNode.addChildNode(updateNode)

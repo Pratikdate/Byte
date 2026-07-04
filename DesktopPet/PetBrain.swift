@@ -33,31 +33,24 @@ class PetBaseState: GKState {
 
 class PetIdleState: PetBaseState {
     private var idleTime: TimeInterval = 0
-    private var maxIdleTime: TimeInterval = 0
+    private var aiTimer: TimeInterval = 0
     
     override func didEnter(from previousState: GKState?) {
         brain.currentAction = .idle
         brain.currentEmotion = .normal
         idleTime = 0
-        maxIdleTime = TimeInterval.random(in: 4...10)
+        aiTimer = 0
         brain.agent.behavior = nil // Stop moving
     }
     
     override func update(deltaTime seconds: TimeInterval) {
         idleTime += seconds
+        aiTimer += seconds
         
-        // Randomly look around or sit
-        if Int.random(in: 0...1000) > 990 {
-            brain.currentAction = .sit
-            brain.currentEmotion = .happy
-        }
-        
-        if idleTime > maxIdleTime {
-            if brain.energy < 20 {
-                stateMachine?.enter(PetSleepState.self)
-            } else {
-                stateMachine?.enter(PetWanderState.self)
-            }
+        // Every 10 seconds, ask the AI what to do
+        if aiTimer > 10.0 {
+            aiTimer = 0
+            brain.queryAI()
         }
     }
 }
@@ -223,10 +216,70 @@ class PetBrain {
     var currentEmotion: PetEmotion = .normal
     var isBeingDragged = false
     
+    var onThoughtGenerated: ((String) -> Void)?
+    
     private var lastTickTime: TimeInterval = 0
+    private var isQueryingAI = false
     
     init() {
         stateMachine.enter(PetIdleState.self)
+    }
+    
+    func queryAI() {
+        guard !isQueryingAI else { return }
+        isQueryingAI = true
+        
+        let envManager = DesktopEnvironmentManager.shared
+        var context = "Visible Windows: "
+        for el in envManager.visibleElements where el.type == .window {
+            context += "\(el.title), "
+        }
+        if envManager.visibleElements.contains(where: { $0.type == .taskbar }) {
+            context += "Taskbar/Dock is visible. "
+        }
+        context += "Current Energy: \(Int(energy)). Current Emotion: \(currentEmotion)."
+        
+        AIEngine.shared.decideNextMove(context: context) { [weak self] decision in
+            DispatchQueue.main.async {
+                self?.isQueryingAI = false
+                guard let self = self, let decision = decision else { return }
+                
+                self.applyDecision(decision)
+            }
+        }
+    }
+    
+    private func applyDecision(_ decision: AIPetDecision) {
+        if let thought = decision.thought as String?, !thought.isEmpty {
+            self.onThoughtGenerated?(thought)
+        }
+        
+        // Map strings to Enums
+        switch decision.emotion.lowercased() {
+        case "happy": currentEmotion = .happy
+        case "sad": currentEmotion = .sad
+        case "sleepy": currentEmotion = .sleepy
+        case "excited": currentEmotion = .excited
+        case "curious": currentEmotion = .curious
+        case "bored": currentEmotion = .bored
+        case "thinking": currentEmotion = .thinking
+        default: currentEmotion = .normal
+        }
+        
+        switch decision.action.lowercased() {
+        case "wander": stateMachine.enter(PetWanderState.self)
+        case "peekwindow":
+            currentAction = .peekWindow
+            stateMachine.enter(PetWanderState.self) // Let wander handle pathing
+        case "sitontaskbar":
+            currentAction = .sitOnTaskbar
+            stateMachine.enter(PetWanderState.self)
+        case "sleep": stateMachine.enter(PetSleepState.self)
+        case "jump": currentAction = .jump
+        case "spin": currentAction = .spin
+        case "idle": stateMachine.enter(PetIdleState.self)
+        default: break
+        }
     }
     
     func tick(currentTime: TimeInterval, cursorMoved: Bool) -> (action: PetAction, emotion: PetEmotion, changed: Bool) {
