@@ -651,12 +651,17 @@ class PetScene: SCNScene {
         
         leftLeg.runAction(SCNAction.rotateTo(x: 0, y: 0, z: 0.2, duration: 0.2))
         rightLeg.runAction(SCNAction.rotateTo(x: 0, y: 0, z: -0.2, duration: 0.2))
-        leftLeg.runAction(SCNAction.moveBy(x: 0, y: -0.5, z: 0, duration: 0.2))
-        rightLeg.runAction(SCNAction.moveBy(x: 0, y: -0.5, z: 0, duration: 0.2))
+        // REMOVED moveBy(y: -0.5) to prevent legs from stretching and permanently drifting
     }
     
     private func startDropAnimation() {
         stopAll()
+        // Reset legs strictly back to neutral position in case dangling altered them
+        leftLeg.position = SCNVector3(-0.55, -1.6, 0)
+        rightLeg.position = SCNVector3(0.55, -1.6, 0)
+        leftLeg.eulerAngles = SCNVector3Zero
+        rightLeg.eulerAngles = SCNVector3Zero
+        
         let bounceUp = SCNAction.moveBy(x: 0, y: 0.5, z: 0, duration: 0.15)
         let bounceDown = SCNAction.moveBy(x: 0, y: -0.5, z: 0, duration: 0.15)
         bounceUp.timingMode = .easeOut; bounceDown.timingMode = .easeIn
