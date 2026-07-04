@@ -198,4 +198,53 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
+    
+    private func startVoiceInput() {
+        guard let scene = scnView.scene as? PetScene else { return }
+        
+        // Show a "Listening..." alert while recording
+        window.acceptsKey = true
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        
+        let alert = NSAlert()
+        alert.messageText = "🎙️ Listening..."
+        alert.informativeText = "Speak now. Click Stop when done."
+        alert.addButton(withTitle: "Stop & Send")
+        alert.addButton(withTitle: "Cancel")
+        
+        // Pet reacts immediately
+        scene.sayToPet("I'm listening...")
+        
+        var finalTranscript = ""
+        
+        VoiceInputManager.shared.onTranscriptionUpdate = { text in
+            finalTranscript = text
+            // Update alert text in real time
+            DispatchQueue.main.async {
+                alert.informativeText = "🎤 \"\(text)\""
+            }
+        }
+        
+        VoiceInputManager.shared.startListening { success in
+            if !success {
+                DispatchQueue.main.async {
+                    let errAlert = NSAlert()
+                    errAlert.messageText = "Microphone permission denied"
+                    errAlert.informativeText = "Please enable Microphone access in System Settings > Privacy."
+                    errAlert.runModal()
+                }
+            }
+        }
+        
+        let response = alert.runModal()
+        VoiceInputManager.shared.stopListening()
+        
+        window.acceptsKey = false
+        window.ignoresMouseEvents = true
+        
+        if response == .alertFirstButtonReturn && !finalTranscript.isEmpty {
+            scene.sayToPet(finalTranscript)
+        }
+    }
 }
