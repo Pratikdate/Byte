@@ -274,12 +274,12 @@ class PetScene: SCNScene {
                 // Slow down if turn is sharp to simulate a pivot before walking
                 let angleDiff = abs(targetAngleY - petContainer.eulerAngles.y)
                 if angleDiff > 0.5 {
-                    brain.agent.maxSpeed = 1.0 // Slow pivot
+                    brain.agent.maxSpeed = 1.5 // Slow pivot / turn
                 } else {
-                    // Adjust speed based on emotion (Reduced speeds)
-                    var speed: Float = 4.0
-                    if brain.currentEmotion == .happy { speed = 5.5 }
-                    if brain.currentEmotion == .sad || brain.currentEmotion == .sleepy { speed = 2.0 }
+                    // Match agent maxSpeed to the emotion-specific walk pace
+                    var speed: Float = 3.5
+                    if brain.currentEmotion == .happy || brain.currentEmotion == .excited { speed = 5.0 }
+                    if brain.currentEmotion == .sad || brain.currentEmotion == .sleepy { speed = 1.8 }
                     brain.agent.maxSpeed = speed
                 }
                 
@@ -499,54 +499,59 @@ class PetScene: SCNScene {
     private func startWalkAnimation() {
         stopAll()
         
-        var duration: TimeInterval = 0.4
-        var bounceHeight: CGFloat = 0.25
-        var headWobble: CGFloat = 0.2
+        // Step duration controls how fast legs swing — match it to agent speed!
+        // Agent moves at ~3.5 units/s. One step covers ~1.2 units → step takes ~0.34s.
+        var stepDuration: TimeInterval = 0.30  // One full leg swing (forward or back)
+        var bounceHeight: CGFloat = 0.18
+        var headWobble: CGFloat = 0.18
+        var swingAngle: CGFloat = 0.75  // Leg swing arc in radians
         
         switch brain.currentEmotion {
         case .happy:
-            duration *= 0.7
-            bounceHeight = 0.4
+            stepDuration = 0.22
+            bounceHeight = 0.30
+            swingAngle = 0.9
         case .sad:
-            duration *= 1.5
-            bounceHeight = 0.05
+            stepDuration = 0.50
+            bounceHeight = 0.06
             headWobble = 0.05
+            swingAngle = 0.5
         case .sleepy:
-            duration *= 1.5
-            bounceHeight = 0.1
+            stepDuration = 0.55
+            bounceHeight = 0.08
+            swingAngle = 0.45
         case .excited:
-            duration *= 0.5
-            bounceHeight = 0.5
+            stepDuration = 0.18
+            bounceHeight = 0.40
+            swingAngle = 1.0
         case .curious:
-            headWobble = 0.4
+            headWobble = 0.35
         default: break
         }
         
-        let halfStep = duration / 2.0
+        let halfStep = stepDuration / 2.0
         
-        // --- HEAD ANIMATION ---
+        // --- HEAD BOB (one full cycle = two steps = up+down) ---
         let bobUp = SCNAction.moveBy(x: 0, y: bounceHeight, z: 0, duration: halfStep)
         bobUp.timingMode = .easeOut
         let bobDown = SCNAction.moveBy(x: 0, y: -bounceHeight, z: 0, duration: halfStep)
         bobDown.timingMode = .easeIn
         headNode.runAction(SCNAction.repeatForever(SCNAction.sequence([bobUp, bobDown])))
         
-        let leanRight = SCNAction.rotateTo(x: 0, y: 0, z: -headWobble, duration: duration)
-        let leanLeft = SCNAction.rotateTo(x: 0, y: 0, z: headWobble, duration: duration)
+        let leanRight = SCNAction.rotateTo(x: 0, y: 0, z: -headWobble, duration: stepDuration)
+        let leanLeft = SCNAction.rotateTo(x: 0, y: 0, z: headWobble, duration: stepDuration)
         leanRight.timingMode = .easeInEaseOut
         leanLeft.timingMode = .easeInEaseOut
         headNode.runAction(SCNAction.repeatForever(SCNAction.sequence([leanRight, leanLeft])))
         
-        // --- ALTERNATING PENDULUM WALK CYCLE ---
-        // With pivots set to the top of the legs, we just rotate them forward/backward!
-        let swingRot: CGFloat = 0.8
-        
-        let swingForward = SCNAction.rotateTo(x: swingRot, y: 0, z: 0, duration: duration)
+        // --- ALTERNATING PENDULUM LEGS ---
+        // Legs pivot at the top — swing forward then backward each step.
+        let swingForward = SCNAction.rotateTo(x: swingAngle, y: 0, z: 0, duration: stepDuration)
         swingForward.timingMode = .easeInEaseOut
-        
-        let swingBackward = SCNAction.rotateTo(x: -swingRot, y: 0, z: 0, duration: duration)
+        let swingBackward = SCNAction.rotateTo(x: -swingAngle, y: 0, z: 0, duration: stepDuration)
         swingBackward.timingMode = .easeInEaseOut
         
+        // Left starts forward, right starts backward — perfect alternating gait!
         leftLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([swingForward, swingBackward])))
         rightLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([swingBackward, swingForward])))
     }
