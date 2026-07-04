@@ -33,13 +33,13 @@ class PetBaseState: GKState {
 
 class PetIdleState: PetBaseState {
     private var idleTime: TimeInterval = 0
-    private var aiTimer: TimeInterval = 0
+    private var aiTimer: TimeInterval = 60.0 // Start high so it queries immediately on boot
     
     override func didEnter(from previousState: GKState?) {
         brain.currentAction = .idle
         brain.currentEmotion = .normal
         idleTime = 0
-        aiTimer = 0
+        // We do NOT reset aiTimer here, so it resumes its 60s cooldown across states
         brain.agent.behavior = nil // Stop moving
     }
     
@@ -222,7 +222,7 @@ class PetBrain {
     private var isQueryingAI = false
     
     init() {
-        stateMachine.enter(PetIdleState.self)
+        stateMachine.enter(PetWanderState.self)
     }
     
     func queryAI() {
