@@ -141,30 +141,38 @@ class PetScene: SCNScene {
         rightHeadphone.eulerAngles = SCNVector3(0, 0, CGFloat.pi / 2)
         headNode.addChildNode(rightHeadphone)
         
-        // TINY LEGS
-        let legGeo = SCNBox(width: 0.6, height: 0.8, length: 0.6, chamferRadius: 0.1)
+        // LEGS — built as pivot node (hip) + geometry child below it
+        // This means eulerAngles rotation swings the whole leg+shoe from the hip.
+        let legGeo = SCNBox(width: 0.6, height: 1.0, length: 0.6, chamferRadius: 0.12)
         legGeo.materials = [darkMaterial]
         
-        leftLeg = SCNNode(geometry: legGeo)
-        leftLeg.pivot = SCNMatrix4MakeTranslation(0, 0.4, 0) // Pivot at top of leg
-        leftLeg.position = SCNVector3(-0.8, -1.5, 0) // Shifted up by 0.4 to compensate
+        leftLeg = SCNNode() // This is the HIP pivot node
+        leftLeg.position = SCNVector3(-0.8, -1.3, 0) // Position at the hip
         petContainer.addChildNode(leftLeg)
         
-        rightLeg = SCNNode(geometry: legGeo)
-        rightLeg.pivot = SCNMatrix4MakeTranslation(0, 0.4, 0)
-        rightLeg.position = SCNVector3(0.8, -1.5, 0)
+        let leftLegGeom = SCNNode(geometry: legGeo)
+        leftLegGeom.position = SCNVector3(0, -0.5, 0) // Hang down from hip by half leg height
+        leftLeg.addChildNode(leftLegGeom)
+        
+        rightLeg = SCNNode() // This is the HIP pivot node
+        rightLeg.position = SCNVector3(0.8, -1.3, 0)
         petContainer.addChildNode(rightLeg)
         
-        // TINY SHOES
+        let rightLegGeom = SCNNode(geometry: legGeo)
+        rightLegGeom.position = SCNVector3(0, -0.5, 0)
+        rightLeg.addChildNode(rightLegGeom)
+        
+        // SHOES — attached to leg geometry, hanging at the bottom
         let shoeGeo = SCNBox(width: 1.4, height: 0.3, length: 1.8, chamferRadius: 0.1)
         shoeGeo.materials = [shellMaterial]
+        
         let leftShoe = SCNNode(geometry: shoeGeo)
-        leftShoe.position = SCNVector3(0, -0.4, 0.4)
-        leftLeg.addChildNode(leftShoe)
+        leftShoe.position = SCNVector3(0, -0.55, 0.4) // Bottom of leg, poke forward
+        leftLegGeom.addChildNode(leftShoe)
         
         let rightShoe = SCNNode(geometry: shoeGeo)
-        rightShoe.position = SCNVector3(0, -0.4, 0.4)
-        rightLeg.addChildNode(rightShoe)
+        rightShoe.position = SCNVector3(0, -0.55, 0.4)
+        rightLegGeom.addChildNode(rightShoe)
         
         // SCREEN & GLOWING EYES (2D SKScene wrapped onto 3D)
         setupScreen()
@@ -458,9 +466,7 @@ class PetScene: SCNScene {
         
         headNode.position.y = 0
         headNode.eulerAngles = SCNVector3(0, 0, 0)
-        leftLeg.position = SCNVector3(-0.8, -1.5, 0)
         leftLeg.eulerAngles = SCNVector3(0, 0, 0)
-        rightLeg.position = SCNVector3(0.8, -1.5, 0)
         rightLeg.eulerAngles = SCNVector3(0, 0, 0)
     }
     

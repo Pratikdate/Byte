@@ -229,14 +229,25 @@ class PetBrain {
         isQueryingAI = true
         
         let envManager = DesktopEnvironmentManager.shared
-        var context = "Visible Windows: "
+        
+        // Get the frontmost app name via Accessibility API
+        var frontApp = "Desktop"
+        if let frontmostApp = NSWorkspace.shared.frontmostApplication {
+            frontApp = frontmostApp.localizedName ?? "Desktop"
+        }
+        
+        var windowList: [String] = []
         for el in envManager.visibleElements where el.type == .window {
-            context += "\(el.title), "
+            if let title = el.title, !title.isEmpty { windowList.append(title) }
         }
-        if envManager.visibleElements.contains(where: { $0.type == .taskbar }) {
-            context += "Taskbar/Dock is visible. "
+        let hasDock = envManager.visibleElements.contains(where: { $0.type == .taskbar })
+        
+        var context = "Active app: \(frontApp)."
+        if !windowList.isEmpty {
+            context += " Open windows: \(windowList.prefix(3).joined(separator: ", "))."
         }
-        context += "Current Energy: \(Int(energy)). Current Emotion: \(currentEmotion)."
+        if hasDock { context += " Dock is visible." }
+        context += " Energy: \(Int(energy)). Mood: \(currentEmotion)."
         
         AIEngine.shared.decideNextMove(context: context) { [weak self] decision in
             DispatchQueue.main.async {

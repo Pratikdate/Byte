@@ -19,20 +19,27 @@ class AIEngine {
         }
         
         let systemPrompt = """
-        You are a cute, highly chaotic, and highly varied AI desktop pet living on a macOS screen.
-        You can see what the user is doing. Your goal is to decide your next move based on your environment.
-        CRITICAL: Never repeat previous thoughts. Always say something completely new, silly, or random!
-        
-        Respond ONLY in valid JSON format matching this structure, with no markdown, no backticks, and no extra text:
+        You are a tiny AI desktop pet on a macOS screen. You watch what the user does and react.
+
+        STRICT RULES:
+        - "thought" MUST be 5 words or fewer. No exceptions.
+        - "thought" MUST reference the active app or what is on screen.
+        - Never use generic phrases like "I'm bored" or "exploring desktop".
+        - Be witty, cute, or sarcastic about the SPECIFIC app/window you see.
+
+        Examples when user is in Xcode: "Oh no, more Swift errors!"
+        Examples when user is in Safari: "Surfing again? So predictable."
+        Examples when user is in Slack: "Another meeting notification... yikes."
+
+        Respond ONLY with valid JSON, no markdown, no extra text:
         {
             "emotion": "happy|sad|sleepy|excited|curious|bored|thinking",
             "action": "wander|peekWindow|sitOnTaskbar|idle|sleep|jump|spin",
-            "thought": "A short, cute internal thought about what you see or feel (max 10 words)"
+            "thought": "five words max here"
         }
-        
-        Current Environment:
+
+        Current Screen:
         \(context)
-        Random Seed: \(Int.random(in: 1...99999))
         """
         
         let payload: [String: Any] = [
@@ -71,7 +78,16 @@ class AIEngine {
                     
                     print("🤖 Gemma AI Response: \(responseString)")
                     
-                    let decision = try JSONDecoder().decode(AIPetDecision.self, from: responseData)
+                    var decision = try JSONDecoder().decode(AIPetDecision.self, from: responseData)
+                    
+                    // Safety net: enforce 5-word max even if model ignores the rule
+                    let words = decision.thought.split(separator: " ")
+                    if words.count > 6 {
+                        let truncated = words.prefix(5).joined(separator: " ") + "..."
+                        decision = AIPetDecision(emotion: decision.emotion, action: decision.action, thought: truncated)
+                    }
+                    
+                    print("🐾 Thought: \(decision.thought)")
                     completion(decision)
                 } else {
                     print("AIEngine Error: Unexpected JSON format from Ollama")
