@@ -33,6 +33,12 @@ class PetScene: SCNScene {
     private var dragOffset: CGPoint = .zero
     private var lastClickTime: TimeInterval = 0
     
+    // Step-based Walk System
+    private var walkTargetX: CGFloat = 0
+    private var walkDirection: CGFloat = 1
+    private let groundY: CGFloat = -7.5
+    private var isWalking = false
+    
     override init() {
         super.init()
         EnvironmentMonitor.shared.startMonitoring()
@@ -44,6 +50,13 @@ class PetScene: SCNScene {
         brain.onThoughtGenerated = { [weak self] thought in
             self?.say(thought)
         }
+        
+        brain.onStartWalk = { [weak self] targetX in
+            self?.startWalk(toX: targetX)
+        }
+        
+        // Snap to ground immediately on start
+        petContainer.position.y = groundY
         
         // Setup Update Loop
         let updateNode = SCNNode()
@@ -258,49 +271,30 @@ class PetScene: SCNScene {
         }
         
         switch brain.currentAction {
-        case .wander, .investigate, .peekWindow, .sitOnTaskbar, .followCursor:
-            // Agent is driving! Update physical position from agent
-            petContainer.position.x = CGFloat(brain.agent.position.x)
-            petContainer.position.y = CGFloat(brain.agent.position.y)
+        case .wander, .investigate, .peekWindow, .followCursor:
+            // STEP-BASED MOVEMENT: only advance X when walking, Y is always ground level
+            petContainer.position.y = groundY  // Pin to ground — never float!
             
-            // Clamp position so it doesn't leave the screen (agent might try to wander off)
-            petContainer.position.x = max(-15, min(15, petContainer.position.x))
-            petContainer.position.y = max(-10, min(10, petContainer.position.y))
-            brain.agent.position = vector_float2(x: Float(petContainer.position.x), y: Float(petContainer.position.y))
-            
-            // Turn towards walking direction (velocity)
-            let vx = CGFloat(brain.agent.velocity.x)
-            let vy = CGFloat(brain.agent.velocity.y)
-            
-            if abs(vx) > 0.1 || abs(vy) > 0.1 {
-                // Use .pi / 4 (45 degrees) instead of .pi / 2 (90 degrees).
-                // This creates a 3/4 isometric perspective! Since the camera uses orthographic projection,
-                // a perfect 90 degree turn makes the left and right legs overlap exactly and look glitchy.
-                // At 45 degrees, you can see the face, the side, and BOTH legs swinging clearly!
-                let targetAngleY: CGFloat = vx >= 0 ? (.pi / 4) : (-.pi / 4)
-                
-                // Slow down if turn is sharp to simulate a pivot before walking
-                let angleDiff = abs(targetAngleY - petContainer.eulerAngles.y)
-                if angleDiff > 0.5 {
-                    brain.agent.maxSpeed = 1.5 // Slow pivot / turn
-                } else {
-                    // Match agent maxSpeed to the emotion-specific walk pace
-                    var speed: Float = 3.5
-                    if brain.currentEmotion == .happy || brain.currentEmotion == .excited { speed = 5.0 }
-                    if brain.currentEmotion == .sad || brain.currentEmotion == .sleepy { speed = 1.8 }
-                    brain.agent.maxSpeed = speed
+            let distToTarget = abs(walkTargetX - petContainer.position.x)
+            if distToTarget < 0.3 {
+                // Reached destination — stop walk, go idle
+                if isWalking {
+                    isWalking = false
+                    stopAll()
+                    brain.currentAction = .idle
+                    brain.stateMachine.enter(PetIdleState.self)
                 }
-                
-                petContainer.eulerAngles.y += (targetAngleY - petContainer.eulerAngles.y) * 0.08
-                
-                // Tilt based on vertical movement
-                let targetAngleX: CGFloat = vy > 0 ? -0.1 : (vy < 0 ? 0.1 : 0)
-                petContainer.eulerAngles.x += (targetAngleX - petContainer.eulerAngles.x) * 0.1
-                
-                lookAt(targetX: CGFloat(brain.agent.position.x * 40) + vx * 20, targetY: CGFloat(brain.agent.position.y * 40) + vy * 20)
+            } else {
+                // Face the correct direction
+                let targetAngleY: CGFloat = walkDirection > 0 ? (.pi / 4) : (-.pi / 4)
+                petContainer.eulerAngles.y += (targetAngleY - petContainer.eulerAngles.y) * 0.15
             }
             
+            // Keep agent position in sync (X only)
+            brain.agent.position = vector_float2(x: Float(petContainer.position.x), y: 0)
+            
         case .idle, .sleep, .sit, .spin, .jump, .sulk, .dizzy, .tickled:
+            petContainer.position.y = groundY  // Always on ground even when idle
             if brain.currentAction == .idle {
                 let dx = CGFloat(petContainer.position.x) + CGFloat(sin(currentTime) * 5)
                 let dy = CGFloat(petContainer.position.y) + CGFloat(cos(currentTime) * 2)
@@ -333,7 +327,7 @@ class PetScene: SCNScene {
         targetPosition = nil
         switch action {
         case .idle: startIdleTransition()
-        case .wander, .followCursor, .investigate: startWalkAnimation()
+        case .wander, .followCursor, .investigate: break // Triggered externally via startWalk(toX:)
         case .peekWindow: startPeekAnimation()
         case .sitOnTaskbar: startSitOnTaskbarAnimation()
         case .sleep: startSleepAnimation()
@@ -344,6 +338,16 @@ class PetScene: SCNScene {
         case .dizzy: startDizzyAnimation()
         case .tickled: startTickledAnimation()
         }
+    }
+    
+    // Called by PetWanderState to begin a proper step-based walk
+    func startWalk(toX targetX: CGFloat) {
+        let dir: CGFloat = targetX > petContainer.position.x ? 1 : -1
+        walkTargetX = targetX
+        walkDirection = dir
+        isWalking = true
+        petContainer.position.y = groundY  // Snap to ground immediately
+        startWalkAnimation()
     }
     
     private func applyEmotion(_ emotion: PetEmotion) {
@@ -456,7 +460,7 @@ class PetScene: SCNScene {
     
     // MARK: - 3D Animations
     private func stopAll() {
-        petContainer.removeAllActions()
+        petContainer.removeAllActions()  // This removes stepMovement too
         headNode.removeAllActions()
         leftLeg.removeAllActions()
         rightLeg.removeAllActions()
@@ -537,7 +541,10 @@ class PetScene: SCNScene {
         
         let halfStep = stepDuration / 2.0
         
-        // --- HEAD BOB (one full cycle = two steps = up+down) ---
+        // One step covers this distance in world units (matches step duration at normal speed)
+        let stepDistance: CGFloat = walkDirection * 0.55
+        
+        // --- HEAD BOB — bobs up on each step ---
         let bobUp = SCNAction.moveBy(x: 0, y: bounceHeight, z: 0, duration: halfStep)
         bobUp.timingMode = .easeOut
         let bobDown = SCNAction.moveBy(x: 0, y: -bounceHeight, z: 0, duration: halfStep)
@@ -550,14 +557,21 @@ class PetScene: SCNScene {
         leanLeft.timingMode = .easeInEaseOut
         headNode.runAction(SCNAction.repeatForever(SCNAction.sequence([leanRight, leanLeft])))
         
-        // --- ALTERNATING PENDULUM LEGS ---
-        // Legs pivot at the top — swing forward then backward each step.
-        let swingForward = SCNAction.rotateTo(x: swingAngle, y: 0, z: 0, duration: stepDuration)
+        // --- LEGS: swing forward/back AND advance body on each step ---
+        let swingAngleVal = swingAngle
+        let swingForward = SCNAction.rotateTo(x: swingAngleVal, y: 0, z: 0, duration: stepDuration)
         swingForward.timingMode = .easeInEaseOut
-        let swingBackward = SCNAction.rotateTo(x: -swingAngle, y: 0, z: 0, duration: stepDuration)
+        let swingBackward = SCNAction.rotateTo(x: -swingAngleVal, y: 0, z: 0, duration: stepDuration)
         swingBackward.timingMode = .easeInEaseOut
         
-        // Left starts forward, right starts backward — perfect alternating gait!
+        // Each time a leg swings forward it "pushes" the body forward by one step distance
+        let advanceStep = SCNAction.moveBy(x: stepDistance, y: 0, z: 0, duration: stepDuration)
+        advanceStep.timingMode = .easeInEaseOut
+        // Interleave: left step advances then right step advances (two advances per full cycle)
+        let walkCycle = SCNAction.repeatForever(SCNAction.sequence([advanceStep, advanceStep]))
+        petContainer.runAction(walkCycle, forKey: "stepMovement")
+        
+        // Left starts forward, right starts backward — alternating gait
         leftLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([swingForward, swingBackward])))
         rightLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([swingBackward, swingForward])))
     }

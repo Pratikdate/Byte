@@ -64,96 +64,31 @@ class PetIdleState: PetBaseState {
 class PetWanderState: PetBaseState {
     private var wanderTime: TimeInterval = 0
     private var maxWanderTime: TimeInterval = 0
-    private var targetPoint: vector_float2?
-    private var targetAction: PetAction?
+    private var targetX: CGFloat = 0
     
     override func didEnter(from previousState: GKState?) {
         brain.currentEmotion = .normal
         wanderTime = 0
-        maxWanderTime = TimeInterval.random(in: 5...15)
+        maxWanderTime = TimeInterval.random(in: 6...14)
+        brain.agent.behavior = nil // Disable GKAgent driving — we drive manually now
         
-        let behavior = GKBehavior()
-        let envManager = DesktopEnvironmentManager.shared
+        // Pick a random X on the opposite side of the screen to walk towards
+        let currentX = CGFloat(brain.agent.position.x)
+        let goRight = currentX < 0  // If pet is on left, go right and vice versa
+        let randOffset = CGFloat.random(in: 3...8)
+        targetX = goRight ? CGFloat.random(in: 5...13) : -CGFloat.random(in: 5...13)
         
-        targetAction = brain.currentAction // Use what the AI (or init) decided!
-        if targetAction == .idle { targetAction = .wander } // Fallback for init
+        brain.currentAction = .wander
         
-        if targetAction == .peekWindow || targetAction == .investigate, let window = envManager.visibleElements.first(where: { $0.type == .window }) {
-            // Target a window
-            let screenW = NSScreen.main?.frame.width ?? 800
-            let screenH = NSScreen.main?.frame.height ?? 600
-            let worldX = Float(((window.frame.minX / screenW) - 0.5) * 30.0)
-            let worldY = Float((((screenH - window.frame.midY) / screenH) - 0.5) * 20.0)
-            targetPoint = vector_float2(x: worldX, y: worldY)
-        } 
-        else if targetAction == .sitOnTaskbar, let taskbar = envManager.visibleElements.first(where: { $0.type == .taskbar }) {
-            // Target taskbar
-            let screenH = NSScreen.main?.frame.height ?? 600
-            let worldX = brain.agent.position.x // Go straight down
-            let dockRatioY = ((screenH - taskbar.frame.minY) / screenH) - 0.5
-            let worldY = Float(dockRatioY * 20.0) + 1.0
-            targetPoint = vector_float2(x: worldX, y: worldY)
-        } 
-        else {
-            // Default Wander: Pick a random point far left or far right to walk across the screen HORIZONTALLY
-            let isLeft = Bool.random()
-            let worldX = isLeft ? Float.random(in: -15.0 ... -5.0) : Float.random(in: 5.0 ... 15.0)
-            let worldY = brain.agent.position.y // Keep the exact same height so it walks purely left/right!
-            targetPoint = vector_float2(x: worldX, y: worldY)
-            targetAction = .wander
-        }
-        
-        brain.currentAction = targetAction!
-        
-        if let target = targetPoint {
-            let targetAgent = GKAgent2D()
-            targetAgent.position = target
-            behavior.setWeight(1.0, for: GKGoal(toSeekAgent: targetAgent))
-        }
-        
-        behavior.setWeight(0.5, for: GKGoal(toReachTargetSpeed: 1.0))
-        
-        // Add obstacle avoidance for windows
-        var obstacles: [GKPolygonObstacle] = []
-        for element in envManager.visibleElements where element.type == .window {
-            let screenW = NSScreen.main?.frame.width ?? 800
-            let screenH = NSScreen.main?.frame.height ?? 600
-            
-            let minX = Float(((element.frame.minX / screenW) - 0.5) * 30.0)
-            let maxX = Float(((element.frame.maxX / screenW) - 0.5) * 30.0)
-            let minY = Float((((screenH - element.frame.maxY) / screenH) - 0.5) * 20.0)
-            let maxY = Float((((screenH - element.frame.minY) / screenH) - 0.5) * 20.0)
-            
-            let p1 = vector_float2(minX, minY)
-            let p2 = vector_float2(maxX, minY)
-            let p3 = vector_float2(maxX, maxY)
-            let p4 = vector_float2(minX, maxY)
-            obstacles.append(GKPolygonObstacle(points: [p1, p2, p3, p4]))
-        }
-        if !obstacles.isEmpty {
-            behavior.setWeight(1.5, for: GKGoal(toAvoid: obstacles, maxPredictionTime: 1.0))
-        }
-        
-        brain.agent.behavior = behavior
+        // Tell the scene to start the step-based walk animation
+        brain.onStartWalk?(targetX)
     }
     
     override func update(deltaTime seconds: TimeInterval) {
         wanderTime += seconds
-        brain.energy = max(0, brain.energy - (1.0 * seconds)) // Burn energy walking
+        brain.energy = max(0, brain.energy - (0.5 * seconds))
         
-        if let target = targetPoint {
-            let dist = distance(brain.agent.position, target)
-            if dist < 2.0 {
-                // Reached target
-                if let action = targetAction {
-                    brain.currentAction = action
-                    brain.currentEmotion = .curious
-                }
-                stateMachine?.enter(PetIdleState.self)
-                return
-            }
-        }
-        
+        // PetScene handles arrival detection — it enters PetIdleState when reached
         if wanderTime > maxWanderTime {
             stateMachine?.enter(PetIdleState.self)
         }
@@ -216,6 +151,7 @@ class PetBrain {
     var isBeingDragged = false
     
     var onThoughtGenerated: ((String) -> Void)?
+    var onStartWalk: ((CGFloat) -> Void)?  // Called by PetWanderState with target X
     
     private var lastTickTime: TimeInterval = 0
     private var isQueryingAI = false
