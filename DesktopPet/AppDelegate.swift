@@ -102,7 +102,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Feature list
         let features = [
-            ("🎤 Talk to Pet", "Hold Shift+D, speak, release to send"),
+            ("🎤 Talk to Pet", "Hold D, speak, release to send"),
             ("📝 Voice Dictation", "Long press ⌘ (0.6s), speak, release to type"),
             ("🖱️ Drag Pet", "Click and drag the pet anywhere"),
             ("👆 Pet / Tickle", "Click on the pet"),
@@ -135,13 +135,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let options = ["AXTrustedCheckOptionPrompt" as NSString: true as NSNumber] as CFDictionary
         AXIsProcessTrustedWithOptions(options)
         
-        // === SHIFT+D: Push-to-talk with pet ===
+        // === D: Push-to-talk with pet ===
         eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return event }
-            // Shift+D (non-repeat)
-            if event.modifierFlags.contains(.shift) && event.keyCode == 2 && !event.isARepeat {
+            // D key (non-repeat)
+            if event.keyCode == 2 && !event.isARepeat {
                 self.beginPetListening()
-                return nil
             }
             // Any key pressed while Command is held → cancel long-press
             if event.modifierFlags.contains(.command) {
@@ -153,7 +152,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return }
-            if event.modifierFlags.contains(.shift) && event.keyCode == 2 && !event.isARepeat {
+            if event.keyCode == 2 && !event.isARepeat {
                 DispatchQueue.main.async { self.beginPetListening() }
             }
             if event.modifierFlags.contains(.command) {
@@ -183,10 +182,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             guard let self = self else { return event }
             self.handleFlagsChanged(event)
-            // Safety: stop pet listening if Shift released
-            if self.isListeningForPet && !event.modifierFlags.contains(.shift) {
-                self.finishPetListening()
-            }
             return event
         })
         
@@ -194,9 +189,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self = self else { return }
             DispatchQueue.main.async {
                 self.handleFlagsChanged(event)
-                if self.isListeningForPet && !event.modifierFlags.contains(.shift) {
-                    self.finishPetListening()
-                }
             }
         })
     }
