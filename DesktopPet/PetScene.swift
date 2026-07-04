@@ -6,8 +6,10 @@ import AVFoundation
 class PetScene: SCNScene {
     private var petContainer: SCNNode!
     
-    // Robot 3D Parts (Head-Only TV style)
+    // Robot 3D Parts
     private var headNode: SCNNode!
+    private var leftLeg: SCNNode!
+    private var rightLeg: SCNNode!
     private var leftHeadphone: SCNNode!
     private var rightHeadphone: SCNNode!
     
@@ -135,6 +137,29 @@ class PetScene: SCNScene {
         rightHeadphone.eulerAngles = SCNVector3(0, 0, CGFloat.pi / 2)
         headNode.addChildNode(rightHeadphone)
         
+        // TINY LEGS
+        let legGeo = SCNBox(width: 0.6, height: 0.8, length: 0.6, chamferRadius: 0.1)
+        legGeo.materials = [darkMaterial]
+        
+        leftLeg = SCNNode(geometry: legGeo)
+        leftLeg.position = SCNVector3(-0.8, -1.9, 0)
+        petContainer.addChildNode(leftLeg)
+        
+        rightLeg = SCNNode(geometry: legGeo)
+        rightLeg.position = SCNVector3(0.8, -1.9, 0)
+        petContainer.addChildNode(rightLeg)
+        
+        // TINY SHOES
+        let shoeGeo = SCNBox(width: 1.4, height: 0.3, length: 1.8, chamferRadius: 0.1)
+        shoeGeo.materials = [shellMaterial]
+        let leftShoe = SCNNode(geometry: shoeGeo)
+        leftShoe.position = SCNVector3(0, -0.4, 0.4)
+        leftLeg.addChildNode(leftShoe)
+        
+        let rightShoe = SCNNode(geometry: shoeGeo)
+        rightShoe.position = SCNVector3(0, -0.4, 0.4)
+        rightLeg.addChildNode(rightShoe)
+        
         // SCREEN & GLOWING EYES (2D SKScene wrapped onto 3D)
         setupScreen()
     }
@@ -214,7 +239,7 @@ class PetScene: SCNScene {
             applyAction(tickResult.action)
         }
         
-        if ![.sleepy, .thinking, .dizzy].contains(brain.currentEmotion) && Int.random(in: 0...100) > 95 {
+        if ![.sleepy, .thinking, .dizzy].contains(brain.currentEmotion) && Int.random(in: 0...200) > 198 {
             blink()
         }
         
@@ -415,12 +440,18 @@ class PetScene: SCNScene {
     private func stopAll() {
         petContainer.removeAllActions()
         headNode.removeAllActions()
+        leftLeg.removeAllActions()
+        rightLeg.removeAllActions()
         
         petContainer.eulerAngles.x = 0
         petContainer.eulerAngles.z = 0
         
         headNode.position.y = 0
         headNode.eulerAngles = SCNVector3(0, 0, 0)
+        leftLeg.position = SCNVector3(-0.8, -1.9, 0)
+        leftLeg.eulerAngles = SCNVector3(0, 0, 0)
+        rightLeg.position = SCNVector3(0.8, -1.9, 0)
+        rightLeg.eulerAngles = SCNVector3(0, 0, 0)
     }
     
     private func startIdleTransition() {
@@ -496,7 +527,39 @@ class PetScene: SCNScene {
         leanLeft.timingMode = .easeInEaseOut
         headNode.runAction(SCNAction.repeatForever(SCNAction.sequence([leanRight, leanLeft])))
         
-        // No legs, just head animation for walk
+        // --- 8-POSE LEG CYCLE (Lift, Plant, Slide) ---
+        let lSwingUp = SCNAction.group([
+            SCNAction.moveBy(x: 0, y: 0.6, z: 1.4, duration: halfStep),
+            SCNAction.rotateTo(x: 0.4, y: 0, z: 0, duration: halfStep)
+        ])
+        lSwingUp.timingMode = .easeOut
+        
+        let lPlant = SCNAction.group([
+            SCNAction.moveBy(x: 0, y: -0.6, z: 0.4, duration: halfStep),
+            SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: halfStep)
+        ])
+        lPlant.timingMode = .easeIn
+        
+        let lSlide = SCNAction.moveBy(x: 0, y: 0, z: -1.8, duration: duration)
+        lSlide.timingMode = .linear
+        
+        let rSwingUp = SCNAction.group([
+            SCNAction.moveBy(x: 0, y: 0.6, z: 1.4, duration: halfStep),
+            SCNAction.rotateTo(x: 0.4, y: 0, z: 0, duration: halfStep)
+        ])
+        rSwingUp.timingMode = .easeOut
+        
+        let rPlant = SCNAction.group([
+            SCNAction.moveBy(x: 0, y: -0.6, z: 0.4, duration: halfStep),
+            SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: halfStep)
+        ])
+        rPlant.timingMode = .easeIn
+        
+        let rSlide = SCNAction.moveBy(x: 0, y: 0, z: -1.8, duration: duration)
+        rSlide.timingMode = .linear
+        
+        leftLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([lSwingUp, lPlant, lSlide])))
+        rightLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([rSlide, rSwingUp, rPlant])))
     }
     
     private func startPeekAnimation() {
@@ -512,6 +575,10 @@ class PetScene: SCNScene {
     
     private func startSitOnTaskbarAnimation() {
         stopAll()
+        leftLeg.runAction(SCNAction.rotateTo(x: -1.0, y: 0, z: 0.2, duration: 0.5))
+        leftLeg.runAction(SCNAction.moveBy(x: -0.2, y: 0.8, z: 1.0, duration: 0.5))
+        rightLeg.runAction(SCNAction.rotateTo(x: -1.0, y: 0, z: -0.2, duration: 0.5))
+        rightLeg.runAction(SCNAction.moveBy(x: 0.2, y: 0.8, z: 1.0, duration: 0.5))
         
         let breatheIn = SCNAction.moveBy(x: 0, y: 0.05, z: 0, duration: 1.5)
         let breatheOut = SCNAction.moveBy(x: 0, y: -0.05, z: 0, duration: 1.5)
@@ -546,6 +613,11 @@ class PetScene: SCNScene {
             SCNAction.rotateTo(x: 0, y: 0, z: -0.1, duration: 0.2)
         ])
         petContainer.runAction(SCNAction.repeatForever(dangle))
+        
+        leftLeg.runAction(SCNAction.rotateTo(x: 0, y: 0, z: 0.2, duration: 0.2))
+        rightLeg.runAction(SCNAction.rotateTo(x: 0, y: 0, z: -0.2, duration: 0.2))
+        leftLeg.runAction(SCNAction.moveBy(x: 0, y: -0.5, z: 0, duration: 0.2))
+        rightLeg.runAction(SCNAction.moveBy(x: 0, y: -0.5, z: 0, duration: 0.2))
     }
     
     private func startDropAnimation() {
