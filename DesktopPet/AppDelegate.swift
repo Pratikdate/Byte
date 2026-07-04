@@ -4,8 +4,9 @@ import SceneKit
 import SpriteKit // For the 2D screen material
 
 class PetWindow: NSWindow {
-    override var canBecomeKey: Bool { return false }
-    override var canBecomeMain: Bool { return false }
+    var acceptsKey: Bool = false
+    override var canBecomeKey: Bool { return acceptsKey }
+    override var canBecomeMain: Bool { return acceptsKey }
 }
 
 class PetSCNView: SCNView {
@@ -84,9 +85,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func setupKeyboardShortcuts() {
+        // Request macOS Accessibility permissions (needed to listen to global keystrokes)
+        let options = ["AXTrustedCheckOptionPrompt" as NSString: true as NSNumber] as CFDictionary
+        let isTrusted = AXIsProcessTrustedWithOptions(options)
+        print("🔒 Accessibility Trusted Status: \(isTrusted)")
+        
         // Local keyboard monitor (runs when the app has focus)
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.modifierFlags.contains(.shift) && event.keyCode == 2 {
+            // Shift = flag 131072, D = keycode 2
+            let isShift = event.modifierFlags.contains(.shift)
+            if isShift && event.keyCode == 2 {
                 self?.presentChatPrompt()
                 return nil // Consume event
             }
@@ -95,7 +103,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Global keyboard monitor (runs when other apps have focus)
         NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.modifierFlags.contains(.shift) && event.keyCode == 2 {
+            let isShift = event.modifierFlags.contains(.shift)
+            if isShift && event.keyCode == 2 {
                 DispatchQueue.main.async {
                     self?.presentChatPrompt()
                 }
@@ -106,7 +115,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func presentChatPrompt() {
         guard let scene = scnView.scene as? PetScene else { return }
         
-        // Temporarily activate the app to bring the alert dialog forward
+        // Temporarily allow the window to accept keyboard focus
+        window.acceptsKey = true
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         
         let alert = NSAlert()
@@ -120,7 +131,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "Send")
         alert.addButton(withTitle: "Cancel")
         
+        // Set focus to input field once the alert is ready
+        DispatchQueue.main.async {
+            self.window.makeFirstResponder(inputTextField)
+        }
+        
         let response = alert.runModal()
+        
+        // Reset window so it is click-through / ignores mouse and key events again
+        window.acceptsKey = false
+        window.ignoresMouseEvents = true
+        
         if response == .alertFirstButtonReturn {
             let message = inputTextField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             if !message.isEmpty {
