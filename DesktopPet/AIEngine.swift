@@ -10,7 +10,7 @@ class AIEngine {
     static let shared = AIEngine()
     
     // Gemini API Configuration
-    private let apiKey = "AIzaSyB3a979Ex_luKKD6xiNPJjad18p9Dt-zjE"
+    private let apiKey = "AQ.Ab8RN6JquuZTkTTYuwK4u8G1zZeUG6NXcKmWbqVohVFvSbyawA"
     private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
     
     func decideNextMove(context: String, completion: @escaping (AIPetDecision?) -> Void) {
