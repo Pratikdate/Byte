@@ -239,12 +239,12 @@ class PetScene: SCNScene {
                 // Slow down if turn is sharp to simulate a pivot before walking
                 let angleDiff = abs(targetAngleY - petContainer.eulerAngles.y)
                 if angleDiff > 0.5 {
-                    brain.agent.maxSpeed = 2.0 // Slow pivot
+                    brain.agent.maxSpeed = 1.0 // Slow pivot
                 } else {
-                    // Adjust speed based on emotion
-                    var speed: Float = 7.0
-                    if brain.currentEmotion == .happy { speed = 10.0 }
-                    if brain.currentEmotion == .sad || brain.currentEmotion == .sleepy { speed = 4.0 }
+                    // Adjust speed based on emotion (Reduced speeds)
+                    var speed: Float = 4.0
+                    if brain.currentEmotion == .happy { speed = 5.5 }
+                    if brain.currentEmotion == .sad || brain.currentEmotion == .sleepy { speed = 2.0 }
                     brain.agent.maxSpeed = speed
                 }
                 
