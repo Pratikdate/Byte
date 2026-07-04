@@ -62,7 +62,6 @@ class PetWanderState: PetBaseState {
     private var targetAction: PetAction?
     
     override func didEnter(from previousState: GKState?) {
-        brain.currentAction = .wander
         brain.currentEmotion = .normal
         wanderTime = 0
         maxWanderTime = TimeInterval.random(in: 5...15)
@@ -70,51 +69,39 @@ class PetWanderState: PetBaseState {
         let behavior = GKBehavior()
         let envManager = DesktopEnvironmentManager.shared
         
-        if !envManager.visibleElements.isEmpty && Int.random(in: 0...100) > 40 {
-            // Pick a random desktop element to interact with
-            let element = envManager.visibleElements.randomElement()!
-            
-            // Convert CGRect from screen coordinates to our 3D world plane roughly.
-            // Screen center is (0,0). Screen size ~ (800, 600).
-            // World scale is around x: -15 to 15, y: -10 to 10.
+        targetAction = brain.currentAction // Use what the AI (or init) decided!
+        if targetAction == .idle { targetAction = .wander } // Fallback for init
+        
+        if targetAction == .peekWindow || targetAction == .investigate, let window = envManager.visibleElements.first(where: { $0.type == .window }) {
+            // Target a window
             let screenW = NSScreen.main?.frame.width ?? 800
             let screenH = NSScreen.main?.frame.height ?? 600
-            
-            let ratioX = (element.frame.midX / screenW) - 0.5
-            let ratioY = ((screenH - element.frame.midY) / screenH) - 0.5 // flip Y for mac
-            let worldX = Float(ratioX * 30.0)
-            let worldY = Float(ratioY * 20.0)
-            
+            let worldX = Float(((window.frame.minX / screenW) - 0.5) * 30.0)
+            let worldY = Float((((screenH - window.frame.midY) / screenH) - 0.5) * 20.0)
             targetPoint = vector_float2(x: worldX, y: worldY)
-            
-            if element.type == .taskbar {
-                targetAction = .sitOnTaskbar
-                // Target top edge of dock
-                let dockRatioY = ((screenH - element.frame.minY) / screenH) - 0.5
-                targetPoint?.y = Float(dockRatioY * 20.0) + 1.0 // slightly above
-            } else if element.type == .window {
-                targetAction = .peekWindow
-                // Target a corner of the window
-                targetPoint?.x = Float(((element.frame.minX / screenW) - 0.5) * 30.0)
-                targetPoint?.y = Float((((screenH - element.frame.midY) / screenH) - 0.5) * 20.0)
-            } else {
-                targetAction = .investigate
-            }
-            
-            if let target = targetPoint {
-                let targetAgent = GKAgent2D()
-                targetAgent.position = target
-                behavior.setWeight(1.0, for: GKGoal(toSeekAgent: targetAgent))
-            }
-        } else {
-            // Pick a random point far left or far right to walk across the screen
-            let worldX = Float.random(in: -14.0...14.0)
-            let worldY = Float.random(in: -5.0...5.0)
+        } 
+        else if targetAction == .sitOnTaskbar, let taskbar = envManager.visibleElements.first(where: { $0.type == .taskbar }) {
+            // Target taskbar
+            let screenH = NSScreen.main?.frame.height ?? 600
+            let worldX = brain.agent.position.x // Go straight down
+            let dockRatioY = ((screenH - taskbar.frame.minY) / screenH) - 0.5
+            let worldY = Float(dockRatioY * 20.0) + 1.0
             targetPoint = vector_float2(x: worldX, y: worldY)
-            targetAction = .wander // We still use wander as the string action
-            
+        } 
+        else {
+            // Default Wander: Pick a random point far left or far right to walk across the screen HORIZONTALLY
+            let isLeft = Bool.random()
+            let worldX = isLeft ? Float.random(in: -15.0 ... -5.0) : Float.random(in: 5.0 ... 15.0)
+            let worldY = brain.agent.position.y // Keep the exact same height so it walks purely left/right!
+            targetPoint = vector_float2(x: worldX, y: worldY)
+            targetAction = .wander
+        }
+        
+        brain.currentAction = targetAction!
+        
+        if let target = targetPoint {
             let targetAgent = GKAgent2D()
-            targetAgent.position = targetPoint!
+            targetAgent.position = target
             behavior.setWeight(1.0, for: GKGoal(toSeekAgent: targetAgent))
         }
         
