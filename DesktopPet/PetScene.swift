@@ -939,7 +939,14 @@ class PetScene: SCNScene {
                 self.applyEmotion(.happy)
                 self.say("Petted!")
             } else {
-                // Was dragged and dropped
+                // Was dragged and dropped - clamp to bounds to prevent physics explosions!
+                let screenEdgeX: CGFloat = 17.0
+                let screenEdgeYMin: CGFloat = -3.2
+                let screenEdgeYMax: CGFloat = 9.0
+                
+                petContainer.position.x = max(-screenEdgeX, min(screenEdgeX, petContainer.position.x))
+                petContainer.position.y = max(screenEdgeYMin, min(screenEdgeYMax, petContainer.position.y))
+                
                 self.startDropAnimation()
                 self.brain.mood = 100
                 self.applyEmotion(.normal)
