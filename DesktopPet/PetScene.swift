@@ -35,7 +35,9 @@ class PetScene: SCNScene {
     
     // Step-based Walk System
     private var walkTargetX: CGFloat = 0
-    private var walkDirection: CGFloat = 1
+    private var walkTargetY: CGFloat = 0
+    private var walkDirectionX: CGFloat = 1
+    private var walkDirectionY: CGFloat = 0
     private let groundY: CGFloat = -5.0  // Visible bottom of orthographic camera (scale=7, cam at y=1 → bottom ≈ -6)
     private var isWalking = false
     
@@ -51,8 +53,8 @@ class PetScene: SCNScene {
             self?.say(thought)
         }
         
-        brain.onStartWalk = { [weak self] targetX in
-            self?.startWalk(toX: targetX)
+        brain.onStartWalk = { [weak self] targetX, targetY in
+            self?.startWalk(toX: targetX, toY: targetY)
         }
         
         // (petContainer Y is already set to groundY in setup3DRobot)
@@ -271,13 +273,18 @@ class PetScene: SCNScene {
         
         switch brain.currentAction {
         case .wander, .investigate, .peekWindow, .followCursor:
-            // X step movement — clamp so pet never goes off screen edges
-            let screenEdge: CGFloat = 6.0
-            petContainer.position.x = max(-screenEdge, min(screenEdge, petContainer.position.x))
-            // If we've been pushed to the edge, stop walk and go idle
-            let distToTarget = abs(walkTargetX - petContainer.position.x)
-            if distToTarget < 0.3 || (abs(petContainer.position.x) >= screenEdge - 0.1) {
-                // Reached destination (or screen edge) — stop walk
+            // Step movement — clamp so pet never goes off screen edges
+            let screenEdgeX: CGFloat = 6.0
+            let screenEdgeY: CGFloat = 5.0
+            petContainer.position.x = max(-screenEdgeX, min(screenEdgeX, petContainer.position.x))
+            petContainer.position.y = max(-screenEdgeY, min(screenEdgeY, petContainer.position.y))
+            
+            // Check arrival distance for both X and Y
+            let distToTargetX = abs(walkTargetX - petContainer.position.x)
+            let distToTargetY = abs(walkTargetY - petContainer.position.y)
+            
+            if (distToTargetX < 0.4 && distToTargetY < 0.4) || (abs(petContainer.position.x) >= screenEdgeX - 0.1) {
+                // Reached destination — stop walk
                 if isWalking {
                     isWalking = false
                     stopAll()
@@ -286,11 +293,11 @@ class PetScene: SCNScene {
                 }
             } else {
                 // Face the correct direction
-                let targetAngleY: CGFloat = walkDirection > 0 ? (.pi / 4) : (-.pi / 4)
+                let targetAngleY: CGFloat = walkDirectionX > 0 ? (.pi / 4) : (-.pi / 4)
                 petContainer.eulerAngles.y += (targetAngleY - petContainer.eulerAngles.y) * 0.15
             }
             
-            // Keep agent position in sync (X only)
+            // Keep agent position in sync
             brain.agent.position = vector_float2(x: Float(petContainer.position.x), y: Float(petContainer.position.y))
             
         case .idle, .sleep, .sit, .spin, .jump, .sulk, .dizzy, .tickled:
@@ -341,12 +348,22 @@ class PetScene: SCNScene {
     }
     
     // Called by PetWanderState to begin a proper step-based walk
-    func startWalk(toX requestedX: CGFloat) {
-        // Clamp target to visible screen area (camera orthographicScale=7, so ~±6)
+    func startWalk(toX requestedX: CGFloat, toY requestedY: CGFloat) {
+        // Clamp target to visible screen area (camera scale=7, so ~±5.5 width, ±5.0 height)
         let clampedX = max(-5.5, min(5.5, requestedX))
-        let dir: CGFloat = clampedX > petContainer.position.x ? 1 : -1
+        let clampedY = max(-4.8, min(4.8, requestedY))
+        
         walkTargetX = clampedX
-        walkDirection = dir
+        walkTargetY = clampedY
+        walkDirectionX = clampedX > petContainer.position.x ? 1 : -1
+        
+        // Calculate vertical direction: if Y target is close, don't move vertically
+        if abs(clampedY - petContainer.position.y) > 0.5 {
+            walkDirectionY = clampedY > petContainer.position.y ? 1 : -1
+        } else {
+            walkDirectionY = 0
+        }
+        
         isWalking = true
         startWalkAnimation()
     }
@@ -541,9 +558,9 @@ class PetScene: SCNScene {
         
         let halfStep = stepDuration / 2.0
         
-        // Step distance = how far body advances per leg swing — matches stepDuration for natural pace
-        // At 0.50s/step and 0.35 units/step → speed = 0.70 units/sec (gentle stroll)
-        let stepDistance: CGFloat = walkDirection * 0.35
+        // Step distance = how far body advances per leg swing on X and Y
+        let stepDistanceX: CGFloat = walkDirectionX * 0.35
+        let stepDistanceY: CGFloat = walkDirectionY * 0.25 // Slightly slower vertical climbing
         
         // --- HEAD BOB — bobs up on each step ---
         let bobUp = SCNAction.moveBy(x: 0, y: bounceHeight, z: 0, duration: halfStep)
@@ -565,10 +582,9 @@ class PetScene: SCNScene {
         let swingBackward = SCNAction.rotateTo(x: -swingAngleVal, y: 0, z: 0, duration: stepDuration)
         swingBackward.timingMode = .easeInEaseOut
         
-        // Each time a leg swings forward it "pushes" the body forward by one step distance
-        let advanceStep = SCNAction.moveBy(x: stepDistance, y: 0, z: 0, duration: stepDuration)
+        // Each time a leg swings forward it "pushes" the body forward along both X and Y
+        let advanceStep = SCNAction.moveBy(x: stepDistanceX, y: stepDistanceY, z: 0, duration: stepDuration)
         advanceStep.timingMode = .easeInEaseOut
-        // Interleave: left step advances then right step advances (two advances per full cycle)
         let walkCycle = SCNAction.repeatForever(SCNAction.sequence([advanceStep, advanceStep]))
         petContainer.runAction(walkCycle, forKey: "stepMovement")
         

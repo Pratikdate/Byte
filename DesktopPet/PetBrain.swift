@@ -65,6 +65,7 @@ class PetWanderState: PetBaseState {
     private var wanderTime: TimeInterval = 0
     private var maxWanderTime: TimeInterval = 0
     private var targetX: CGFloat = 0
+    private var targetY: CGFloat = 0
     
     override func didEnter(from previousState: GKState?) {
         brain.currentEmotion = .normal
@@ -77,10 +78,13 @@ class PetWanderState: PetBaseState {
         let goRight = currentX <= 0
         targetX = goRight ? CGFloat.random(in: 2.0...5.5) : CGFloat.random(in: -5.5...(-2.0))
         
+        // Pick a random Y within visible screen bounds (Y goes from -5.0 to 5.0)
+        targetY = CGFloat.random(in: -4.5...4.5)
+        
         brain.currentAction = .wander
         
         // Tell the scene to start the step-based walk animation
-        brain.onStartWalk?(targetX)
+        brain.onStartWalk?(targetX, targetY)
     }
     
     override func update(deltaTime seconds: TimeInterval) {
@@ -150,7 +154,7 @@ class PetBrain {
     var isBeingDragged = false
     
     var onThoughtGenerated: ((String) -> Void)?
-    var onStartWalk: ((CGFloat) -> Void)?  // Called by PetWanderState with target X
+    var onStartWalk: ((CGFloat, CGFloat) -> Void)?  // Called by PetWanderState with target X and Y
     
     private var lastTickTime: TimeInterval = 0
     private var isQueryingAI = false
