@@ -531,39 +531,41 @@ class PetScene: SCNScene {
         leanLeft.timingMode = .easeInEaseOut
         headNode.runAction(SCNAction.repeatForever(SCNAction.sequence([leanRight, leanLeft])))
         
-        // --- 8-POSE LEG CYCLE (Lift, Plant, Slide) ---
-        let lSwingUp = SCNAction.group([
-            SCNAction.moveBy(x: 0, y: 0.6, z: 1.4, duration: halfStep),
-            SCNAction.rotateTo(x: 0.4, y: 0, z: 0, duration: halfStep)
+        // --- ALTERNATING PENDULUM WALK CYCLE ---
+        let lForwardPos = SCNVector3(-0.8, -1.3, 0.8) // Lifted up and forward
+        let lBackwardPos = SCNVector3(-0.8, -1.9, -0.8) // Planted on ground and sliding back
+        
+        let rForwardPos = SCNVector3(0.8, -1.3, 0.8)
+        let rBackwardPos = SCNVector3(0.8, -1.9, -0.8)
+        
+        // Left Leg Actions
+        let lSwingForward = SCNAction.group([
+            SCNAction.rotateTo(x: 0.6, y: 0, z: 0, duration: duration),
+            SCNAction.move(to: lForwardPos, duration: duration)
         ])
-        lSwingUp.timingMode = .easeOut
+        lSwingForward.timingMode = .easeInEaseOut
         
-        let lPlant = SCNAction.group([
-            SCNAction.moveBy(x: 0, y: -0.6, z: 0.4, duration: halfStep),
-            SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: halfStep)
+        let lSwingBackward = SCNAction.group([
+            SCNAction.rotateTo(x: -0.6, y: 0, z: 0, duration: duration),
+            SCNAction.move(to: lBackwardPos, duration: duration)
         ])
-        lPlant.timingMode = .easeIn
+        lSwingBackward.timingMode = .easeInEaseOut
         
-        let lSlide = SCNAction.moveBy(x: 0, y: 0, z: -1.8, duration: duration)
-        lSlide.timingMode = .linear
-        
-        let rSwingUp = SCNAction.group([
-            SCNAction.moveBy(x: 0, y: 0.6, z: 1.4, duration: halfStep),
-            SCNAction.rotateTo(x: 0.4, y: 0, z: 0, duration: halfStep)
+        // Right Leg Actions
+        let rSwingForward = SCNAction.group([
+            SCNAction.rotateTo(x: 0.6, y: 0, z: 0, duration: duration),
+            SCNAction.move(to: rForwardPos, duration: duration)
         ])
-        rSwingUp.timingMode = .easeOut
+        rSwingForward.timingMode = .easeInEaseOut
         
-        let rPlant = SCNAction.group([
-            SCNAction.moveBy(x: 0, y: -0.6, z: 0.4, duration: halfStep),
-            SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: halfStep)
+        let rSwingBackward = SCNAction.group([
+            SCNAction.rotateTo(x: -0.6, y: 0, z: 0, duration: duration),
+            SCNAction.move(to: rBackwardPos, duration: duration)
         ])
-        rPlant.timingMode = .easeIn
+        rSwingBackward.timingMode = .easeInEaseOut
         
-        let rSlide = SCNAction.moveBy(x: 0, y: 0, z: -1.8, duration: duration)
-        rSlide.timingMode = .linear
-        
-        leftLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([lSwingUp, lPlant, lSlide])))
-        rightLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([rSlide, rSwingUp, rPlant])))
+        leftLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([lSwingForward, lSwingBackward])))
+        rightLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([rSwingBackward, rSwingForward])))
     }
     
     private func startPeekAnimation() {
