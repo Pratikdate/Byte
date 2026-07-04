@@ -271,12 +271,13 @@ class PetScene: SCNScene {
         
         switch brain.currentAction {
         case .wander, .investigate, .peekWindow, .followCursor:
-            // STEP-BASED MOVEMENT: only advance X when walking, Y is always ground level
-            petContainer.position.y = groundY  // Pin to ground — never float!
-            
+            // X step movement — clamp so pet never goes off screen edges
+            let screenEdge: CGFloat = 6.0
+            petContainer.position.x = max(-screenEdge, min(screenEdge, petContainer.position.x))
+            // If we've been pushed to the edge, stop walk and go idle
             let distToTarget = abs(walkTargetX - petContainer.position.x)
-            if distToTarget < 0.3 {
-                // Reached destination — stop walk, go idle
+            if distToTarget < 0.3 || (abs(petContainer.position.x) >= screenEdge - 0.1) {
+                // Reached destination (or screen edge) — stop walk
                 if isWalking {
                     isWalking = false
                     stopAll()
@@ -290,10 +291,10 @@ class PetScene: SCNScene {
             }
             
             // Keep agent position in sync (X only)
-            brain.agent.position = vector_float2(x: Float(petContainer.position.x), y: 0)
+            brain.agent.position = vector_float2(x: Float(petContainer.position.x), y: Float(petContainer.position.y))
             
         case .idle, .sleep, .sit, .spin, .jump, .sulk, .dizzy, .tickled:
-            petContainer.position.y = groundY  // Always on ground even when idle
+            // Free floating on Y — no locking
             if brain.currentAction == .idle {
                 let dx = CGFloat(petContainer.position.x) + CGFloat(sin(currentTime) * 5)
                 let dy = CGFloat(petContainer.position.y) + CGFloat(cos(currentTime) * 2)
@@ -340,12 +341,13 @@ class PetScene: SCNScene {
     }
     
     // Called by PetWanderState to begin a proper step-based walk
-    func startWalk(toX targetX: CGFloat) {
-        let dir: CGFloat = targetX > petContainer.position.x ? 1 : -1
-        walkTargetX = targetX
+    func startWalk(toX requestedX: CGFloat) {
+        // Clamp target to visible screen area (camera orthographicScale=7, so ~±6)
+        let clampedX = max(-5.5, min(5.5, requestedX))
+        let dir: CGFloat = clampedX > petContainer.position.x ? 1 : -1
+        walkTargetX = clampedX
         walkDirection = dir
         isWalking = true
-        petContainer.position.y = groundY  // Snap to ground immediately
         startWalkAnimation()
     }
     
@@ -508,40 +510,40 @@ class PetScene: SCNScene {
     private func startWalkAnimation() {
         stopAll()
         
-        // Step duration controls how fast legs swing — match it to agent speed!
-        // Agent moves at ~3.5 units/s. One step covers ~1.2 units → step takes ~0.34s.
-        var stepDuration: TimeInterval = 0.30  // One full leg swing (forward or back)
-        var bounceHeight: CGFloat = 0.18
-        var headWobble: CGFloat = 0.18
-        var swingAngle: CGFloat = 0.75  // Leg swing arc in radians
+        // Step duration controls leg swing speed — SLOWER = more natural looking walk
+        var stepDuration: TimeInterval = 0.50  // One full leg swing (forward or back)
+        var bounceHeight: CGFloat = 0.15
+        var headWobble: CGFloat = 0.15
+        var swingAngle: CGFloat = 0.70  // Leg swing arc in radians
         
         switch brain.currentEmotion {
         case .happy:
-            stepDuration = 0.22
-            bounceHeight = 0.30
-            swingAngle = 0.9
+            stepDuration = 0.35
+            bounceHeight = 0.25
+            swingAngle = 0.85
         case .sad:
-            stepDuration = 0.50
-            bounceHeight = 0.06
-            headWobble = 0.05
-            swingAngle = 0.5
-        case .sleepy:
-            stepDuration = 0.55
-            bounceHeight = 0.08
+            stepDuration = 0.75
+            bounceHeight = 0.05
+            headWobble = 0.04
             swingAngle = 0.45
+        case .sleepy:
+            stepDuration = 0.85
+            bounceHeight = 0.06
+            swingAngle = 0.40
         case .excited:
-            stepDuration = 0.18
-            bounceHeight = 0.40
-            swingAngle = 1.0
+            stepDuration = 0.28
+            bounceHeight = 0.35
+            swingAngle = 0.95
         case .curious:
-            headWobble = 0.35
+            headWobble = 0.30
         default: break
         }
         
         let halfStep = stepDuration / 2.0
         
-        // One step covers this distance in world units (matches step duration at normal speed)
-        let stepDistance: CGFloat = walkDirection * 0.55
+        // Step distance = how far body advances per leg swing — matches stepDuration for natural pace
+        // At 0.50s/step and 0.35 units/step → speed = 0.70 units/sec (gentle stroll)
+        let stepDistance: CGFloat = walkDirection * 0.35
         
         // --- HEAD BOB — bobs up on each step ---
         let bobUp = SCNAction.moveBy(x: 0, y: bounceHeight, z: 0, duration: halfStep)

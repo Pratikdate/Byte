@@ -72,11 +72,10 @@ class PetWanderState: PetBaseState {
         maxWanderTime = TimeInterval.random(in: 6...14)
         brain.agent.behavior = nil // Disable GKAgent driving — we drive manually now
         
-        // Pick a random X on the opposite side of the screen to walk towards
+        // Pick a random X within visible screen bounds (camera shows ±6 world units)
         let currentX = CGFloat(brain.agent.position.x)
-        let goRight = currentX < 0  // If pet is on left, go right and vice versa
-        let randOffset = CGFloat.random(in: 3...8)
-        targetX = goRight ? CGFloat.random(in: 5...13) : -CGFloat.random(in: 5...13)
+        let goRight = currentX <= 0
+        targetX = goRight ? CGFloat.random(in: 2.0...5.5) : CGFloat.random(in: -5.5...(-2.0))
         
         brain.currentAction = .wander
         
