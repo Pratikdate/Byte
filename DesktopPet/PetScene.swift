@@ -705,10 +705,34 @@ class PetScene: SCNScene {
         speechBubble.alpha = 1.0
         
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        utterance.volume = 0.6
-        utterance.pitchMultiplier = 1.18 // Cuter but has depth and resonance
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.90 // Slower, more thoughtful delivery
+        
+        // Find the most natural/human voice available on the system
+        let allVoices = AVSpeechSynthesisVoice.speechVoices()
+        if let siriVoice = allVoices.first(where: { $0.name.contains("Siri") && $0.language == "en-US" }) {
+            utterance.voice = siriVoice
+        } else if let alexVoice = allVoices.first(where: { $0.name == "Alex" }) {
+            utterance.voice = alexVoice
+        } else {
+            utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        }
+        
+        utterance.volume = 0.8
+        
+        // Dynamic pitch based on emotion for more genuine feel
+        switch brain.currentEmotion {
+        case .excited, .happy:
+            utterance.pitchMultiplier = 1.15
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
+        case .sad, .sleepy, .bored:
+            utterance.pitchMultiplier = 0.90
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.80
+        case .angry, .dizzy:
+            utterance.pitchMultiplier = 0.85
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.05
+        default:
+            utterance.pitchMultiplier = 1.0 // Natural pitch
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.85 // Slower, highly conversational
+        }
         
         // Dispatch to avoid main thread stutters
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
