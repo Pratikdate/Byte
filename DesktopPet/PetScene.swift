@@ -293,8 +293,8 @@ class PetScene: SCNScene {
                     brain.stateMachine.enter(PetIdleState.self)
                 }
             } else {
-                // Face the correct direction
-                let targetAngleY: CGFloat = walkDirectionX > 0 ? (.pi / 4) : (-.pi / 4)
+                // Face the correct direction (turn slightly towards movement direction)
+                let targetAngleY: CGFloat = walkDirectionX * (.pi / 4)
                 petContainer.eulerAngles.y += (targetAngleY - petContainer.eulerAngles.y) * 0.15
             }
             
@@ -359,12 +359,16 @@ class PetScene: SCNScene {
         
         walkTargetX = clampedX
         walkTargetY = clampedY
-        walkDirectionX = clampedX > petContainer.position.x ? 1 : -1
         
-        // Calculate vertical direction: if Y target is close, don't move vertically
-        if abs(clampedY - petContainer.position.y) > 0.5 {
-            walkDirectionY = clampedY > petContainer.position.y ? 1 : -1
+        let dx = clampedX - CGFloat(petContainer.position.x)
+        let dy = clampedY - CGFloat(petContainer.position.y)
+        let distance = sqrt(dx*dx + dy*dy)
+        
+        if distance > 0.1 {
+            walkDirectionX = dx / distance
+            walkDirectionY = dy / distance
         } else {
+            walkDirectionX = 0
             walkDirectionY = 0
         }
         
@@ -563,8 +567,9 @@ class PetScene: SCNScene {
         let halfStep = stepDuration / 2.0
         
         // Step distance = how far body advances per leg swing on X and Y
+        // Both use 0.35 now since walkDirection is a normalized vector, so speed is constant!
         let stepDistanceX: CGFloat = walkDirectionX * 0.35
-        let stepDistanceY: CGFloat = walkDirectionY * 0.25 // Slightly slower vertical climbing
+        let stepDistanceY: CGFloat = walkDirectionY * 0.35
         
         // --- HEAD BOB — bobs up on each step ---
         let bobUp = SCNAction.moveBy(x: 0, y: bounceHeight, z: 0, duration: halfStep)
