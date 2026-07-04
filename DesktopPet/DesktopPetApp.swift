@@ -6,15 +6,10 @@ struct DesktopPetApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        // Minimal menu bar icon and settings popover
-        MenuBarExtra("Desktop Pet", systemImage: "pawprint.fill") {
-            Button("Settings") {
-                // Settings action if needed later
-            }
-            Divider()
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
-            }
+        // We use AppDelegate to create the UI (NSWindow and NSStatusItem).
+        // This Settings scene is just a dummy to satisfy SwiftUI App requirements without creating a second menu bar icon.
+        Settings {
+            EmptyView()
         }
     }
 }

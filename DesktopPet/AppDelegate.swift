@@ -241,11 +241,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         isListeningForPet = false
         scene.showListeningState(false)
         
-        let transcript = VoiceInputManager.shared.currentTranscript
-        VoiceInputManager.shared.stopListening()
-        
-        if !transcript.isEmpty {
-            scene.sayToPet(transcript)
+        VoiceInputManager.shared.finishListeningWithResult { transcript in
+            if !transcript.isEmpty {
+                scene.sayToPet(transcript)
+            }
         }
     }
     
@@ -263,13 +262,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard isDictating else { return }
         guard let scene = scnView.scene as? PetScene else { return }
         isDictating = false
-        
-        let transcript = VoiceInputManager.shared.currentTranscript
-        VoiceInputManager.shared.stopListening()
         scene.showDictationState(false)
         
-        if !transcript.isEmpty {
-            typeAtCursor(transcript)
+        VoiceInputManager.shared.finishListeningWithResult { transcript in
+            if !transcript.isEmpty {
+                self.typeAtCursor(transcript)
+            }
         }
     }
     
