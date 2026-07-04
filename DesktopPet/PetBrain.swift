@@ -1,5 +1,6 @@
 import Foundation
 import GameplayKit
+import CoreGraphics
 
 // Keep the enums for the scene to map easily to animations/eyes
 enum PetAction {
@@ -69,7 +70,9 @@ class PetWanderState: PetBaseState {
     private var targetY: CGFloat = 0
     
     override func didEnter(from previousState: GKState?) {
-        brain.currentEmotion = .normal
+        if brain.currentEmotion != .bored {
+            brain.currentEmotion = .curious
+        }
         wanderTime = 0
         maxWanderTime = TimeInterval.random(in: 8...18) // Walk for a good while
         brain.agent.behavior = nil
@@ -248,6 +251,29 @@ class PetBrain {
         
         let oldAction = currentAction
         let oldEmotion = currentEmotion
+        let idleTime = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
+        if idleTime > 25.0 {
+            if currentAction == .idle {
+                currentAction = .sleep
+                currentEmotion = .sleepy
+                stateMachine.enter(PetSleepState.self)
+            } else if currentAction != .sleep && currentAction != .wander {
+                // If not wandering to a corner and not sleeping, force it to wander to a corner
+                let targetX: CGFloat = Bool.random() ? -16.0 : 16.0
+                let targetY: CGFloat = -3.2 // Bottom corner
+                onStartWalk?(targetX, targetY)
+                currentAction = .wander
+                currentEmotion = .bored
+                stateMachine.enter(PetWanderState.self)
+            }
+        } else {
+            // User is active! Wake up if sleeping.
+            if currentAction == .sleep {
+                currentAction = .idle
+                currentEmotion = .curious
+                stateMachine.enter(PetIdleState.self)
+            }
+        }
         
         stateMachine.update(deltaTime: dt)
         agent.update(deltaTime: dt)
