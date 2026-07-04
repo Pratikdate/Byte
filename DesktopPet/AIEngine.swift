@@ -11,7 +11,7 @@ class AIEngine {
     
     // Gemini API Configuration
     private let apiKey = "AIzaSyB3a979Ex_luKKD6xiNPJjad18p9Dt-zjE"
-    private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
     
     func decideNextMove(context: String, completion: @escaping (AIPetDecision?) -> Void) {
         guard let url = URL(string: "\(endpoint)?key=\(apiKey)") else {
@@ -74,6 +74,8 @@ class AIEngine {
                    let firstPart = parts.first,
                    let responseString = firstPart["text"] as? String,
                    let responseData = responseString.data(using: .utf8) {
+                    
+                    print("🤖 Gemini AI Response: \(responseString)")
                     
                     let decision = try JSONDecoder().decode(AIPetDecision.self, from: responseData)
                     completion(decision)
