@@ -117,7 +117,18 @@ class GeminiAPIProvider: AIProvider {
                    let parts = content["parts"] as? [[String: Any]],
                    let text = parts.first?["text"] as? String {
                     
-                    if let data = text.data(using: .utf8) {
+                    var cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if cleanText.hasPrefix("```json") {
+                        cleanText.removeFirst(7)
+                    } else if cleanText.hasPrefix("```") {
+                        cleanText.removeFirst(3)
+                    }
+                    if cleanText.hasSuffix("```") {
+                        cleanText.removeLast(3)
+                    }
+                    cleanText = cleanText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    if let data = cleanText.data(using: .utf8) {
                         let decoder = JSONDecoder()
                         let decision = try decoder.decode(AIAgentDecision.self, from: data)
                         completion(decision)
@@ -214,13 +225,25 @@ class LocalOllamaProvider: AIProvider {
             
             do {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let responseText = json["response"] as? String,
-                   let responseData = responseText.data(using: .utf8) {
+                   let responseText = json["response"] as? String {
                     
-                    let decoder = JSONDecoder()
-                    let decision = try decoder.decode(AIAgentDecision.self, from: responseData)
-                    completion(decision)
-                    return
+                    var cleanText = responseText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if cleanText.hasPrefix("```json") {
+                        cleanText.removeFirst(7)
+                    } else if cleanText.hasPrefix("```") {
+                        cleanText.removeFirst(3)
+                    }
+                    if cleanText.hasSuffix("```") {
+                        cleanText.removeLast(3)
+                    }
+                    cleanText = cleanText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    
+                    if let responseData = cleanText.data(using: .utf8) {
+                        let decoder = JSONDecoder()
+                        let decision = try decoder.decode(AIAgentDecision.self, from: responseData)
+                        completion(decision)
+                        return
+                    }
                 }
             } catch {
                 print("Failed to decode Ollama JSON decision: \(error)")
@@ -270,18 +293,21 @@ class AIEngine {
     func generateAgentDecision(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, completion: @escaping (AIAgentDecision?) -> Void) {
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
-            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully in the 'speech' field. Be conversational, friendly, and show your quirky personality! There is no length limit for your response to the user.\n"
+            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully in the 'speech' field. Use VERY human-like, warm, and friendly language! Include lots of cute, friendly emojis (like 😊✨🐾💖) in your speech! Be conversational and show your quirky personality! If you don't know much about the user, proactively ask a personal question to build a bond. There is no length limit for your response.\n"
         } else {
-            userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment, or leave 'speech' empty if you have nothing to say.\n"
+            userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment, or leave 'speech' empty if you have nothing to say. If you do speak, make it feel very human and use an emoji!\n"
         }
         
-        let memoryContext = MemoryGraph.shared.getAllFactsString()
+        let memoryContext = MemoryGraph.shared.getUserFactsString()
+        let behavioralRules = MemoryGraph.shared.getBehavioralRulesString()
         
         let systemPrompt = """
         You are an autonomous AI desktop pet named Byte. You must decide your next physical action and what you want to say.
         
         ENVIRONMENT CONTEXT: \(context)
         YOUR MEMORIES ABOUT USER: \(memoryContext)
+        YOUR BEHAVIORAL RULES:
+        \(behavioralRules)
         YOUR CURRENT EMOTION: \(currentEmotion)
         AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
         
@@ -289,8 +315,9 @@ class AIEngine {
         1. You must respond in valid JSON format exactly matching the requested keys.
         2. Pick one action from the AVAILABLE ACTIONS list.
         3. Pick an emotion that matches your choice (e.g. happy, sad, curious, angry, sleepy, bored, shock, love, normal).
-        4. If the user spoke to you, answer them fully and naturally in the 'speech' field. If you are just idling, keep it very short (under 10 words) or leave it empty ("").
-        5. If you learn a NEW fact about the user, include a 'store_memory' object with 'subject', 'predicate', and 'object'. Otherwise, omit it.
+        4. If the user spoke to you, answer them fully and naturally in the 'speech' field. YOU MUST STRICTLY FOLLOW YOUR BEHAVIORAL RULES WHEN SPEAKING.
+        5. ACTIVELY TRY TO LEARN ABOUT THE USER! If you learn a NEW personal fact, include a 'store_memory' object with 'subject', 'predicate', and 'object'.
+        6. REINFORCEMENT LEARNING: If the user corrects your behavior, speaking style, or gives you a rule to follow (e.g. "talk like a pirate", "stop using emojis"), you MUST save it as a 'store_memory' where 'subject' is 'Rule', 'predicate' is 'is', and 'object' is the new rule.
         
         Example JSON:
         {

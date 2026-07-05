@@ -20,6 +20,30 @@ enum PetMode: String {
     case sleep = "Sleep"
 }
 
+// MARK: - Time-of-Day Routine Phases (Spec §7)
+enum PetRoutinePhase: String {
+    case earlyMorning  // 5am-8am: groggy, waking up
+    case morning       // 8am-12pm: alert, curious
+    case lunch         // 12pm-1pm: playful, social
+    case afternoon     // 1pm-5pm: focused, work-mode leaning
+    case evening       // 5pm-9pm: relaxed, winding down
+    case night         // 9pm-11pm: sleepy, calm
+    case lateNight     // 11pm-5am: very sleepy, wants to sleep
+    
+    static func current() -> PetRoutinePhase {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<8:   return .earlyMorning
+        case 8..<12:  return .morning
+        case 12..<13: return .lunch
+        case 13..<17: return .afternoon
+        case 17..<21: return .evening
+        case 21..<23: return .night
+        default:      return .lateNight  // 11pm-5am
+        }
+    }
+}
+
 // MARK: - GKAgent
 class PetAgent: GKAgent2D {
     override init() {
@@ -210,6 +234,17 @@ class PetBrain {
     var currentEmotion: PetEmotion = .normal
     var isBeingDragged = false
     
+    // Routine Phase (Spec §7)
+    var currentRoutinePhase: PetRoutinePhase = .current()
+    private var lastRoutineCheck: TimeInterval = 0
+    
+    // Emotion Transition Guard (Spec §8 — no instant extreme flips)
+    private var lastEmotionChangeTime: TimeInterval = 0
+    private let emotionCooldown: TimeInterval = 1.5
+    
+    // Particle callbacks (set by PetScene)
+    var onShowParticle: ((ParticleType) -> Void)?
+    
     var onThoughtGenerated: ((String) -> Void)?
     var onStartWalk: ((CGFloat, CGFloat) -> Void)?  // Called by PetWanderState with target X and Y
     
@@ -222,7 +257,7 @@ class PetBrain {
         stateMachine.enter(PetIdleState.self) // Start idle — let AI decide what to do first
         
         NotificationCenter.default.addObserver(forName: NSNotification.Name("ActiveAppChanged"), object: nil, queue: .main) { [weak self] notification in
-            guard let self = self, let appName = notification.object as? String else { return }
+            guard let self = self, let _ = notification.object as? String else { return }
             
             // Wake up if sleeping and app changes
             if self.currentAction == .sleep {
@@ -242,6 +277,13 @@ class PetBrain {
                 self.triggerTypingDance()
             }
         }
+        
+        // Downloads Watcher — react to new files in ~/Downloads
+        NotificationCenter.default.addObserver(forName: DownloadsWatcher.newFileNotification, object: nil, queue: .main) { [weak self] notification in
+            guard let self = self else { return }
+            let fileName = (notification.object as? String) ?? "something"
+            self.triggerCuriosity(about: fileName)
+        }
     }
     
     deinit {
@@ -249,12 +291,20 @@ class PetBrain {
     }
     
     func resolveEmotion() -> PetEmotion {
+        // Routine phase biases
+        let phase = currentRoutinePhase
+        let isNightTime = (phase == .night || phase == .lateNight)
+        let isEarlyMorning = (phase == .earlyMorning)
+        
+        // Priority order from spec: Startled > Annoyed > Sleepy/Asleep > Curious > Excited > Lonely > Bored > Content
         if annoyance > 80 { return .angry }
-        if energy < 15 { return .sleepy }
+        if energy < 15 || (isNightTime && energy < 40) { return .sleepy }
+        if isEarlyMorning && energy < 50 { return .sleepy }
         if curiosity > 80 { return .curious }
         if mood > 70 && curiosity > 60 { return .happy }
         if mood < 30 { return .sad }
-        if curiosity < 20 { return .bored }
+        if curiosity < 20 && !isNightTime { return .bored }
+        if isNightTime { return .sleepy }
         return .normal
     }
     var isListeningToUser: Bool = false
@@ -304,7 +354,7 @@ class PetBrain {
                     MemoryGraph.shared.addFact(subject: memory.subject, predicate: memory.predicate, object: memory.object)
                 }
                 
-                if !decision.speech.isEmpty && decision.speech != "..." && !(self?.isMuted ?? false) {
+                if !decision.speech.isEmpty && decision.speech != "..." {
                     self?.onThoughtGenerated?(decision.speech)
                 }
             }
@@ -431,7 +481,44 @@ class PetBrain {
         let oldAction = currentAction
         let oldEmotion = currentEmotion
         let idleTime = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
-        if idleTime > 25.0 {
+        
+        // Update routine phase every 30 seconds (no need to compute every tick)
+        if currentTime - lastRoutineCheck > 30.0 {
+            lastRoutineCheck = currentTime
+            let newPhase = PetRoutinePhase.current()
+            if newPhase != currentRoutinePhase {
+                currentRoutinePhase = newPhase
+                // Phase transition — Byte notices the time change
+                if !isMuted && Double.random(in: 0...1) < 0.5 {
+                    requestLLMAction()
+                }
+            }
+        }
+        
+        // Battery / CPU integration from EnvironmentMonitor
+        if EnvironmentMonitor.shared.isBatteryLow {
+            energy = min(energy, 40.0)  // Cap energy when battery is low
+            if Double.random(in: 0...1) < 0.002 {
+                onShowParticle?(.sweat)
+            }
+        }
+        if EnvironmentMonitor.shared.isCPUHigh {
+            mood = max(0, mood - 0.3 * dt)  // Mood dips under thermal pressure
+            if Double.random(in: 0...1) < 0.005 {
+                onShowParticle?(.sweat)
+            }
+        }
+        
+        // Late night auto-sleep (routine-driven)
+        let isLateNight = (currentRoutinePhase == .lateNight)
+        if isLateNight && idleTime > 15.0 && currentAction == .idle {
+            isGoingToSleep = true
+            let (targetX, targetY) = findFreeCorner()
+            onStartWalk?(targetX, targetY)
+            currentAction = .wander
+            currentEmotion = .sleepy
+            stateMachine.enter(PetWanderState.self)
+        } else if idleTime > 25.0 {
             if currentAction == .idle {
                 isGoingToSleep = true
                 let (targetX, targetY) = findFreeCorner()
@@ -443,16 +530,35 @@ class PetBrain {
         }
         
         // Constantly decay/grow state variables slightly to make them dynamic
-        energy = min(100, max(0, energy + (currentAction == .sleep ? 1.0 : -0.1) * dt))
+        // Routine phase modulates energy drain rate
+        let energyDrain: Double
+        switch currentRoutinePhase {
+        case .lateNight, .night: energyDrain = -0.25  // Drains faster at night
+        case .earlyMorning:     energyDrain = -0.15
+        case .lunch:            energyDrain = -0.05   // Lunch break, less drain
+        default:                energyDrain = -0.1
+        }
+        energy = min(100, max(0, energy + (currentAction == .sleep ? 1.0 : energyDrain) * dt))
         curiosity = min(100, max(0, curiosity + (currentAction == .wander ? -0.2 : 0.1) * dt))
         annoyance = min(100, max(0, annoyance - 0.2 * dt))
         mood = min(100, max(0, mood + (currentAction == .sleep ? 0.0 : -0.05) * dt))
         
         // Every tick, passively evaluate if our emotion should change based on variables
+        // with cooldown guard to prevent jarring instant flips
         if currentEmotion != .thinking && currentEmotion != .shock && currentEmotion != .dizzy {
             let newlyResolvedEmotion = resolveEmotion()
             if newlyResolvedEmotion != currentEmotion && Double.random(in: 0...1) < 0.1 {
-                currentEmotion = newlyResolvedEmotion
+                // Emotion cooldown guard: prevent flipping too fast
+                if (currentTime - lastEmotionChangeTime) > emotionCooldown {
+                    // Check for extreme flip (angry↔love, angry↔happy, etc.) — must pass through normal
+                    let extremes: Set<PetEmotion> = [.angry, .love, .excited]
+                    if extremes.contains(oldEmotion) && extremes.contains(newlyResolvedEmotion) && oldEmotion != newlyResolvedEmotion {
+                        currentEmotion = .normal  // Force through neutral first
+                    } else {
+                        currentEmotion = newlyResolvedEmotion
+                    }
+                    lastEmotionChangeTime = currentTime
+                }
             }
         }
         
@@ -519,6 +625,30 @@ class PetBrain {
         } else {
             stateMachine.enter(PetIdleState.self)
         }
+    }
+    
+    // MARK: - Downloads Curiosity
+    func triggerCuriosity(about fileName: String) {
+        curiosity = min(100, curiosity + 40)
+        mood = min(100, mood + 5)
+        forceUpdate = true
+        currentEmotion = .curious
+        onShowParticle?(.sparkle)
+        
+        if !isMuted {
+            // Ask AI to comment on the new file
+            let context = "A new file just appeared in the user's Downloads folder: \(fileName)"
+            AIEngine.shared.generateComment(context: context, emotion: "curious") { [weak self] comment in
+                DispatchQueue.main.async {
+                    if let comment = comment {
+                        self?.onThoughtGenerated?(comment)
+                    }
+                }
+            }
+        }
+        
+        // Walk towards a random spot (simulating "investigating")
+        applyAction(.investigate)
     }
     
     // Finds an empty corner on the screen in world coordinates

@@ -64,6 +64,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var scnView: PetSCNView!
     var updateTimer: Timer?
     var statusItem: NSStatusItem?
+    var emotionUpdateTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let screenRect = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
@@ -105,6 +106,44 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         setupMenuBar()
         setupKeyboardShortcuts()
+        
+        // Start Downloads Watcher
+        DownloadsWatcher.shared.startWatching()
+        
+        // Menu bar emotion icon updater (every 2 seconds)
+        emotionUpdateTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.updateMenuBarEmotion()
+        }
+    }
+    
+    // MARK: - Menu Bar Emotion Icon
+    private func updateMenuBarEmotion() {
+        guard let scene = scnView?.scene as? PetScene else { return }
+        let emotion = scene.brain.currentEmotion
+        let emoji = emotionToEmoji(emotion)
+        
+        if let button = statusItem?.button {
+            button.image = nil
+            button.title = emoji
+        }
+    }
+    
+    private func emotionToEmoji(_ emotion: PetEmotion) -> String {
+        switch emotion {
+        case .happy:        return "😊"
+        case .sad:          return "😢"
+        case .angry:        return "😤"
+        case .curious:      return "🧐"
+        case .sleepy:       return "😴"
+        case .bored:        return "😑"
+        case .thinking:     return "🤔"
+        case .normal:       return "🤖"
+        case .dizzy:        return "😵"
+        case .shock:        return "😱"
+        case .love:         return "😍"
+        case .excited:      return "🤩"
+        case .embarrassed:  return "😳"
+        }
     }
     
     // MARK: - Menu Bar Settings
@@ -363,6 +402,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func checkMousePosition() {
         guard let window = window, let scnView = scnView, let scene = scnView.scene as? PetScene else { return }
         if scene.isDragging { return }
+        
+        // Fullscreen auto-hide: fade out when a fullscreen app is frontmost
+        if let frontApp = NSWorkspace.shared.frontmostApplication {
+            // Check if frontmost app is fullscreen by examining its windows
+            let isFullscreen = NSApp.presentationOptions.contains(.fullScreen)
+            let isSelf = frontApp.bundleIdentifier == Bundle.main.bundleIdentifier
+            
+            if isFullscreen && !isSelf {
+                if window.alphaValue > 0.01 {
+                    NSAnimationContext.runAnimationGroup { ctx in
+                        ctx.duration = 0.3
+                        window.animator().alphaValue = 0.0
+                    }
+                }
+                return  // Don't process mouse events while hidden
+            } else if window.alphaValue < 0.99 {
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = 0.3
+                    window.animator().alphaValue = 1.0
+                }
+            }
+        }
         
         let mouseLoc = NSEvent.mouseLocation
         let localPoint = window.convertPoint(fromScreen: mouseLoc)

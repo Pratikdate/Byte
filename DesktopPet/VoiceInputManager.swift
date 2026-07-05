@@ -46,18 +46,22 @@ class VoiceInputManager {
     }
     
     func stopListening() {
-        audioEngine.stop()
-        recognitionRequest?.endAudio()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            recognitionRequest?.endAudio()
+            audioEngine.inputNode.removeTap(onBus: 0)
+        }
         
         recognitionRequest = nil
         recognitionTask = nil
     }
     
     func finishListeningWithResult(completion: @escaping (String) -> Void) {
-        audioEngine.stop()
-        recognitionRequest?.endAudio()
-        audioEngine.inputNode.removeTap(onBus: 0)
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            recognitionRequest?.endAudio()
+            audioEngine.inputNode.removeTap(onBus: 0)
+        }
         
         // Give the speech recognizer 0.6 seconds to process the final words
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {

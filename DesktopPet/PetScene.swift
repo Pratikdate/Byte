@@ -3,7 +3,16 @@ import SpriteKit
 import AppKit
 import AVFoundation
 
-class PetScene: SCNScene {
+// MARK: - Particle Types
+enum ParticleType {
+    case heart
+    case zzz
+    case sparkle
+    case sweat
+    case angryCloud
+}
+
+class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
     private var petContainer: SCNNode!
     
     // Robot 3D Parts
@@ -27,7 +36,15 @@ class PetScene: SCNScene {
     
     // Speech
     private var speechBubble: SKLabelNode!
+    private var speechBubbleBG: SKSpriteNode?
+    private var speechContainer: SKNode?
+    private var speechBubbleSKScene: SKScene!
+    private var speechBubbleNode: SCNNode!
     private let synthesizer = AVSpeechSynthesizer()
+    private var pendingSpeechTexts: [String] = []
+    
+    // Particle Emitter Layer
+    private var particleContainer: SKNode?
     
     // State Engine
     var brain = PetBrain()
@@ -81,6 +98,7 @@ class PetScene: SCNScene {
     
     override init() {
         super.init()
+        synthesizer.delegate = self
         EnvironmentMonitor.shared.startMonitoring()
         DesktopEnvironmentManager.shared.startMonitoring()
         setup3DEnvironment()
@@ -95,14 +113,18 @@ class PetScene: SCNScene {
             self?.startWalk(toX: targetX, toY: targetY)
         }
         
+        // Particle callback from PetBrain
+        brain.onShowParticle = { [weak self] type in
+            self?.showParticle(type)
+        }
+        
         // (petContainer Y is already set to groundY in setup3DRobot)
         
-        // Setup Update Loop
-        let updateNode = SCNNode()
-        self.rootNode.addChildNode(updateNode)
-        updateNode.runAction(SCNAction.repeatForever(SCNAction.customAction(duration: 0.1, action: { [weak self] node, _ in
+        // Setup Update Loop on Main Thread (60 FPS) to prevent cross-thread SpriteKit/SceneKit races
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             self?.tick(currentTime: Date().timeIntervalSince1970)
-        })))
+        }
+        RunLoop.main.add(timer, forMode: .common)
     }
     
     required init?(coder: NSCoder) {
@@ -319,19 +341,34 @@ class PetScene: SCNScene {
         eyeContainer.addChild(leftBlush)
         eyeContainer.addChild(rightBlush)
         
-        // SPEECH BUBBLE (Fix for flipped SceneKit texture mapping)
+        // PARTICLE CONTAINER (for hearts, Zzz, sparkles, etc.)
+        particleContainer = SKNode()
+        particleContainer?.position = CGPoint(x: screenWidth / 2, y: screenHeight / 2)
+        if let pc = particleContainer { screenScene.addChild(pc) }
+        
+        // SPEECH BUBBLE (Dedicated Floating Scene)
+        speechBubbleSKScene = SKScene(size: CGSize(width: 800, height: 600))
+        speechBubbleSKScene.backgroundColor = .clear
+        
+        speechContainer = SKNode()
+        speechContainer?.position = CGPoint(x: 400, y: 300)
+        speechContainer?.alpha = 0
+        speechContainer?.xScale = 1
+        speechContainer?.yScale = -1
+        if let sc = speechContainer { speechBubbleSKScene.addChild(sc) }
+        
+        speechBubbleBG = SKSpriteNode()
+        speechBubbleBG?.zPosition = -1
+        if let bg = speechBubbleBG { speechContainer?.addChild(bg) }
+        
         speechBubble = SKLabelNode(fontNamed: "HelveticaNeue-Bold")
-        speechBubble.fontSize = 20
+        speechBubble.fontSize = 54
         speechBubble.fontColor = .white
-        speechBubble.xScale = -1
-        speechBubble.yScale = -1
-        speechBubble.position = CGPoint(x: 0, y: -90)
         speechBubble.horizontalAlignmentMode = .center
         speechBubble.verticalAlignmentMode = .center
-        speechBubble.numberOfLines = 0 // Allow multiple lines
-        speechBubble.preferredMaxLayoutWidth = 320 // Wrap text that's too wide
-        speechBubble.alpha = 0
-        screenScene.addChild(speechBubble)
+        speechBubble.numberOfLines = 0
+        speechBubble.preferredMaxLayoutWidth = 750
+        speechContainer?.addChild(speechBubble)
         
         // Attach to 3D Model (Covering almost the whole front face)
         let screenGeo = SCNPlane(width: 3.6, height: 2.8)
@@ -344,6 +381,129 @@ class PetScene: SCNScene {
         let screenNode = SCNNode(geometry: screenGeo)
         screenNode.position = SCNVector3(0, 0, 1.61) // Slightly in front of head box (length 3.2 / 2 = 1.6)
         headNode.addChildNode(screenNode)
+        
+        // Floating Speech Bubble Billboard Node
+        let bubbleGeo = SCNPlane(width: 8.0, height: 6.0)
+        let bubbleMat = SCNMaterial()
+        bubbleMat.diffuse.contents = speechBubbleSKScene
+        bubbleMat.isDoubleSided = true
+        bubbleGeo.materials = [bubbleMat]
+        
+        speechBubbleNode = SCNNode(geometry: bubbleGeo)
+        speechBubbleNode.position = SCNVector3(2.5, 3.5, 0) // Closer to the body
+        let billboard = SCNBillboardConstraint()
+        billboard.freeAxes = .Y // Allow billboard to track camera only around Y axis, or .all to face fully
+        speechBubbleNode.constraints = [billboard]
+        petContainer.addChildNode(speechBubbleNode)
+    }
+    
+    // MARK: - Particle Effects
+    private func showParticle(_ type: ParticleType) {
+        guard particleContainer != nil else { return }  // Not yet initialized
+        switch type {
+        case .heart:
+            showHeartParticles()
+        case .zzz:
+            showZzzParticles()
+        case .sparkle:
+            showSparkleParticles()
+        case .sweat:
+            showSweatParticle()
+        case .angryCloud:
+            showAngryCloudParticle()
+        }
+    }
+    
+    private func showHeartParticles() {
+        for i in 0..<3 {
+            let heart = SKLabelNode(text: "♥")
+            heart.fontSize = 24
+            heart.fontColor = NSColor(red: 1.0, green: 0.3, blue: 0.5, alpha: 1.0)
+            heart.position = CGPoint(x: CGFloat.random(in: -30...30), y: CGFloat.random(in: -10...10))
+            heart.alpha = 1.0
+            heart.zPosition = 10
+            particleContainer?.addChild(heart)
+            
+            let floatUp = SKAction.moveBy(x: CGFloat.random(in: -15...15), y: 60, duration: 1.2 + Double(i) * 0.3)
+            let fadeOut = SKAction.fadeAlpha(to: 0, duration: 1.0 + Double(i) * 0.3)
+            let scale = SKAction.scale(to: 1.5, duration: 1.2)
+            heart.run(SKAction.group([floatUp, fadeOut, scale])) {
+                heart.removeFromParent()
+            }
+        }
+    }
+    
+    private func showZzzParticles() {
+        let zzz = SKLabelNode(text: "Z")
+        zzz.fontSize = 20
+        zzz.fontColor = NSColor(red: 0.4, green: 0.7, blue: 1.0, alpha: 0.8)
+        zzz.fontName = "HelveticaNeue-Bold"
+        zzz.position = CGPoint(x: 30, y: 20)
+        zzz.alpha = 0.0
+        zzz.zPosition = 10
+        particleContainer?.addChild(zzz)
+        
+        let fadeIn = SKAction.fadeAlpha(to: 0.9, duration: 0.3)
+        let floatUp = SKAction.moveBy(x: 15, y: 40, duration: 2.0)
+        let grow = SKAction.scale(to: 1.8, duration: 2.0)
+        let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.8)
+        zzz.run(SKAction.sequence([fadeIn, SKAction.group([floatUp, grow]), fadeOut])) {
+            zzz.removeFromParent()
+        }
+    }
+    
+    private func showSparkleParticles() {
+        for _ in 0..<5 {
+            let sparkle = SKLabelNode(text: "✦")
+            sparkle.fontSize = CGFloat.random(in: 14...22)
+            sparkle.fontColor = NSColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 1.0)
+            sparkle.position = CGPoint(x: CGFloat.random(in: -50...50), y: CGFloat.random(in: -30...30))
+            sparkle.alpha = 0.0
+            sparkle.zPosition = 10
+            particleContainer?.addChild(sparkle)
+            
+            let delay = SKAction.wait(forDuration: Double.random(in: 0...0.4))
+            let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 0.2)
+            let drift = SKAction.moveBy(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: 10...30), duration: 0.8)
+            let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.3)
+            let rotate = SKAction.rotate(byAngle: .pi, duration: 1.0)
+            sparkle.run(SKAction.sequence([delay, fadeIn, SKAction.group([drift, rotate]), fadeOut])) {
+                sparkle.removeFromParent()
+            }
+        }
+    }
+    
+    private func showSweatParticle() {
+        let sweat = SKLabelNode(text: "💧")
+        sweat.fontSize = 16
+        sweat.position = CGPoint(x: 35, y: 25)
+        sweat.alpha = 0.0
+        sweat.zPosition = 10
+        particleContainer?.addChild(sweat)
+        
+        let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 0.15)
+        let drop = SKAction.moveBy(x: 3, y: -40, duration: 0.6)
+        drop.timingMode = .easeIn
+        let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.2)
+        sweat.run(SKAction.sequence([fadeIn, drop, fadeOut])) {
+            sweat.removeFromParent()
+        }
+    }
+    
+    private func showAngryCloudParticle() {
+        let cloud = SKLabelNode(text: "💢")
+        cloud.fontSize = 20
+        cloud.position = CGPoint(x: CGFloat.random(in: -20...20), y: 30)
+        cloud.alpha = 0.0
+        cloud.zPosition = 10
+        particleContainer?.addChild(cloud)
+        
+        let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 0.1)
+        let puff = SKAction.scale(to: 1.8, duration: 0.4)
+        let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.5)
+        cloud.run(SKAction.sequence([fadeIn, puff, fadeOut])) {
+            cloud.removeFromParent()
+        }
     }
     
     // MARK: - Update Loop
@@ -420,6 +580,7 @@ class PetScene: SCNScene {
             // Fast mouse movement over pet triggers petting
             if mouseScrubDistance > 2000 {
                 brain.triggerPetting()
+                showParticle(.heart)
                 mouseScrubDistance = 0
             }
         }
@@ -500,7 +661,7 @@ class PetScene: SCNScene {
             applyAction(tickResult.action)
         }
         
-        if ![.sleepy, .thinking, .dizzy].contains(brain.currentEmotion) && Int.random(in: 0...200) > 198 {
+        if ![.sleepy, .thinking, .dizzy].contains(brain.currentEmotion) && Int.random(in: 0...blinkChance()) > (blinkChance() - 2) {
             blink()
         }
         
@@ -650,7 +811,7 @@ class PetScene: SCNScene {
             minY = -7.0
         }
         var finalTargetY = requestedY
-        var minX = -maxX
+        let minX = -maxX
         
         if let screen = NSScreen.main {
             let dockApps = DesktopEnvironmentManager.shared.visibleElements.filter { $0.type == .taskbar }
@@ -770,6 +931,20 @@ class PetScene: SCNScene {
             leftEye.alpha = 1.0
             rightEye.alpha = 1.0
         }
+        
+        // Trigger particles on emotion change
+        switch emotion {
+        case .love:
+            showParticle(.heart)
+        case .happy, .excited:
+            if Double.random(in: 0...1) < 0.4 { showParticle(.sparkle) }
+        case .sleepy:
+            showParticle(.zzz)
+        case .angry:
+            showParticle(.angryCloud)
+        default:
+            break
+        }
     }
     
     private func lookAt(targetX: CGFloat, targetY: CGFloat) {
@@ -787,6 +962,13 @@ class PetScene: SCNScene {
         leftEye.position.y += (tly - leftEye.position.y) * 0.2
         rightEye.position.x += (trx - rightEye.position.x) * 0.2
         rightEye.position.y += (try_ - rightEye.position.y) * 0.2
+        
+        // Eye glow intensity: brighter when cursor is closer
+        // Use alpha scaling instead of CIFilter mutation to avoid race condition
+        // with SpriteKit's render thread on the rasterized effect node
+        let dist = sqrt(dx * dx + dy * dy)
+        let glowAlpha = CGFloat(max(0.6, min(1.0, 1.2 - dist * 0.002)))
+        eyeContainer.alpha += (glowAlpha - eyeContainer.alpha) * 0.15
     }
     
     private func blink() {
@@ -805,6 +987,19 @@ class PetScene: SCNScene {
         let action = SKAction.sequence([SKAction.scaleY(to: 0.1, duration: 0.05), SKAction.scaleY(to: targetScaleY, duration: 0.1)])
         leftEye.run(action)
         rightEye.run(action)
+    }
+    
+    /// Returns an emotion-dependent blink chance per tick.
+    /// Higher value = more frequent blinking.
+    private func blinkChance() -> Int {
+        switch brain.currentEmotion {
+        case .excited, .happy, .love:  return 150  // Blink more often
+        case .curious:                 return 180
+        case .sleepy, .bored:          return 60   // Blink very slowly (long gaps)
+        case .angry:                   return 120
+        case .normal:                  return 200
+        default:                       return 200
+        }
     }
     
     // MARK: - Paths for Eyes (EMO Robot Style)
@@ -1067,6 +1262,15 @@ class PetScene: SCNScene {
         stopAll()
         headNode.runAction(SCNAction.moveBy(x: 0, y: -0.8, z: 0, duration: 1.0))
         headNode.runAction(SCNAction.rotateTo(x: 0.2, y: 0, z: 0.1, duration: 1.0))
+        
+        // Recurring Zzz particles while sleeping
+        let zzzLoop = SCNAction.repeatForever(SCNAction.sequence([
+            SCNAction.wait(duration: 3.0),
+            SCNAction.run { [weak self] _ in
+                self?.showParticle(.zzz)
+            }
+        ]))
+        petContainer.runAction(zzzLoop, forKey: "sleepZzz")
     }
     
     private func startHappyAnimation() {
@@ -1220,49 +1424,141 @@ class PetScene: SCNScene {
     
     
     // MARK: - Speech
+    private func updateSpeechBubble(text: String) {
+        speechBubble.text = text
+        let textFrame = speechBubble.frame
+        let padding: CGFloat = 12.0
+        let bubbleWidth = max(textFrame.width + padding * 2, 60)
+        let bubbleHeight = max(textFrame.height + padding * 2, 30)
+        
+        speechBubbleBG?.removeFromParent()
+        
+        let cornerRadius: CGFloat = 8.0
+        let imageSize = NSSize(width: bubbleWidth + 40, height: bubbleHeight + 40)
+        let image = NSImage(size: imageSize)
+        image.lockFocus()
+        if let ctx = NSGraphicsContext.current?.cgContext {
+            let bubblePath = CGMutablePath()
+            let rect = CGRect(x: 20, y: 30, width: bubbleWidth, height: bubbleHeight)
+            bubblePath.addRoundedRect(in: rect, cornerWidth: cornerRadius, cornerHeight: cornerRadius)
+            
+            // Pointer tail pointing down-left toward the robot
+            bubblePath.move(to: CGPoint(x: 40, y: 30))
+            bubblePath.addLine(to: CGPoint(x: 30, y: 5))
+            bubblePath.addLine(to: CGPoint(x: 60, y: 30))
+            
+            ctx.addPath(bubblePath)
+            ctx.setFillColor(NSColor(white: 0.1, alpha: 0.85).cgColor)
+            ctx.fillPath()
+            
+            ctx.addPath(bubblePath)
+            ctx.setStrokeColor(NSColor.white.cgColor)
+            ctx.setLineWidth(3.0)
+            ctx.strokePath()
+        }
+        image.unlockFocus()
+        
+        let newBG = SKSpriteNode(texture: SKTexture(image: image))
+        newBG.zPosition = -1
+        // Offset slightly to match the drawn rect position relative to center
+        newBG.position = CGPoint(x: 0, y: -5)
+        
+        speechContainer?.addChild(newBG)
+        speechBubbleBG = newBG
+        
+        speechContainer?.alpha = 1.0
+    }
+    
+    // MARK: - AVSpeechSynthesizerDelegate
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if !self.pendingSpeechTexts.isEmpty {
+                let originalText = self.pendingSpeechTexts.removeFirst()
+                self.speechContainer?.removeAllActions()
+                self.updateSpeechBubble(text: originalText)
+            }
+        }
+    }
+    
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async { [weak self] in
+            let fadeOut = SKAction.sequence([
+                SKAction.wait(forDuration: 3.0),
+                SKAction.fadeAlpha(to: 0, duration: 0.8)
+            ])
+            self?.speechContainer?.run(fadeOut)
+        }
+    }
+    
     func say(_ text: String) {
-        guard !isMuted else { return }
-        
-        speechBubble.removeAllActions()
-        
-        // Show the emotion label in brackets before the text so the user can see what emotion was picked
-        let formattedText = "[\(brain.currentEmotion)] \(text)"
-        speechBubble.text = formattedText
-        speechBubble.alpha = 1.0
-        
-        synthesizer.stopSpeaking(at: .immediate)
-        
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        utterance.volume = 0.8
-        
-        // Dynamic pitch based on emotion for more genuine feel
-        switch brain.currentEmotion {
-        case .excited, .happy:
-            utterance.pitchMultiplier = 1.15
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
-        case .sad, .sleepy, .bored:
-            utterance.pitchMultiplier = 0.90
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.80
-        case .angry, .dizzy:
-            utterance.pitchMultiplier = 0.85
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.05
-        default:
-            utterance.pitchMultiplier = 1.0 // Natural pitch
-            utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.85 // Slower, highly conversational
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.speechContainer?.removeAllActions()
+            self.synthesizer.stopSpeaking(at: .immediate)
+            self.pendingSpeechTexts.removeAll()
+            
+            // Chunk into sentences without the emotion tag so TTS doesn't read it
+            var sentences: [String] = []
+            text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: .bySentences) { (substring, _, _, _) in
+                if let s = substring { sentences.append(s.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            }
+            if sentences.isEmpty { sentences = [text] }
+            
+            if self.isMuted {
+                var actions: [SKAction] = []
+                for (index, sentence) in sentences.enumerated() {
+                    let displaySentence = index == 0 ? "[\(self.brain.currentEmotion)] \(sentence)" : sentence
+                    actions.append(SKAction.run { [weak self] in
+                        self?.updateSpeechBubble(text: displaySentence)
+                    })
+                    let waitDuration = max(2.5, Double(displaySentence.count) * 0.08)
+                    actions.append(SKAction.wait(forDuration: waitDuration))
+                }
+                actions.append(SKAction.fadeAlpha(to: 0, duration: 0.8))
+                self.speechContainer?.run(SKAction.sequence(actions))
+            } else {
+                for (index, sentence) in sentences.enumerated() {
+                    let allowedCharacters = CharacterSet.alphanumerics.union(.whitespacesAndNewlines).union(CharacterSet(charactersIn: ".,!?'\"-"))
+                    var spokenText = String(sentence.unicodeScalars.filter { allowedCharacters.contains($0) }).trimmingCharacters(in: .whitespacesAndNewlines)
+                    let displaySentence = index == 0 ? "[\(self.brain.currentEmotion)] \(sentence)" : sentence
+                    
+                    if spokenText.isEmpty {
+                        // Just emojis/symbols. Make it a space so the TTS engine still triggers the delegate safely!
+                        spokenText = " "
+                    }
+                    
+                    let utterance = AVSpeechUtterance(string: spokenText)
+                    utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+                    utterance.volume = 0.8
+                    
+                    // Dynamic pitch based on emotion for more genuine feel
+                    switch self.brain.currentEmotion {
+                    case .excited, .happy:
+                        utterance.pitchMultiplier = 1.15
+                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
+                    case .sad, .sleepy, .bored:
+                        utterance.pitchMultiplier = 0.90
+                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.80
+                    case .angry, .dizzy:
+                        utterance.pitchMultiplier = 0.85
+                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.05
+                    case .love:
+                        utterance.pitchMultiplier = 1.20
+                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.85
+                    case .curious:
+                        utterance.pitchMultiplier = 1.10
+                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.90
+                    default:
+                        utterance.pitchMultiplier = 1.0 // Natural pitch
+                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.85 // Slower, highly conversational
+                    }
+                    
+                    self.pendingSpeechTexts.append(displaySentence)
+                    self.synthesizer.speak(utterance)
+                }
+            }
         }
-        
-        // Dispatch to avoid main thread stutters
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.synthesizer.speak(utterance)
-        }
-        
-        let waitDuration = max(6.5, Double(text.count) * 0.08)
-        let fadeOut = SKAction.sequence([
-            SKAction.wait(forDuration: waitDuration),
-            SKAction.fadeAlpha(to: 0, duration: 0.8)
-        ])
-        speechBubble.run(fadeOut)
     }
     
     func sayToPet(_ message: String) {
@@ -1273,30 +1569,35 @@ class PetScene: SCNScene {
     
     func showListeningState(_ listening: Bool) {
         if listening {
+            self.synthesizer.stopSpeaking(at: .immediate)
+            self.pendingSpeechTexts.removeAll()
+            
             applyEmotion(.curious)
-            speechBubble.removeAllActions()
-            speechBubble.text = "🎤 Listening..."
-            speechBubble.alpha = 1.0
+            speechContainer?.removeAllActions()
+            updateSpeechBubble(text: "🎤 Listening...")
         } else {
-            speechBubble.text = "🤔 Thinking..."
+            updateSpeechBubble(text: "🤔 Thinking...")
         }
     }
     
     func showDictationState(_ dictating: Bool) {
         if dictating {
+            self.synthesizer.stopSpeaking(at: .immediate)
+            self.pendingSpeechTexts.removeAll()
+            
             applyEmotion(.excited)
-            speechBubble.removeAllActions()
-            speechBubble.text = "📝 Dictating..."
-            speechBubble.alpha = 1.0
+            speechContainer?.removeAllActions()
+            updateSpeechBubble(text: "📝 Dictating...")
         } else {
             let fadeOut = SKAction.sequence([
                 SKAction.wait(forDuration: 1.0),
                 SKAction.fadeAlpha(to: 0, duration: 0.5)
             ])
-            speechBubble.run(fadeOut)
+            speechContainer?.run(fadeOut)
         }
     }
     
+
     // MARK: - Event Handling for Drag
     private var isActuallyDragged = false
     
