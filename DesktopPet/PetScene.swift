@@ -21,6 +21,7 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
     private var rightLeg: SCNNode!
     private var leftHeadphone: SCNNode!
     private var rightHeadphone: SCNNode!
+    private var headphoneBandNode: SCNNode!
     
     // 2D Screen (Mapped to 3D)
     private var screenScene: SKScene!
@@ -71,6 +72,14 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
     private var lastClickTime: TimeInterval = 0
     var isMuted = false
     
+    // Manual interaction offsets
+    private var manualRotationY: CGFloat = 0.0
+    
+    // Spatial command tracking
+    private var pendingSpatialAction: PetAction? = nil
+    private var lastIdleReturnTime: TimeInterval = 0
+    private var lastSneezeCheckTime: TimeInterval = 0
+    
     // Step-based Walk System
     private var walkTargetX: CGFloat = 0
     private var walkTargetY: CGFloat = 0
@@ -116,6 +125,12 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
         // Particle callback from PetBrain
         brain.onShowParticle = { [weak self] type in
             self?.showParticle(type)
+        }
+        
+        // Spatial command callback: walk to target then perform action on arrival
+        brain.onSpatialCommand = { [weak self] action, targetX, targetY in
+            self?.pendingSpatialAction = action
+            self?.startWalk(toX: targetX, toY: targetY)
         }
         
         // (petContainer Y is already set to groundY in setup3DRobot)
@@ -273,6 +288,31 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
         rightShoe.position = SCNVector3(0, -0.5, 0.35)
         rightLegGeom.addChildNode(rightShoe)
         
+        // ACCESSORIES
+        // DJ Headband
+        headphoneBandNode = SCNNode()
+        
+        let topBandGeo = SCNBox(width: 4.6, height: 0.3, length: 0.6, chamferRadius: 0.1)
+        topBandGeo.materials = [shellMaterial]
+        let topBand = SCNNode(geometry: topBandGeo)
+        topBand.position = SCNVector3(0, 1.7, 0)
+        
+        let leftBandGeo = SCNBox(width: 0.3, height: 1.5, length: 0.6, chamferRadius: 0.1)
+        leftBandGeo.materials = [shellMaterial]
+        let leftBand = SCNNode(geometry: leftBandGeo)
+        leftBand.position = SCNVector3(-2.15, 1.0, 0)
+        
+        let rightBandGeo = SCNBox(width: 0.3, height: 1.5, length: 0.6, chamferRadius: 0.1)
+        rightBandGeo.materials = [shellMaterial]
+        let rightBand = SCNNode(geometry: rightBandGeo)
+        rightBand.position = SCNVector3(2.15, 1.0, 0)
+        
+        headphoneBandNode.addChildNode(topBand)
+        headphoneBandNode.addChildNode(leftBand)
+        headphoneBandNode.addChildNode(rightBand)
+        
+        headphoneBandNode.isHidden = true
+        headNode.addChildNode(headphoneBandNode)
         // SCREEN & GLOWING EYES (2D SKScene wrapped onto 3D)
         setupScreen()
     }
@@ -515,44 +555,41 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             petContainer.position.x += velocityX
             petContainer.position.y += velocityY
             
-            let screenEdgeX: CGFloat = 35.0
-            var screenEdgeYMin: CGFloat = -3.2
+            let aspect = NSScreen.main.map { $0.frame.width / $0.frame.height } ?? 1.6
+            let screenEdgeX: CGFloat = 7.0 * aspect
+            let screenEdgeYMax: CGFloat = 7.0
+            var screenEdgeYMin: CGFloat = -7.0
             if let screen = NSScreen.main {
                 let dockApps = DesktopEnvironmentManager.shared.visibleElements.filter { $0.type == .taskbar }
                 if let dock = dockApps.first {
                     let ratioMinX = (dock.frame.minX / screen.frame.width) - 0.5
                     let ratioMaxX = (dock.frame.maxX / screen.frame.width) - 0.5
-                    let dockWorldMinX = ratioMinX * 70.0
-                    let dockWorldMaxX = ratioMaxX * 70.0
+                    let dockWorldMinX = ratioMinX * (14.0 * aspect)
+                    let dockWorldMaxX = ratioMaxX * (14.0 * aspect)
                     
-                    if petContainer.position.x < (dockWorldMinX - 1.0) || petContainer.position.x > (dockWorldMaxX + 1.0) {
-                        screenEdgeYMin = -(screen.frame.height / 40.0) // Bottom of screen
+                    if petContainer.position.x >= (dockWorldMinX - 1.0) && petContainer.position.x <= (dockWorldMaxX + 1.0) {
+                        screenEdgeYMin = -6.0 // Dock height
                     }
-                } else {
-                    screenEdgeYMin = -(screen.frame.height / 40.0)
                 }
             }
             
             if petContainer.position.y <= screenEdgeYMin {
-                petContainer.position.y = screenEdgeYMin
-                velocityY = -velocityY * 0.6 // Bounce damping
-                velocityX *= 0.8 // Friction
-                
-                if abs(velocityY) < 0.1 && abs(velocityX) < 0.1 {
-                    isFalling = false
+                if petContainer.position.y < screenEdgeYMin - 1.0 {
+                    // He was dragged/dropped far below the screen. Let him stay there!
                     velocityY = 0
                     velocityX = 0
+                    isFalling = false
+                    brain.applyAction(.idle)
+                } else {
+                    // Normal landing
+                    petContainer.position.y = screenEdgeYMin
+                    velocityY = 0
+                    velocityX = 0
+                    isFalling = false
                     brain.applyAction(.idle)
                 }
             }
-            
-            if petContainer.position.x <= -screenEdgeX {
-                petContainer.position.x = -screenEdgeX
-                velocityX = -velocityX * 0.8
-            } else if petContainer.position.x >= screenEdgeX {
-                petContainer.position.x = screenEdgeX
-                velocityX = -velocityX * 0.8
-            }
+            // Removed left, right, and top ceiling bounces so he can fall off-screen horizontally!
             return
         }
         
@@ -654,6 +691,8 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             brain.agent.position = vector_float2(x: Float(petContainer.position.x), y: Float(petContainer.position.y))
         }
         
+        updateAccessories()
+        
         let tickResult = brain.tick(currentTime: currentTime, cursorMoved: cursorMoved)
         
         if tickResult.changed {
@@ -670,18 +709,10 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             let currentX = CGFloat(petContainer.presentation.position.x)
             let currentY = CGFloat(petContainer.presentation.position.y)
             
-            var visibleMaxX: CGFloat = 17.0
-            if let screen = NSScreen.main {
-                let aspect = screen.frame.width / screen.frame.height
-                visibleMaxX = 7.0 * aspect // Orthographic scale is 7
-            }
+            let aspect = NSScreen.main.map { $0.frame.width / $0.frame.height } ?? 1.6
+            let visibleMaxX = 7.0 * aspect
             
-            // Failsafe: If somehow way out of bounds, forcefully walk back to center
-            if abs(currentX) > (visibleMaxX + 1.0) && walkTargetX != 0 {
-                walkTargetX = 0
-                walkTargetY = currentY
-                walkDirectionX = currentX > 0 ? -1 : 1
-            }
+            // Removed wall collision; he can now walk completely off screen!
             
             // Check arrival distance for both X and Y
             let distToTargetX = abs(walkTargetX - currentX)
@@ -693,7 +724,7 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
                     isWalking = false
                     petContainer.position = petContainer.presentation.position
                     stopAll()
-                    brain.notifyWalkFinished()
+                    handleWalkArrival()
                 }
             } else {
                 // Face the correct direction (turn slightly towards movement direction)
@@ -704,7 +735,9 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             // Keep agent position in sync
             brain.agent.position = vector_float2(x: Float(currentX), y: Float(currentY))
             
-        case .idle, .sleep, .sit, .spin, .jump, .sulk, .dizzy, .tickled:
+        case .idle, .sleep, .sit, .spin, .jump, .sulk, .dizzy, .tickled,
+             .sneeze, .backflip, .headbang, .trip, .wave,
+             .sitOnCorner, .sitOnMenuBar, .climbWindow, .pushWidget, .tapWindow:
             // Calculate dynamic floor based on dock
             var screenEdgeYMin: CGFloat = -3.2 // Default dock height
             
@@ -725,46 +758,36 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
                 }
             }
             
-            // Smoothly move towards the floor if above or below it
-            if petContainer.position.y < screenEdgeYMin {
-                // Smoothly snap UP to the dock instead of teleporting
-                petContainer.position.y += 0.8
-                if petContainer.position.y > screenEdgeYMin {
-                    petContainer.position.y = screenEdgeYMin
-                }
-            } else if petContainer.position.y > screenEdgeYMin && !isDragging && brain.currentAction == .idle {
-                // If somehow floating above the floor while idle, slowly fall down
-                petContainer.position.y -= 0.2
-                if petContainer.position.y < screenEdgeYMin {
-                    petContainer.position.y = screenEdgeYMin
-                }
-            }
+            // Removed forced snapping to the floor so he can chill off-screen if he wants to
             
             if brain.currentAction == .idle {
-                var visibleMaxX: CGFloat = 17.0
-                if let screen = NSScreen.main {
-                    let aspect = screen.frame.width / screen.frame.height
-                    visibleMaxX = 7.0 * aspect
+                let aspect = NSScreen.main.map { $0.frame.width / $0.frame.height } ?? 1.6
+                let visibleMaxX = 7.0 * aspect
+                
+                // Removed screen teleportation/clamping so he stays exactly where he walked off to
+                
+                if currentTime - lastLookChangeTime > Double.random(in: 1.0...4.0) {
+                    lastLookChangeTime = currentTime
+                    randomLookTargetX = CGFloat.random(in: -400...400)
+                    randomLookTargetY = CGFloat.random(in: -200...200)
                 }
                 
-                // Out of bounds safety net for idle pet
-                if abs(petContainer.position.x) > (visibleMaxX + 1.0) {
-                    brain.applyAction(.wander)
-                    startWalk(toX: 0, toY: CGFloat(petContainer.position.y))
-                } else {
-                    if currentTime - lastLookChangeTime > Double.random(in: 1.0...4.0) {
-                        lastLookChangeTime = currentTime
-                        randomLookTargetX = CGFloat.random(in: -400...400)
-                        randomLookTargetY = CGFloat.random(in: -200...200)
+                let targetX = CGFloat(petContainer.position.x * 40) + randomLookTargetX
+                let targetY = CGFloat(petContainer.position.y * 40) + randomLookTargetY
+                lookAt(targetX: targetX, targetY: targetY)
+                
+                // Random micro-animation triggers while idle
+                if currentTime - lastSneezeCheckTime > 5.0 {
+                    lastSneezeCheckTime = currentTime
+                    let roll = Int.random(in: 0...500)
+                    if roll == 0 {
+                        brain.triggerSneeze()
+                    } else if roll == 1 {
+                        brain.triggerWave()
                     }
-                    
-                    let targetX = CGFloat(petContainer.position.x * 40) + randomLookTargetX
-                    let targetY = CGFloat(petContainer.position.y * 40) + randomLookTargetY
-                    lookAt(targetX: targetX, targetY: targetY)
                 }
             }
-            petContainer.eulerAngles.y *= 0.9
-            petContainer.eulerAngles.x *= 0.9
+            // Rotation decay removed so he stays rotated
         default: break
         }
         
@@ -774,12 +797,39 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
         }
     }
     
+    private func updateAccessories() {
+        
+        // DJ Headphones (Music/Spotify or Physical Headphones connected)
+        let activeApp = DesktopEnvironmentManager.shared.activeAppTracker.lowercased()
+        if activeApp.contains("music") || activeApp.contains("spotify") || AudioMonitor.shared.isHeadphoneConnected {
+            headphoneBandNode.isHidden = false
+            
+            // Make the existing headphones glow neon!
+            let neonMat = SCNMaterial()
+            neonMat.diffuse.contents = NSColor.green
+            neonMat.emission.contents = NSColor.green
+            leftHeadphone.geometry?.materials = [neonMat]
+            rightHeadphone.geometry?.materials = [neonMat]
+        } else {
+            headphoneBandNode.isHidden = true
+            
+            let darkMaterial = SCNMaterial()
+            darkMaterial.diffuse.contents = NSColor(white: 0.05, alpha: 1.0)
+            darkMaterial.specular.contents = NSColor(white: 0.5, alpha: 1.0)
+            darkMaterial.shininess = 0.5
+            darkMaterial.roughness.contents = 0.6
+            leftHeadphone.geometry?.materials = [darkMaterial]
+            rightHeadphone.geometry?.materials = [darkMaterial]
+        }
+    }
+    
     // MARK: - Action Execution
     private func applyAction(_ action: PetAction) {
         targetPosition = nil
         switch action {
         case .idle: startIdleTransition()
         case .wander, .followCursor, .investigate, .chaseLaser, .seekTreat: break // Triggered externally via startWalk(toX:)
+        case .sitOnCorner, .sitOnMenuBar, .climbWindow, .pushWidget, .tapWindow: break // Walk first, then animate on arrival
         case .peekWindow: startPeekAnimation()
         case .sitOnTaskbar: startSitOnTaskbarAnimation()
         case .sleep: startSleepAnimation()
@@ -795,6 +845,37 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
         case .roll: startRollAnimation()
         case .hide: startHideAnimation()
         case .stepBack: startStepBackAnimation()
+        // New interactive animations
+        case .sneeze: startSneezeAnimation()
+        case .backflip: startBackflipAnimation()
+        case .headbang: startHeadbangAnimation()
+        case .trip: startTripAnimation()
+        case .wave: startWaveAnimation()
+        }
+    }
+    
+    /// Called when walk finishes — check if there's a pending spatial action to perform
+    private func handleWalkArrival() {
+        if let pending = pendingSpatialAction {
+            pendingSpatialAction = nil
+            brain.currentAction = pending
+            brain.forceUpdate = true
+            
+            switch pending {
+            case .sitOnCorner: startSitOnCornerAnimation()
+            case .sitOnMenuBar: startSitOnMenuBarAnimation()
+            case .climbWindow: startClimbWindowAnimation()
+            case .pushWidget: startPushWidgetAnimation()
+            case .tapWindow: startTapWindowAnimation()
+            default: startIdleTransition()
+            }
+            
+            // Proud feeling after successfully completing a command
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                self?.brain.triggerProud()
+            }
+        } else {
+            brain.notifyWalkFinished()
         }
     }
     
@@ -831,9 +912,8 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             }
         }
         
-        // Expanded to allow reaching the far corners of wide monitors
-        let clampedX = max(minX, min(maxX, requestedX))
-        let clampedY = max(minY, min(maxY, finalTargetY))
+        let clampedX = requestedX
+        let clampedY = finalTargetY
         
         walkTargetX = clampedX
         walkTargetY = clampedY
@@ -876,6 +956,10 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             // Slight bounce/scale for positive emotions
             scaleX = 1.1
             scaleY = 1.1
+        case .proud:
+            // Confident squint + slight upward tilt
+            scaleX = 1.15
+            scaleY = 0.85
         case .dizzy:
             // Spin the X X around!
             leftRot = .pi
@@ -938,6 +1022,8 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             showParticle(.heart)
         case .happy, .excited:
             if Double.random(in: 0...1) < 0.4 { showParticle(.sparkle) }
+        case .proud:
+            showConfettiParticles()
         case .sleepy:
             showParticle(.zzz)
         case .angry:
@@ -1042,6 +1128,14 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             path.move(to: CGPoint(x: -25, y: -10))
             path.addQuadCurve(to: CGPoint(x: 25, y: -10), control: CGPoint(x: 0, y: 30))
             path.addQuadCurve(to: CGPoint(x: -25, y: -10), control: CGPoint(x: 0, y: 10))
+            path.closeSubpath()
+            return path
+        case .proud:
+            // Confident narrow arc eyes — like a smug cat
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: -22, y: 0))
+            path.addQuadCurve(to: CGPoint(x: 22, y: 0), control: CGPoint(x: 0, y: 20))
+            path.addQuadCurve(to: CGPoint(x: -22, y: 0), control: CGPoint(x: 0, y: 8))
             path.closeSubpath()
             return path
         case .curious:
@@ -1422,6 +1516,387 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
         petContainer.runAction(SCNAction.sequence([stepBack, SCNAction.wait(duration: 0.5), stepForward]))
     }
     
+    // MARK: - New Interactive Animations
+    
+    /// Sit on a screen corner with legs dangling off the edge
+    private func startSitOnCornerAnimation() {
+        stopAll()
+        
+        // Settle down with a little bounce
+        let settleDown = SCNAction.moveBy(x: 0, y: -0.3, z: 0, duration: 0.2)
+        settleDown.timingMode = .easeIn
+        let settleUp = SCNAction.moveBy(x: 0, y: 0.15, z: 0, duration: 0.15)
+        settleUp.timingMode = .easeOut
+        
+        petContainer.runAction(SCNAction.sequence([settleDown, settleUp])) { [weak self] in
+            guard let self = self else { return }
+            
+            // Splay legs outward like sitting on a ledge
+            let sitLeftLeg = SCNAction.rotateTo(x: -CGFloat.pi / 2.5, y: 0, z: -0.3, duration: 0.4)
+            let sitRightLeg = SCNAction.rotateTo(x: -CGFloat.pi / 2.5, y: 0, z: 0.3, duration: 0.4)
+            sitLeftLeg.timingMode = .easeInEaseOut
+            sitRightLeg.timingMode = .easeInEaseOut
+            self.leftLeg.runAction(sitLeftLeg)
+            self.rightLeg.runAction(sitRightLeg)
+            
+            // Dangle legs gently
+            let swingForward = SCNAction.rotateTo(x: -CGFloat.pi / 2.0, y: 0, z: -0.3, duration: 1.5)
+            let swingBack = SCNAction.rotateTo(x: -CGFloat.pi / 3.0, y: 0, z: -0.3, duration: 1.5)
+            swingForward.timingMode = .easeInEaseOut
+            swingBack.timingMode = .easeInEaseOut
+            self.leftLeg.runAction(SCNAction.sequence([SCNAction.wait(duration: 0.5), SCNAction.repeatForever(SCNAction.sequence([swingForward, swingBack]))]))
+            
+            let swingForwardR = SCNAction.rotateTo(x: -CGFloat.pi / 2.0, y: 0, z: 0.3, duration: 1.5)
+            let swingBackR = SCNAction.rotateTo(x: -CGFloat.pi / 3.0, y: 0, z: 0.3, duration: 1.5)
+            swingForwardR.timingMode = .easeInEaseOut
+            swingBackR.timingMode = .easeInEaseOut
+            self.rightLeg.runAction(SCNAction.sequence([SCNAction.wait(duration: 0.8), SCNAction.repeatForever(SCNAction.sequence([swingForwardR, swingBackR]))]))
+            
+            // Head body lowered and gentle breathing
+            self.headNode.runAction(SCNAction.moveBy(x: 0, y: -1.0, z: 0, duration: 0.4))
+            
+            let breatheIn = SCNAction.moveBy(x: 0, y: 0.06, z: 0, duration: 2.0)
+            let breatheOut = SCNAction.moveBy(x: 0, y: -0.06, z: 0, duration: 2.0)
+            breatheIn.timingMode = .easeInEaseOut
+            breatheOut.timingMode = .easeInEaseOut
+            self.headNode.runAction(SCNAction.repeatForever(SCNAction.sequence([breatheIn, breatheOut])))
+        }
+    }
+    
+    /// Perch on the menu bar at the top of the screen
+    private func startSitOnMenuBarAnimation() {
+        stopAll()
+        
+        // Legs dangle straight down
+        let sitLeftLeg = SCNAction.rotateTo(x: 0, y: 0, z: -0.15, duration: 0.3)
+        let sitRightLeg = SCNAction.rotateTo(x: 0, y: 0, z: 0.15, duration: 0.3)
+        leftLeg.runAction(sitLeftLeg)
+        rightLeg.runAction(sitRightLeg)
+        
+        // Gentle swing
+        let swingLeft = SCNAction.rotateTo(x: 0, y: 0, z: 0.08, duration: 2.0)
+        let swingRight = SCNAction.rotateTo(x: 0, y: 0, z: -0.08, duration: 2.0)
+        swingLeft.timingMode = .easeInEaseOut
+        swingRight.timingMode = .easeInEaseOut
+        petContainer.runAction(SCNAction.repeatForever(SCNAction.sequence([swingLeft, swingRight])))
+        
+        // Subtle breathing
+        let breatheIn = SCNAction.moveBy(x: 0, y: 0.04, z: 0, duration: 1.8)
+        let breatheOut = SCNAction.moveBy(x: 0, y: -0.04, z: 0, duration: 1.8)
+        breatheIn.timingMode = .easeInEaseOut
+        breatheOut.timingMode = .easeInEaseOut
+        headNode.runAction(SCNAction.repeatForever(SCNAction.sequence([breatheIn, breatheOut])))
+    }
+    
+    /// Scramble up and sit on top of a window
+    private func startClimbWindowAnimation() {
+        stopAll()
+        
+        // Scramble wiggle (simulating climbing effort)
+        let wiggleLeft = SCNAction.rotateTo(x: 0, y: 0, z: 0.15, duration: 0.1)
+        let wiggleRight = SCNAction.rotateTo(x: 0, y: 0, z: -0.15, duration: 0.1)
+        let scramble = SCNAction.repeat(SCNAction.sequence([wiggleLeft, wiggleRight]), count: 4)
+        
+        // Legs kick while climbing
+        let kickForward = SCNAction.rotateTo(x: 0.6, y: 0, z: 0, duration: 0.1)
+        let kickBack = SCNAction.rotateTo(x: -0.3, y: 0, z: 0, duration: 0.1)
+        let legKick = SCNAction.repeat(SCNAction.sequence([kickForward, kickBack]), count: 4)
+        leftLeg.runAction(legKick)
+        rightLeg.runAction(SCNAction.sequence([SCNAction.wait(duration: 0.05), legKick]))
+        
+        // Pull up slightly
+        let pullUp = SCNAction.moveBy(x: 0, y: 1.0, z: 0, duration: 0.8)
+        pullUp.timingMode = .easeOut
+        
+        petContainer.runAction(SCNAction.group([scramble, pullUp])) { [weak self] in
+            guard let self = self else { return }
+            // Now settled on top — do sitting pose
+            self.startSitOnCornerAnimation()
+            self.showParticle(.sparkle)
+        }
+    }
+    
+    /// Lean against a window edge and push
+    private func startPushWidgetAnimation() {
+        stopAll()
+        
+        // Turn sideways towards the window
+        let turnToWindow = SCNAction.rotateTo(x: 0, y: .pi / 2, z: 0, duration: 0.3)
+        turnToWindow.timingMode = .easeInEaseOut
+        
+        // Lean into it
+        let leanIn = SCNAction.rotateTo(x: 0.2, y: .pi / 2, z: 0.3, duration: 0.5)
+        leanIn.timingMode = .easeInEaseOut
+        let leanBack = SCNAction.rotateTo(x: 0, y: .pi / 2, z: 0.15, duration: 0.5)
+        leanBack.timingMode = .easeInEaseOut
+        
+        // Strain animation — pushing with effort
+        let strain = SCNAction.repeatForever(SCNAction.sequence([leanIn, leanBack]))
+        
+        // Legs push off
+        let pushLeg = SCNAction.rotateTo(x: 0.4, y: 0, z: 0, duration: 0.5)
+        let resetLeg = SCNAction.rotateTo(x: 0.2, y: 0, z: 0, duration: 0.5)
+        pushLeg.timingMode = .easeInEaseOut
+        resetLeg.timingMode = .easeInEaseOut
+        leftLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([pushLeg, resetLeg])))
+        rightLeg.runAction(SCNAction.sequence([SCNAction.wait(duration: 0.25), SCNAction.repeatForever(SCNAction.sequence([pushLeg, resetLeg]))]))
+        
+        petContainer.runAction(SCNAction.sequence([turnToWindow, strain]))
+        
+        // Show effort particles
+        showParticle(.sweat)
+    }
+    
+    /// Head bonk against a window
+    private func startTapWindowAnimation() {
+        stopAll()
+        
+        // Turn towards window
+        let turn = SCNAction.rotateTo(x: 0, y: .pi / 4, z: 0, duration: 0.2)
+        turn.timingMode = .easeInEaseOut
+        petContainer.runAction(turn)
+        
+        // Head bonk forward
+        let bonkForward = SCNAction.rotateTo(x: 0.5, y: 0, z: 0, duration: 0.15)
+        let bonkBack = SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: 0.25)
+        bonkForward.timingMode = .easeIn
+        bonkBack.timingMode = .easeOut
+        
+        let bonkSequence = SCNAction.sequence([
+            bonkForward, bonkBack,
+            SCNAction.wait(duration: 0.3),
+            bonkForward, bonkBack,
+            SCNAction.wait(duration: 0.3),
+            bonkForward, bonkBack
+        ])
+        
+        headNode.runAction(bonkSequence) { [weak self] in
+            // After tapping, look up curiously
+            self?.blink()
+        }
+    }
+    
+    /// Explosive sneeze — body compresses then launches
+    private func startSneezeAnimation() {
+        stopAll()
+        
+        // Wind up — body compresses
+        let squash = SCNAction.scale(to: 0.22, duration: 0.5)  // Smaller than normal 0.28
+        squash.timingMode = .easeIn
+        let tiltDown = SCNAction.rotateTo(x: 0.3, y: 0, z: 0, duration: 0.5)
+        tiltDown.timingMode = .easeIn
+        
+        // ACHOO! — explosive upward
+        let explode = SCNAction.scale(to: 0.33, duration: 0.1)
+        let jumpUp = SCNAction.moveBy(x: 0, y: 1.5, z: 0, duration: 0.15)
+        jumpUp.timingMode = .easeOut
+        let tiltBack = SCNAction.rotateTo(x: -0.4, y: 0, z: 0, duration: 0.1)
+        
+        // Recovery
+        let normalScale = SCNAction.scale(to: 0.28, duration: 0.3)
+        let fallDown = SCNAction.moveBy(x: 0, y: -1.5, z: 0, duration: 0.2)
+        fallDown.timingMode = .easeIn
+        let resetTilt = SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: 0.3)
+        
+        // Head shake after sneeze
+        let headShake = SCNAction.sequence([
+            SCNAction.rotateTo(x: 0, y: 0, z: 0.2, duration: 0.1),
+            SCNAction.rotateTo(x: 0, y: 0, z: -0.2, duration: 0.1),
+            SCNAction.rotateTo(x: 0, y: 0, z: 0.1, duration: 0.1),
+            SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: 0.1)
+        ])
+        
+        petContainer.runAction(SCNAction.sequence([
+            SCNAction.group([squash, tiltDown]),
+            SCNAction.wait(duration: 0.2),
+            SCNAction.group([explode, jumpUp, tiltBack]),
+            SCNAction.run { [weak self] _ in
+                self?.showParticle(.sparkle)
+                self?.blink()
+            },
+            SCNAction.group([normalScale, fallDown, resetTilt])
+        ]))
+        
+        headNode.runAction(SCNAction.sequence([
+            SCNAction.wait(duration: 0.9),
+            headShake
+        ]))
+    }
+    
+    /// Full forward rotation while jumping — celebratory backflip
+    private func startBackflipAnimation() {
+        stopAll()
+        
+        // Crouch first
+        let crouch = SCNAction.scale(to: 0.24, duration: 0.2)
+        crouch.timingMode = .easeIn
+        
+        // Launch upward
+        let jumpUp = SCNAction.moveBy(x: 0, y: 3.0, z: 0, duration: 0.35)
+        jumpUp.timingMode = .easeOut
+        
+        // Full flip rotation on X axis (forward flip)
+        let flip = SCNAction.rotateBy(x: .pi * 2, y: 0, z: 0, duration: 0.5)
+        
+        // Legs tuck in during flip
+        let tuckIn = SCNAction.rotateTo(x: -1.0, y: 0, z: 0, duration: 0.15)
+        let tuckOut = SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: 0.15)
+        leftLeg.runAction(SCNAction.sequence([SCNAction.wait(duration: 0.2), tuckIn, SCNAction.wait(duration: 0.3), tuckOut]))
+        rightLeg.runAction(SCNAction.sequence([SCNAction.wait(duration: 0.2), tuckIn, SCNAction.wait(duration: 0.3), tuckOut]))
+        
+        // Fall down
+        let fallDown = SCNAction.moveBy(x: 0, y: -3.0, z: 0, duration: 0.25)
+        fallDown.timingMode = .easeIn
+        
+        // Landing bounce
+        let landSquash = SCNAction.scale(to: 0.25, duration: 0.1)
+        let landRecover = SCNAction.scale(to: 0.28, duration: 0.15)
+        
+        petContainer.runAction(SCNAction.sequence([
+            crouch,
+            SCNAction.group([jumpUp, flip]),
+            fallDown,
+            SCNAction.run { [weak self] _ in
+                self?.showParticle(.sparkle)
+            },
+            landSquash, landRecover
+        ]))
+    }
+    
+    /// Rhythmic head rocking — like rocking to music
+    private func startHeadbangAnimation() {
+        stopAll()
+        
+        // Rhythmic head nodding
+        let headDown = SCNAction.rotateTo(x: 0.5, y: 0, z: 0, duration: 0.2)
+        let headUp = SCNAction.rotateTo(x: -0.2, y: 0, z: 0, duration: 0.2)
+        headDown.timingMode = .easeIn
+        headUp.timingMode = .easeOut
+        
+        // Body bounce synced with head
+        let bodyDown = SCNAction.moveBy(x: 0, y: -0.15, z: 0, duration: 0.2)
+        let bodyUp = SCNAction.moveBy(x: 0, y: 0.15, z: 0, duration: 0.2)
+        bodyDown.timingMode = .easeIn
+        bodyUp.timingMode = .easeOut
+        
+        headNode.runAction(SCNAction.repeatForever(SCNAction.sequence([headDown, headUp])))
+        petContainer.runAction(SCNAction.repeatForever(SCNAction.sequence([bodyDown, bodyUp])))
+        
+        // Legs tap with the beat — alternating
+        let tapLeft = SCNAction.rotateTo(x: 0.3, y: 0, z: 0, duration: 0.2)
+        let untapLeft = SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: 0.2)
+        let tapRight = SCNAction.rotateTo(x: 0.3, y: 0, z: 0, duration: 0.2)
+        let untapRight = SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: 0.2)
+        leftLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([tapLeft, untapLeft])))
+        rightLeg.runAction(SCNAction.repeatForever(SCNAction.sequence([SCNAction.wait(duration: 0.2), tapRight, untapRight])))
+    }
+    
+    /// Comic stumble — legs tangle, face-plant, gets up embarrassed
+    private func startTripAnimation() {
+        stopAll()
+        
+        // Phase 1: Walking normally then tripping
+        let stumbleForward = SCNAction.moveBy(x: 0.5, y: 0, z: 0, duration: 0.2)
+        
+        // Phase 2: Legs cross
+        let crossLeft = SCNAction.rotateTo(x: 0, y: 0, z: 0.5, duration: 0.15)
+        let crossRight = SCNAction.rotateTo(x: 0, y: 0, z: -0.5, duration: 0.15)
+        leftLeg.runAction(crossLeft)
+        rightLeg.runAction(crossRight)
+        
+        // Phase 3: Face-plant — tilt forward dramatically
+        let facePlant = SCNAction.rotateTo(x: 1.2, y: 0, z: 0.1, duration: 0.3)
+        facePlant.timingMode = .easeIn
+        let fallDown = SCNAction.moveBy(x: 0, y: -0.8, z: 0, duration: 0.3)
+        fallDown.timingMode = .easeIn
+        
+        // Phase 4: Lie there for a beat (comedy timing!)
+        let pause = SCNAction.wait(duration: 1.0)
+        
+        // Phase 5: Recover slowly, embarrassed
+        let getUp = SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: 0.6)
+        getUp.timingMode = .easeInEaseOut
+        let standUp = SCNAction.moveBy(x: 0, y: 0.8, z: 0, duration: 0.4)
+        standUp.timingMode = .easeOut
+        let resetLegs = SCNAction.rotateTo(x: 0, y: 0, z: 0, duration: 0.3)
+        
+        petContainer.runAction(SCNAction.sequence([
+            stumbleForward,
+            SCNAction.group([facePlant, fallDown]),
+            pause,
+            SCNAction.run { [weak self] _ in
+                // Show blush/embarrassment during recovery
+                self?.applyEmotion(.embarrassed)
+            },
+            SCNAction.group([getUp, standUp])
+        ]))
+        
+        leftLeg.runAction(SCNAction.sequence([SCNAction.wait(duration: 1.7), resetLegs]))
+        rightLeg.runAction(SCNAction.sequence([SCNAction.wait(duration: 1.7), resetLegs]))
+    }
+    
+    /// Friendly wave — headphone ears wiggle side to side
+    private func startWaveAnimation() {
+        stopAll()
+        
+        // Headphone ear wiggle (wave substitute since Byte has no arms)
+        let wiggleOut = SCNAction.moveBy(x: -0.3, y: 0.2, z: 0, duration: 0.2)
+        let wiggleIn = SCNAction.moveBy(x: 0.3, y: -0.2, z: 0, duration: 0.2)
+        wiggleOut.timingMode = .easeInEaseOut
+        wiggleIn.timingMode = .easeInEaseOut
+        
+        let wiggleOutR = SCNAction.moveBy(x: 0.3, y: 0.2, z: 0, duration: 0.2)
+        let wiggleInR = SCNAction.moveBy(x: -0.3, y: -0.2, z: 0, duration: 0.2)
+        wiggleOutR.timingMode = .easeInEaseOut
+        wiggleInR.timingMode = .easeInEaseOut
+        
+        let waveCount = 4
+        leftHeadphone.runAction(SCNAction.repeat(SCNAction.sequence([wiggleOut, wiggleIn]), count: waveCount))
+        rightHeadphone.runAction(SCNAction.repeat(SCNAction.sequence([wiggleOutR, wiggleInR]), count: waveCount))
+        
+        // Body leans side to side during wave
+        let leanRight = SCNAction.rotateTo(x: 0, y: 0, z: -0.15, duration: 0.4)
+        let leanLeft = SCNAction.rotateTo(x: 0, y: 0, z: 0.15, duration: 0.4)
+        leanRight.timingMode = .easeInEaseOut
+        leanLeft.timingMode = .easeInEaseOut
+        petContainer.runAction(SCNAction.repeat(SCNAction.sequence([leanRight, leanLeft]), count: waveCount / 2))
+        
+        // Small happy bounce
+        let bounceUp = SCNAction.moveBy(x: 0, y: 0.2, z: 0, duration: 0.2)
+        let bounceDown = SCNAction.moveBy(x: 0, y: -0.2, z: 0, duration: 0.2)
+        bounceUp.timingMode = .easeOut
+        bounceDown.timingMode = .easeIn
+        headNode.runAction(SCNAction.repeat(SCNAction.sequence([bounceUp, bounceDown]), count: waveCount))
+    }
+    
+    // MARK: - Confetti Particles
+    private func showConfettiParticles() {
+        guard particleContainer != nil else { return }
+        
+        let confettiEmojis = ["🎉", "✨", "⭐", "🌟", "💫", "🎊"]
+        for i in 0..<6 {
+            let confetti = SKLabelNode(text: confettiEmojis[i % confettiEmojis.count])
+            confetti.fontSize = CGFloat.random(in: 14...22)
+            confetti.position = CGPoint(x: CGFloat.random(in: -40...40), y: CGFloat.random(in: -20...20))
+            confetti.alpha = 0.0
+            confetti.zPosition = 10
+            particleContainer?.addChild(confetti)
+            
+            let delay = SKAction.wait(forDuration: Double(i) * 0.1)
+            let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 0.15)
+            let drift = SKAction.moveBy(
+                x: CGFloat.random(in: -25...25),
+                y: CGFloat.random(in: 20...50),
+                duration: 1.2
+            )
+            let spin = SKAction.rotate(byAngle: CGFloat.random(in: -.pi...(.pi)), duration: 1.2)
+            let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.4)
+            confetti.run(SKAction.sequence([delay, fadeIn, SKAction.group([drift, spin]), fadeOut])) {
+                confetti.removeFromParent()
+            }
+        }
+    }
+    
     
     // MARK: - Speech
     private func updateSpeechBubble(text: String) {
@@ -1646,8 +2121,9 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
         
         let ratioX = (location.x / viewSize.width) - 0.5
         let ratioY = (location.y / viewSize.height) - 0.5
-        let worldX = ratioX * 30.0
-        let worldY = ratioY * 20.0
+        let aspect = viewSize.width / viewSize.height
+        let worldX = ratioX * (14.0 * aspect)
+        let worldY = ratioY * 14.0
         dragOffset = CGPoint(x: CGFloat(petContainer.position.x) - worldX, y: CGFloat(petContainer.position.y) - worldY)
     }
     
@@ -1666,9 +2142,11 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             
             let ratioX = (location.x / viewSize.width) - 0.5
             let ratioY = (location.y / viewSize.height) - 0.5
-            let worldX = ratioX * 30.0
-            let worldY = ratioY * 20.0
+            let aspect = viewSize.width / viewSize.height
+            let worldX = ratioX * (14.0 * aspect)
+            let worldY = ratioY * 14.0
             
+            // Removed drag clamping so the user can drag him off screen
             let newX = worldX + dragOffset.x
             let newY = worldY + dragOffset.y
             
@@ -1682,6 +2160,12 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             
             petContainer.position = SCNVector3(newX, newY, 0)
         }
+    }
+    
+    func handleScroll(deltaX: CGFloat, deltaY: CGFloat) {
+        // Rotate the pet container based on scroll delta (support both trackpad and standard mouse wheel)
+        let amount = abs(deltaX) > abs(deltaY) ? deltaX : deltaY
+        petContainer.eulerAngles.y += amount * 0.05
     }
     
     func handleMouseUp() {

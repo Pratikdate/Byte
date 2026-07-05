@@ -5,6 +5,8 @@ struct AIAgentDecision: Codable {
     let emotion: String
     let speech: String
     let store_memory: MemoryFact?
+    let target_x: Double?
+    let target_y: Double?
 }
 
 // MARK: - AI Provider Protocol
@@ -293,7 +295,7 @@ class AIEngine {
     func generateAgentDecision(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, completion: @escaping (AIAgentDecision?) -> Void) {
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
-            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully in the 'speech' field. Use VERY human-like, warm, and friendly language! Include lots of cute, friendly emojis (like 😊✨🐾💖) in your speech! Be conversational and show your quirky personality! If you don't know much about the user, proactively ask a personal question to build a bond. There is no length limit for your response.\n"
+            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully in the 'speech' field. Use VERY human-like, warm, and friendly language! Include lots of cute, friendly emojis (like 😊✨🐾💖) in your speech! Be conversational and show your quirky personality! If you don't know much about the user, proactively ask a personal question to build a bond. There is no length limit for your response.\n\nSPATIAL COMMANDS: If the user tells you to go somewhere or do a spatial action, pick the matching action:\n- \"go sit in the corner\" / \"sit in corner\" → action: \"sitOnCorner\"\n- \"sit on the menu bar\" / \"go to the top\" → action: \"sitOnMenuBar\"\n- \"climb that window\" / \"climb up\" / \"sit on the window\" → action: \"climbWindow\"\n- \"push that window\" / \"push it\" → action: \"pushWidget\"\n- \"tap on the window\" / \"knock\" → action: \"tapWindow\"\n- \"come here\" / \"come to me\" → action: \"wander\" (you will walk toward cursor)\n- \"go away\" / \"leave me alone\" → action: \"sitOnCorner\" (walk to farthest corner)\n- \"do a backflip\" / \"flip\" → action: \"backflip\"\n- \"dance\" / \"headbang\" → action: \"headbang\" or \"dance\"\n- \"wave\" / \"say hi\" → action: \"wave\"\n- \"go to sleep\" → action: \"sleep\"\n- \"wake up\" → action: \"jump\"\n"
         } else {
             userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment, or leave 'speech' empty if you have nothing to say. If you do speak, make it feel very human and use an emoji!\n"
         }
@@ -311,24 +313,43 @@ class AIEngine {
         YOUR CURRENT EMOTION: \(currentEmotion)
         AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
         
+        ACTION DESCRIPTIONS:
+        - idle: Stand still, breathe
+        - wander: Walk to a random spot on the desktop
+        - sleep: Walk to a corner and fall asleep
+        - jump: Happy jump
+        - sit: Sit down with legs splayed
+        - spin: Spin around once
+        - dance: Dance with jumps and spins
+        - stretch: Stretch tall then shrink back
+        - roll: Roll sideways
+        - sitOnCorner: Walk to the nearest screen corner and sit with legs dangling
+        - sitOnMenuBar: Walk up to the top menu bar and perch there
+        - climbWindow: Climb up and sit on top of the nearest window
+        - pushWidget: Walk to a window edge and push against it
+        - tapWindow: Walk to a window and tap/bonk head on it
+        - sneeze: Do an explosive sneeze animation
+        - backflip: Do a celebratory backflip
+        - headbang: Rock head rhythmically like jamming to music
+        - wave: Wave hello using ear headphones
+        
         CRITICAL RULES:
         1. You must respond in valid JSON format exactly matching the requested keys.
         2. Pick one action from the AVAILABLE ACTIONS list.
-        3. Pick an emotion that matches your choice (e.g. happy, sad, curious, angry, sleepy, bored, shock, love, normal).
+        3. Pick an emotion that matches your choice (e.g. happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
         4. If the user spoke to you, answer them fully and naturally in the 'speech' field. YOU MUST STRICTLY FOLLOW YOUR BEHAVIORAL RULES WHEN SPEAKING.
         5. ACTIVELY TRY TO LEARN ABOUT THE USER! If you learn a NEW personal fact, include a 'store_memory' object with 'subject', 'predicate', and 'object'.
         6. REINFORCEMENT LEARNING: If the user corrects your behavior, speaking style, or gives you a rule to follow (e.g. "talk like a pirate", "stop using emojis"), you MUST save it as a 'store_memory' where 'subject' is 'Rule', 'predicate' is 'is', and 'object' is the new rule.
+        7. If the user asks you to go somewhere specific, use the matching spatial action. Include optional 'target_x' and 'target_y' if you know exact coordinates.
         
         Example JSON:
         {
-            "action": "wander",
-            "emotion": "curious",
-            "speech": "I will remember that your favorite color is green!",
-            "store_memory": {
-                "subject": "User",
-                "predicate": "likes color",
-                "object": "green"
-            }
+            "action": "sitOnCorner",
+            "emotion": "happy",
+            "speech": "On my way! 🐾✨",
+            "store_memory": null,
+            "target_x": null,
+            "target_y": null
         }
         """
         

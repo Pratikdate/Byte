@@ -7,10 +7,14 @@ enum PetAction: String {
     case idle, wander, followCursor, sleep, jump, sit, spin, sulk, dizzy, tickled
     case peekWindow, sitOnTaskbar, investigate
     case stepBack, dance, bow, stretch, roll, hide, chaseLaser, seekTreat
+    // New interactive actions
+    case sitOnCorner, sitOnMenuBar, climbWindow, pushWidget, tapWindow
+    case sneeze, backflip, headbang, trip, wave
 }
 
 enum PetEmotion: String {
     case happy, sad, angry, curious, sleepy, bored, thinking, normal, dizzy, shock, love, excited, embarrassed
+    case proud
 }
 
 enum PetMode: String {
@@ -70,7 +74,7 @@ class PetIdleState: PetBaseState {
     
     override func didEnter(from previousState: GKState?) {
         // Don't overwrite one-off animations back to idle immediately
-        let oneOffs: [PetAction] = [.jump, .spin, .sit, .sulk, .dizzy, .tickled, .dance, .bow, .stretch, .roll, .hide, .stepBack]
+        let oneOffs: [PetAction] = [.jump, .spin, .sit, .sulk, .dizzy, .tickled, .dance, .bow, .stretch, .roll, .hide, .stepBack, .sneeze, .backflip, .headbang, .trip, .wave, .tapWindow, .pushWidget]
         if !oneOffs.contains(brain.currentAction) {
             brain.currentAction = .idle
         }
@@ -89,7 +93,7 @@ class PetIdleState: PetBaseState {
             
             if brain.exploreCount > 0 {
                 brain.exploreCount -= 1
-                let nextActions: [PetAction] = [.wander, .jump, .spin, .investigate]
+                let nextActions: [PetAction] = [.wander, .jump, .spin, .investigate, .backflip, .wave]
                 let action = nextActions.randomElement()!
                 
                 // If it picked an animation, wait and then we will hit idle again and continue exploring.
@@ -257,7 +261,15 @@ class PetBrain {
         stateMachine.enter(PetIdleState.self) // Start idle — let AI decide what to do first
         
         NotificationCenter.default.addObserver(forName: NSNotification.Name("ActiveAppChanged"), object: nil, queue: .main) { [weak self] notification in
-            guard let self = self, let _ = notification.object as? String else { return }
+            guard let self = self, let appName = notification.object as? String else { return }
+            
+            // App-specific reactions
+            let lowerApp = appName.lowercased()
+            if lowerApp.contains("music") || lowerApp.contains("spotify") {
+                self.applyAction(.headbang)
+            } else if lowerApp.contains("safari") || lowerApp.contains("chrome") || lowerApp.contains("browser") {
+                self.applyAction(.peekWindow)
+            }
             
             // Wake up if sleeping and app changes
             if self.currentAction == .sleep {
@@ -277,13 +289,25 @@ class PetBrain {
                 self.triggerTypingDance()
             }
         }
+
         
-        // Downloads Watcher — react to new files in ~/Downloads
-        NotificationCenter.default.addObserver(forName: DownloadsWatcher.newFileNotification, object: nil, queue: .main) { [weak self] notification in
-            guard let self = self else { return }
-            let fileName = (notification.object as? String) ?? "something"
-            self.triggerCuriosity(about: fileName)
+        // Start Audio & Weather Monitoring
+        AudioMonitor.shared.startMonitoring()
+        AudioMonitor.shared.onLoudNoise = { [weak self] in
+            if self?.currentAction == .sleep {
+                self?.applyAction(.jump)
+                self?.currentEmotion = .shock
+            } else {
+                self?.triggerStartle()
+            }
         }
+        AudioMonitor.shared.onRhythmicMusic = { [weak self] in
+            if self?.currentAction == .idle || self?.currentAction == .wander {
+                self?.applyAction(.dance)
+            }
+        }
+        
+        WeatherManager.shared.startMonitoring()
     }
     
     deinit {
@@ -301,6 +325,7 @@ class PetBrain {
         if energy < 15 || (isNightTime && energy < 40) { return .sleepy }
         if isEarlyMorning && energy < 50 { return .sleepy }
         if curiosity > 80 { return .curious }
+        if mood > 85 && energy > 70 { return .proud }
         if mood > 70 && curiosity > 60 { return .happy }
         if mood < 30 { return .sad }
         if curiosity < 20 && !isNightTime { return .bored }
@@ -321,10 +346,15 @@ class PetBrain {
         let timeActive = Date().timeIntervalSince(DesktopEnvironmentManager.shared.activeAppStartTime)
         let timeString = String(format: "%.0f", timeActive)
         
-        let context = "Desktop has windows open: \(activeWindows.isEmpty ? "None" : activeWindows). The user is currently using \(currentApp) and has been for \(timeString) seconds."
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d, yyyy 'at' h:mm a"
+        let dateString = formatter.string(from: Date())
+        
+        let weatherStr = WeatherManager.shared.isRaining ? "It is raining outside." : "The weather is clear."
+        let context = "The current date and time is \(dateString). \(weatherStr) Desktop has windows open: \(activeWindows.isEmpty ? "None" : activeWindows). The user is currently using \(currentApp) and has been for \(timeString) seconds."
         
         let emotionStr = String(describing: currentEmotion)
-        let actions = ["idle", "wander", "sleep", "jump", "sit", "spin", "dance", "stretch", "roll"]
+        let actions = ["idle", "wander", "sleep", "jump", "sit", "spin", "dance", "stretch", "roll", "sitOnCorner", "sitOnMenuBar", "climbWindow", "pushWidget", "tapWindow", "sneeze", "backflip", "headbang", "wave"]
         
         // Show thinking while waiting
         currentEmotion = .thinking
@@ -340,7 +370,12 @@ class PetBrain {
                     return
                 }
                 
-                if let action = PetAction(rawValue: decision.action) {
+                // Check if AI provided spatial coordinates
+                if decision.target_x != nil || decision.target_y != nil {
+                    let tx = decision.target_x.map { CGFloat($0) }
+                    let ty = decision.target_y.map { CGFloat($0) }
+                    self?.handleSpatialCommand(action: decision.action, targetX: tx, targetY: ty)
+                } else if let action = PetAction(rawValue: decision.action) {
                     self?.applyAction(action)
                 } else {
                     self?.evaluateNextAction() // fallback
@@ -380,31 +415,53 @@ class PetBrain {
         }
         
         var weights: [PetAction: Double] = [
-            .idle: 40.0,
-            .wander: 30.0,
-            .sleep: 10.0,
+            .idle: 30.0,
+            .wander: 25.0,
+            .sleep: 8.0,
             .jump: 5.0,
-            .sit: 10.0,
-            .spin: 5.0
+            .sit: 8.0,
+            .spin: 4.0,
+            // New interactive actions
+            .sitOnCorner: 4.0,
+            .sitOnMenuBar: 3.0,
+            .climbWindow: 4.0,
+            .pushWidget: 3.0,
+            .tapWindow: 3.0,
+            .sneeze: 1.0,
+            .backflip: 2.0,
+            .headbang: 2.0,
+            .wave: 3.0,
+            .trip: 0.5
         ]
         
         if effectiveMode == .work {
             // Work mode: prefer quiet, stay out of the way
             weights = [
-                .idle: 50.0,
-                .wander: 10.0, // wandering will route to free corner
+                .idle: 45.0,
+                .wander: 8.0,
                 .sleep: 20.0,
-                .sit: 20.0,
+                .sit: 15.0,
                 .jump: 0.0,
-                .spin: 0.0
+                .spin: 0.0,
+                .sitOnCorner: 8.0,
+                .sitOnMenuBar: 4.0,
+                .wave: 1.0
             ]
         } else if effectiveMode == .play {
             // Play mode: active and wandering
-            weights[.wander] = 50.0
-            weights[.jump] = 20.0
-            weights[.spin] = 10.0
+            weights[.wander] = 40.0
+            weights[.jump] = 15.0
+            weights[.spin] = 8.0
             weights[.sleep] = 0.0
-            weights[.idle] = 20.0
+            weights[.idle] = 15.0
+            weights[.backflip] = 8.0
+            weights[.headbang] = 6.0
+            weights[.climbWindow] = 8.0
+            weights[.pushWidget] = 6.0
+            weights[.tapWindow] = 6.0
+            weights[.sitOnMenuBar] = 5.0
+            weights[.wave] = 5.0
+            weights[.trip] = 2.0
         }
         
         if isMuted {
@@ -423,6 +480,9 @@ class PetBrain {
         applyAction(bestAction)
     }
     
+    // Callback for spatial commands (set by PetScene)
+    var onSpatialCommand: ((PetAction, CGFloat, CGFloat) -> Void)?
+    
     func applyAction(_ action: PetAction) {
         currentAction = action
         currentEmotion = resolveEmotion()
@@ -440,6 +500,48 @@ class PetBrain {
             stateMachine.enter(PetWanderState.self)
         case .idle:
             stateMachine.enter(PetIdleState.self)
+        // New spatial actions — walk to a target then perform the action
+        case .sitOnCorner:
+            let (tx, ty) = findNearestCorner()
+            currentEmotion = .normal
+            onSpatialCommand?(action, tx, ty)
+            stateMachine.enter(PetWanderState.self)
+        case .sitOnMenuBar:
+            let (tx, ty) = findMenuBarPosition()
+            currentEmotion = .curious
+            onSpatialCommand?(action, tx, ty)
+            stateMachine.enter(PetWanderState.self)
+        case .climbWindow:
+            let (tx, ty) = findNearestWindowTop()
+            currentEmotion = .excited
+            onSpatialCommand?(action, tx, ty)
+            stateMachine.enter(PetWanderState.self)
+        case .pushWidget:
+            let (tx, ty) = findNearestWindowEdge()
+            currentEmotion = .excited
+            onSpatialCommand?(action, tx, ty)
+            stateMachine.enter(PetWanderState.self)
+        case .tapWindow:
+            let (tx, ty) = findNearestWindowEdge()
+            currentEmotion = .curious
+            onSpatialCommand?(action, tx, ty)
+            stateMachine.enter(PetWanderState.self)
+        // One-off personality animations
+        case .sneeze:
+            currentEmotion = .shock
+            stateMachine.enter(PetInteractState.self)
+        case .backflip:
+            currentEmotion = .excited
+            stateMachine.enter(PetInteractState.self)
+        case .headbang:
+            currentEmotion = .excited
+            stateMachine.enter(PetInteractState.self)
+        case .trip:
+            currentEmotion = .embarrassed
+            stateMachine.enter(PetInteractState.self)
+        case .wave:
+            currentEmotion = .happy
+            stateMachine.enter(PetInteractState.self)
         default:
             // One-off animations like jump, spin, sit, etc. just stay in idle logic essentially
             stateMachine.enter(PetIdleState.self)
@@ -682,5 +784,216 @@ class PetBrain {
         let targetY = (0.5 - bestCorner.y / screenH) * 30.0
         
         return (targetX, targetY)
+    }
+    
+    // MARK: - Spatial Awareness Helpers
+    
+    /// Finds the closest screen corner to Byte's current position
+    func findNearestCorner() -> (CGFloat, CGFloat) {
+        let currentX = CGFloat(agent.position.x)
+        let currentY = CGFloat(agent.position.y)
+        
+        var maxX: CGFloat = 15.0
+        if let screen = NSScreen.main {
+            let aspect = screen.frame.width / screen.frame.height
+            maxX = 7.0 * aspect
+        }
+        
+        // Four corners in world coordinates
+        let corners: [(CGFloat, CGFloat)] = [
+            (-maxX + 2.0, 6.0),    // Top-Left
+            (maxX - 2.0, 6.0),     // Top-Right
+            (-maxX + 2.0, -3.2),   // Bottom-Left
+            (maxX - 2.0, -3.2)     // Bottom-Right
+        ]
+        
+        var closest = corners[0]
+        var minDist = CGFloat.greatestFiniteMagnitude
+        for c in corners {
+            let d = hypot(c.0 - currentX, c.1 - currentY)
+            if d < minDist {
+                minDist = d
+                closest = c
+            }
+        }
+        return closest
+    }
+    
+    /// Finds the farthest screen corner from Byte's current position
+    func findFarthestCorner() -> (CGFloat, CGFloat) {
+        let currentX = CGFloat(agent.position.x)
+        let currentY = CGFloat(agent.position.y)
+        
+        var maxX: CGFloat = 15.0
+        if let screen = NSScreen.main {
+            let aspect = screen.frame.width / screen.frame.height
+            maxX = 7.0 * aspect
+        }
+        
+        let corners: [(CGFloat, CGFloat)] = [
+            (-maxX + 2.0, 6.0),
+            (maxX - 2.0, 6.0),
+            (-maxX + 2.0, -3.2),
+            (maxX - 2.0, -3.2)
+        ]
+        
+        var farthest = corners[0]
+        var maxDist: CGFloat = 0
+        for c in corners {
+            let d = hypot(c.0 - currentX, c.1 - currentY)
+            if d > maxDist {
+                maxDist = d
+                farthest = c
+            }
+        }
+        return farthest
+    }
+    
+    /// Returns world position for the menu bar (top of screen)
+    func findMenuBarPosition() -> (CGFloat, CGFloat) {
+        let currentX = CGFloat(agent.position.x)
+        // Menu bar is at the very top of the screen in world coords
+        // Y ~6.5 puts Byte right at the top edge
+        return (currentX, 6.5)
+    }
+    
+    /// Finds the top edge of the nearest visible window in world coords
+    func findNearestWindowTop() -> (CGFloat, CGFloat) {
+        let screenBounds = CGDisplayBounds(CGMainDisplayID())
+        let screenW = screenBounds.width
+        let screenH = screenBounds.height
+        let currentX = CGFloat(agent.position.x)
+        let currentY = CGFloat(agent.position.y)
+        
+        let windows = DesktopEnvironmentManager.shared.visibleElements.filter { $0.type == .window }
+        
+        var closestDist = CGFloat.greatestFiniteMagnitude
+        var bestX: CGFloat = 0
+        var bestY: CGFloat = 2.0
+        
+        for window in windows {
+            // Map window top-center to world coords
+            let winCenterX = window.frame.midX
+            let winTopY = window.frame.minY  // CGWindow has top-left origin
+            
+            let worldX = (winCenterX / screenW - 0.5) * 25.0
+            let worldY = (0.5 - winTopY / screenH) * 14.0
+            
+            let d = hypot(worldX - currentX, worldY - currentY)
+            if d < closestDist {
+                closestDist = d
+                bestX = worldX
+                bestY = worldY + 0.5  // Sit slightly above the window top
+            }
+        }
+        
+        return (bestX, bestY)
+    }
+    
+    /// Finds the nearest window side edge to walk up to
+    func findNearestWindowEdge() -> (CGFloat, CGFloat) {
+        let screenBounds = CGDisplayBounds(CGMainDisplayID())
+        let screenW = screenBounds.width
+        let screenH = screenBounds.height
+        let currentX = CGFloat(agent.position.x)
+        let currentY = CGFloat(agent.position.y)
+        
+        let windows = DesktopEnvironmentManager.shared.visibleElements.filter { $0.type == .window }
+        
+        var closestDist = CGFloat.greatestFiniteMagnitude
+        var bestX: CGFloat = 5.0
+        var bestY: CGFloat = -3.2
+        
+        for window in windows {
+            // Pick the left or right edge depending on which is closer
+            let leftEdgeX = window.frame.minX
+            let rightEdgeX = window.frame.maxX
+            let midY = window.frame.midY
+            
+            let worldLeftX = (leftEdgeX / screenW - 0.5) * 25.0 - 1.0
+            let worldRightX = (rightEdgeX / screenW - 0.5) * 25.0 + 1.0
+            let worldY = (0.5 - midY / screenH) * 14.0
+            
+            let dLeft = hypot(worldLeftX - currentX, worldY - currentY)
+            let dRight = hypot(worldRightX - currentX, worldY - currentY)
+            
+            if dLeft < closestDist {
+                closestDist = dLeft
+                bestX = worldLeftX
+                bestY = worldY
+            }
+            if dRight < closestDist {
+                closestDist = dRight
+                bestX = worldRightX
+                bestY = worldY
+            }
+        }
+        
+        return (bestX, bestY)
+    }
+    
+    // MARK: - New Trigger Methods
+    
+    func triggerSneeze() {
+        forceUpdate = true
+        stateMachine.enter(PetInteractState.self)
+        currentAction = .sneeze
+        currentEmotion = .shock
+        onShowParticle?(.sparkle)
+    }
+    
+    func triggerTrip() {
+        forceUpdate = true
+        stateMachine.enter(PetInteractState.self)
+        currentAction = .trip
+        currentEmotion = .embarrassed
+    }
+    
+    func triggerWave() {
+        forceUpdate = true
+        stateMachine.enter(PetInteractState.self)
+        currentAction = .wave
+        currentEmotion = .happy
+        mood = min(100, mood + 5)
+    }
+    
+    func triggerProud() {
+        forceUpdate = true
+        currentEmotion = .proud
+        onShowParticle?(.sparkle)
+    }
+    
+    func triggerBackflip() {
+        forceUpdate = true
+        stateMachine.enter(PetInteractState.self)
+        currentAction = .backflip
+        currentEmotion = .excited
+        onShowParticle?(.sparkle)
+    }
+    
+    func triggerHeadbang() {
+        forceUpdate = true
+        stateMachine.enter(PetInteractState.self)
+        currentAction = .headbang
+        currentEmotion = .excited
+    }
+    
+    /// Handles a spatial command from the AI (e.g. "go sit in corner")
+    func handleSpatialCommand(action: String, targetX: CGFloat?, targetY: CGFloat?) {
+        guard let petAction = PetAction(rawValue: action) else {
+            evaluateNextAction()
+            return
+        }
+        
+        // If AI provided coordinates, use them; otherwise let applyAction figure it out
+        if let tx = targetX, let ty = targetY {
+            onSpatialCommand?(petAction, tx, ty)
+            currentAction = petAction
+            currentEmotion = resolveEmotion()
+            forceUpdate = true
+            stateMachine.enter(PetWanderState.self)
+        } else {
+            applyAction(petAction)
+        }
     }
 }

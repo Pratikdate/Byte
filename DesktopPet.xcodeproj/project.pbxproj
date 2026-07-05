@@ -7,109 +7,112 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		142200ED3D37C1CD9CC46C41 /* VoiceInputManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70AC30867D89B1EFAD32EACC /* VoiceInputManager.swift */; };
-		2442F98B8875151D31FAC3E7 /* PetScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330F93A8A6C1F041603F22B9 /* PetScene.swift */; };
-		3A467A195077AC259C5FDA4B /* EnvironmentMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ED488F29515D6F8F656B23C /* EnvironmentMonitor.swift */; };
-		412825B1A6574AAC42469AA8 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 876CB15E9530806E4E89BA7A /* Cocoa.framework */; };
-		5C5A4371C7C7AD0C2198E386 /* DesktopEnvironmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29B47E975927BDC63809CED6 /* DesktopEnvironmentManager.swift */; };
-		65F48B9BA47C0FF92860E566 /* DesktopPetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5149C488C595BF2D5CD5020C /* DesktopPetApp.swift */; };
-		86B79417D0EA470EDD75B7B1 /* MemoryGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F93D9D078727251D11DD76 /* MemoryGraph.swift */; };
-		A1C3D7E82F4A9B0E1D5C6F31 /* DownloadsWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C3D7E72F4A9B0E1D5C6F30 /* DownloadsWatcher.swift */; };
-		D2E1F9FBEE3196F16F52E19E /* PetBrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5BDE1A5345D2905D2E1C3B2 /* PetBrain.swift */; };
-		FC04256D1D295C2EDFC9922B /* AIEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF6CC1C9A988569D994DD4C /* AIEngine.swift */; };
-		FCFE6983DB1D79241BCFDDB8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A3F5505318DC72EA7657D2 /* AppDelegate.swift */; };
+		27B352FDD3666A343D97F7DF /* DesktopPetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDBA8D8FF50BCB5FCDA0C749 /* DesktopPetApp.swift */; };
+		2B25D2EAF6A92C71F0A0A187 /* VoiceInputManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39713A909CE3824D4EB6A409 /* VoiceInputManager.swift */; };
+		2D33E21216F640736CB547F2 /* WeatherManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1C04D0F074D5D3F2AA6E7E /* WeatherManager.swift */; };
+		32FF2BEA50A60BDEBD663E3A /* PetBrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64FAC3CFB1342C6FDF421805 /* PetBrain.swift */; };
+		4BC9A60491797A44BCC0C0B1 /* EnvironmentMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80386468CC106CD11F8FE25F /* EnvironmentMonitor.swift */; };
+		554FFA9636D67A6307C64C58 /* MemoryGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68D48B1782C1DFB38BC1410 /* MemoryGraph.swift */; };
+		6A19667BE12D5AE1C06810CF /* PetScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B652D45E6976F47D462A1D3 /* PetScene.swift */; };
+		8BBC624546742EB40AA8AEA3 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B461484513570AF74412C8EB /* Cocoa.framework */; };
+		A8754F87A01B647B4D340B23 /* AIEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFDA1043DDD16863AF1DB24 /* AIEngine.swift */; };
+		A8D44BE50A2A615AAD1B0B55 /* DesktopEnvironmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA458407265EF09CAEE3F0E /* DesktopEnvironmentManager.swift */; };
+		AAF2ABA8529FAB7C41715F23 /* AudioMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19A9B45AAAF2F057AC78F2DC /* AudioMonitor.swift */; };
+		EE65E53C9C5BFA622D7E900F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF328C5B701ACF61020B398C /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		29B47E975927BDC63809CED6 /* DesktopEnvironmentManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopEnvironmentManager.swift; sourceTree = "<group>"; };
-		330F93A8A6C1F041603F22B9 /* PetScene.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PetScene.swift; sourceTree = "<group>"; };
-		412CAA980B4828D3C2E551D0 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		5149C488C595BF2D5CD5020C /* DesktopPetApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopPetApp.swift; sourceTree = "<group>"; };
-		6ED488F29515D6F8F656B23C /* EnvironmentMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnvironmentMonitor.swift; sourceTree = "<group>"; };
-		70AC30867D89B1EFAD32EACC /* VoiceInputManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceInputManager.swift; sourceTree = "<group>"; };
-		876CB15E9530806E4E89BA7A /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
-		A1C3D7E72F4A9B0E1D5C6F30 /* DownloadsWatcher.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadsWatcher.swift; sourceTree = "<group>"; };
-		A5BDE1A5345D2905D2E1C3B2 /* PetBrain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PetBrain.swift; sourceTree = "<group>"; };
-		B4F93D9D078727251D11DD76 /* MemoryGraph.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoryGraph.swift; sourceTree = "<group>"; };
-		C7A3F5505318DC72EA7657D2 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		DBF6CC1C9A988569D994DD4C /* AIEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AIEngine.swift; sourceTree = "<group>"; };
-		E8B6C54E2048EC3CB99972A3 /* DesktopPet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DesktopPet.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B652D45E6976F47D462A1D3 /* PetScene.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PetScene.swift; sourceTree = "<group>"; };
+		0BA458407265EF09CAEE3F0E /* DesktopEnvironmentManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopEnvironmentManager.swift; sourceTree = "<group>"; };
+		19A9B45AAAF2F057AC78F2DC /* AudioMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioMonitor.swift; sourceTree = "<group>"; };
+		2B1C04D0F074D5D3F2AA6E7E /* WeatherManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WeatherManager.swift; sourceTree = "<group>"; };
+		39713A909CE3824D4EB6A409 /* VoiceInputManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceInputManager.swift; sourceTree = "<group>"; };
+		4ADF199984668CDFA07E0B7D /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		64FAC3CFB1342C6FDF421805 /* PetBrain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PetBrain.swift; sourceTree = "<group>"; };
+		70B1C3D870B30354353DEF78 /* DesktopPet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DesktopPet.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		80386468CC106CD11F8FE25F /* EnvironmentMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnvironmentMonitor.swift; sourceTree = "<group>"; };
+		AAFDA1043DDD16863AF1DB24 /* AIEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AIEngine.swift; sourceTree = "<group>"; };
+		B461484513570AF74412C8EB /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
+		B68D48B1782C1DFB38BC1410 /* MemoryGraph.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoryGraph.swift; sourceTree = "<group>"; };
+		CF328C5B701ACF61020B398C /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		EDBA8D8FF50BCB5FCDA0C749 /* DesktopPetApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopPetApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		9747ADCD7662E0CB84BA147E /* Frameworks */ = {
+		1F81A77657918A5400FC3704 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				412825B1A6574AAC42469AA8 /* Cocoa.framework in Frameworks */,
+				8BBC624546742EB40AA8AEA3 /* Cocoa.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		3B96E20D48CF8308FE98299C /* DesktopPet */ = {
+		0727385B57BF86423D095BE5 = {
 			isa = PBXGroup;
 			children = (
-				412CAA980B4828D3C2E551D0 /* Info.plist */,
-				DBF6CC1C9A988569D994DD4C /* AIEngine.swift */,
-				330F93A8A6C1F041603F22B9 /* PetScene.swift */,
-				29B47E975927BDC63809CED6 /* DesktopEnvironmentManager.swift */,
-				C7A3F5505318DC72EA7657D2 /* AppDelegate.swift */,
-				5149C488C595BF2D5CD5020C /* DesktopPetApp.swift */,
-				6ED488F29515D6F8F656B23C /* EnvironmentMonitor.swift */,
-				A5BDE1A5345D2905D2E1C3B2 /* PetBrain.swift */,
-				70AC30867D89B1EFAD32EACC /* VoiceInputManager.swift */,
-				B4F93D9D078727251D11DD76 /* MemoryGraph.swift */,
-				A1C3D7E72F4A9B0E1D5C6F30 /* DownloadsWatcher.swift */,
+				C0BE936F3B0D71A10BB3F976 /* Products */,
+				61C2B19FC8B89E17867DE7E5 /* Frameworks */,
+				F35CECB8A0F2846E3F137FAA /* DesktopPet */,
+			);
+			sourceTree = "<group>";
+		};
+		55FF91B9183B0F319836E302 /* OS X */ = {
+			isa = PBXGroup;
+			children = (
+				B461484513570AF74412C8EB /* Cocoa.framework */,
+			);
+			name = "OS X";
+			sourceTree = "<group>";
+		};
+		61C2B19FC8B89E17867DE7E5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				55FF91B9183B0F319836E302 /* OS X */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		C0BE936F3B0D71A10BB3F976 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				70B1C3D870B30354353DEF78 /* DesktopPet.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F35CECB8A0F2846E3F137FAA /* DesktopPet */ = {
+			isa = PBXGroup;
+			children = (
+				4ADF199984668CDFA07E0B7D /* Info.plist */,
+				AAFDA1043DDD16863AF1DB24 /* AIEngine.swift */,
+				0B652D45E6976F47D462A1D3 /* PetScene.swift */,
+				B68D48B1782C1DFB38BC1410 /* MemoryGraph.swift */,
+				2B1C04D0F074D5D3F2AA6E7E /* WeatherManager.swift */,
+				39713A909CE3824D4EB6A409 /* VoiceInputManager.swift */,
+				0BA458407265EF09CAEE3F0E /* DesktopEnvironmentManager.swift */,
+				CF328C5B701ACF61020B398C /* AppDelegate.swift */,
+				EDBA8D8FF50BCB5FCDA0C749 /* DesktopPetApp.swift */,
+				80386468CC106CD11F8FE25F /* EnvironmentMonitor.swift */,
+				64FAC3CFB1342C6FDF421805 /* PetBrain.swift */,
+				19A9B45AAAF2F057AC78F2DC /* AudioMonitor.swift */,
 			);
 			name = DesktopPet;
 			path = DesktopPet;
 			sourceTree = "<group>";
 		};
-		5ECF268C106925E28CB658FD = {
-			isa = PBXGroup;
-			children = (
-				A41BBFE93969C09D0F0FF4C8 /* Products */,
-				7D0DE7948AF819652D66EF8B /* Frameworks */,
-				3B96E20D48CF8308FE98299C /* DesktopPet */,
-			);
-			sourceTree = "<group>";
-		};
-		7D0DE7948AF819652D66EF8B /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				BF6B0C7E4AE20042E41224C1 /* OS X */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		A41BBFE93969C09D0F0FF4C8 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				E8B6C54E2048EC3CB99972A3 /* DesktopPet.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		BF6B0C7E4AE20042E41224C1 /* OS X */ = {
-			isa = PBXGroup;
-			children = (
-				876CB15E9530806E4E89BA7A /* Cocoa.framework */,
-			);
-			name = "OS X";
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		8E5FACCD238330DCA5D16C78 /* DesktopPet */ = {
+		C7104FA1E4966F296E789DD2 /* DesktopPet */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DCB530C5CB9ECA40E79F79CC /* Build configuration list for PBXNativeTarget "DesktopPet" */;
+			buildConfigurationList = 9F1ABCEAC8778D8F8D31603A /* Build configuration list for PBXNativeTarget "DesktopPet" */;
 			buildPhases = (
-				47247ACB097A42DD68570AE3 /* Sources */,
-				9747ADCD7662E0CB84BA147E /* Frameworks */,
-				B2A0ADA0B3A23F31E4E645AA /* Resources */,
+				7C8D7BB461B21DB4702845F9 /* Sources */,
+				1F81A77657918A5400FC3704 /* Frameworks */,
+				49DEF4EAD4DB903622BD166C /* Resources */,
 			);
 			buildRules = (
 			);
@@ -117,19 +120,19 @@
 			);
 			name = DesktopPet;
 			productName = DesktopPet;
-			productReference = E8B6C54E2048EC3CB99972A3 /* DesktopPet.app */;
+			productReference = 70B1C3D870B30354353DEF78 /* DesktopPet.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		37000A07D2D22564FC0BF8E1 /* Project object */ = {
+		18A10AA5C3BBBD0BA9AFD12C /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 			};
-			buildConfigurationList = 8FE1C1BA2D3DC8F1552C9A2D /* Build configuration list for PBXProject "DesktopPet" */;
+			buildConfigurationList = F42BF8C9E74FA66D1243CD58 /* Build configuration list for PBXProject "DesktopPet" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -137,20 +140,20 @@
 				en,
 				Base,
 			);
-			mainGroup = 5ECF268C106925E28CB658FD;
+			mainGroup = 0727385B57BF86423D095BE5;
 			minimizedProjectReferenceProxies = 0;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = A41BBFE93969C09D0F0FF4C8 /* Products */;
+			productRefGroup = C0BE936F3B0D71A10BB3F976 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				8E5FACCD238330DCA5D16C78 /* DesktopPet */,
+				C7104FA1E4966F296E789DD2 /* DesktopPet */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		B2A0ADA0B3A23F31E4E645AA /* Resources */ = {
+		49DEF4EAD4DB903622BD166C /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -160,27 +163,28 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		47247ACB097A42DD68570AE3 /* Sources */ = {
+		7C8D7BB461B21DB4702845F9 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FC04256D1D295C2EDFC9922B /* AIEngine.swift in Sources */,
-				2442F98B8875151D31FAC3E7 /* PetScene.swift in Sources */,
-				5C5A4371C7C7AD0C2198E386 /* DesktopEnvironmentManager.swift in Sources */,
-				FCFE6983DB1D79241BCFDDB8 /* AppDelegate.swift in Sources */,
-				65F48B9BA47C0FF92860E566 /* DesktopPetApp.swift in Sources */,
-				3A467A195077AC259C5FDA4B /* EnvironmentMonitor.swift in Sources */,
-				D2E1F9FBEE3196F16F52E19E /* PetBrain.swift in Sources */,
-				142200ED3D37C1CD9CC46C41 /* VoiceInputManager.swift in Sources */,
-				86B79417D0EA470EDD75B7B1 /* MemoryGraph.swift in Sources */,
-				A1C3D7E82F4A9B0E1D5C6F31 /* DownloadsWatcher.swift in Sources */,
+				A8754F87A01B647B4D340B23 /* AIEngine.swift in Sources */,
+				6A19667BE12D5AE1C06810CF /* PetScene.swift in Sources */,
+				554FFA9636D67A6307C64C58 /* MemoryGraph.swift in Sources */,
+				2D33E21216F640736CB547F2 /* WeatherManager.swift in Sources */,
+				2B25D2EAF6A92C71F0A0A187 /* VoiceInputManager.swift in Sources */,
+				A8D44BE50A2A615AAD1B0B55 /* DesktopEnvironmentManager.swift in Sources */,
+				EE65E53C9C5BFA622D7E900F /* AppDelegate.swift in Sources */,
+				27B352FDD3666A343D97F7DF /* DesktopPetApp.swift in Sources */,
+				4BC9A60491797A44BCC0C0B1 /* EnvironmentMonitor.swift in Sources */,
+				32FF2BEA50A60BDEBD663E3A /* PetBrain.swift in Sources */,
+				AAF2ABA8529FAB7C41715F23 /* AudioMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		226DE62EFD6771EE1CB68F1B /* Release */ = {
+		1956F5C830B0DFD7AC5C8975 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -189,13 +193,28 @@
 				INFOPLIST_FILE = DesktopPet/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.DesktopPet.dev;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DesktopPet;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
-		6BC828F4A230C8CB6FC77FD8 /* Debug */ = {
+		235B32C3C22EDDDB81456C5B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = DesktopPet/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.DesktopPet;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		815EE7E27067FBA58EBB0B51 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -256,22 +275,7 @@
 			};
 			name = Debug;
 		};
-		D7EAEB11005707B1991D2BBC /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = DesktopPet/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.DesktopPet.dev;
-				SDKROOT = macosx;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		E8D1E9A242E65DA7A1F0629A /* Release */ = {
+		C67EC44F87BA733DDE09C88A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -328,25 +332,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		8FE1C1BA2D3DC8F1552C9A2D /* Build configuration list for PBXProject "DesktopPet" */ = {
+		9F1ABCEAC8778D8F8D31603A /* Build configuration list for PBXNativeTarget "DesktopPet" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				6BC828F4A230C8CB6FC77FD8 /* Debug */,
-				E8D1E9A242E65DA7A1F0629A /* Release */,
+				1956F5C830B0DFD7AC5C8975 /* Release */,
+				235B32C3C22EDDDB81456C5B /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DCB530C5CB9ECA40E79F79CC /* Build configuration list for PBXNativeTarget "DesktopPet" */ = {
+		F42BF8C9E74FA66D1243CD58 /* Build configuration list for PBXProject "DesktopPet" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				226DE62EFD6771EE1CB68F1B /* Release */,
-				D7EAEB11005707B1991D2BBC /* Debug */,
+				815EE7E27067FBA58EBB0B51 /* Debug */,
+				C67EC44F87BA733DDE09C88A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 37000A07D2D22564FC0BF8E1 /* Project object */;
+	rootObject = 18A10AA5C3BBBD0BA9AFD12C /* Project object */;
 }

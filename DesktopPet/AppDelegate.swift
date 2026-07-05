@@ -37,6 +37,18 @@ class PetSCNView: SCNView {
         (scene as? PetScene)?.handleMouseUp()
     }
     
+    override func scrollWheel(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        let hits = self.hitTest(location, options: [:])
+        let validHits = hits.filter { $0.node.geometry is SCNBox || $0.node.geometry is SCNPlane || $0.node.geometry is SCNTorus || $0.node.geometry is SCNCylinder }
+        
+        if !validHits.isEmpty {
+            (scene as? PetScene)?.handleScroll(deltaX: event.scrollingDeltaX, deltaY: event.scrollingDeltaY)
+        } else {
+            super.scrollWheel(with: event)
+        }
+    }
+    
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         let location = convert(sender.draggingLocation, from: nil)
         let hits = self.hitTest(location, options: [:])
@@ -107,12 +119,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupMenuBar()
         setupKeyboardShortcuts()
         
-        // Start Downloads Watcher
-        DownloadsWatcher.shared.startWatching()
-        
         // Menu bar emotion icon updater (every 2 seconds)
         emotionUpdateTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.updateMenuBarEmotion()
+        }
+        
+        // Window open/close observers for Byte reactions
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(windowDidActivate(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(windowDidDeactivate(_:)), name: NSWorkspace.didDeactivateApplicationNotification, object: nil)
+    }
+    
+    @objc private func windowDidActivate(_ notification: Notification) {
+        guard let scene = scnView?.scene as? PetScene else { return }
+        // When a new window comes to focus, occasionally make Byte curious
+        if scene.brain.currentAction == .idle && Double.random(in: 0...1) < 0.2 {
+            scene.brain.curiosity = min(100, scene.brain.curiosity + 20)
+            scene.brain.forceUpdate = true
+        }
+    }
+    
+    @objc private func windowDidDeactivate(_ notification: Notification) {
+        guard let scene = scnView?.scene as? PetScene else { return }
+        // When a window closes/deactivates, occasionally startle Byte
+        if scene.brain.currentAction == .idle && Double.random(in: 0...1) < 0.15 {
+            scene.brain.triggerStartle()
         }
     }
     
@@ -143,6 +173,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         case .love:         return "😍"
         case .excited:      return "🤩"
         case .embarrassed:  return "😳"
+        case .proud:        return "😎"
         }
     }
     
@@ -182,6 +213,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let dropTreatItem = NSMenuItem(title: "🍬 Drop Treat", action: #selector(dropTreat(_:)), keyEquivalent: "t")
         menu.addItem(dropTreatItem)
         
+        // Commands Sub-Menu (Spatial Commands)
+        let commandsMenu = NSMenu()
+        let commands: [(String, String)] = [
+            ("📐 Sit in Corner", "sitOnCorner"),
+            ("📊 Sit on Menu Bar", "sitOnMenuBar"),
+            ("🪟 Climb Window", "climbWindow"),
+            ("💪 Push Window", "pushWidget"),
+            ("👆 Tap Window", "tapWindow"),
+            ("🤸 Do a Backflip", "backflip"),
+            ("👋 Wave Hello", "wave"),
+            ("🎸 Headbang", "headbang"),
+            ("🤧 Sneeze", "sneeze"),
+            ("🫣 Trip", "trip")
+        ]
+        
+        for (index, (name, _)) in commands.enumerated() {
+            let item = NSMenuItem(title: name, action: #selector(commandClicked(_:)), keyEquivalent: "")
+            item.tag = index
+            commandsMenu.addItem(item)
+        }
+        
+        let commandsMenuItem = NSMenuItem(title: "📍 Commands", action: nil, keyEquivalent: "")
+        commandsMenuItem.submenu = commandsMenu
+        menu.addItem(commandsMenuItem)
+        
         // Pet Modes Sub-Menu
         let modesMenu = NSMenu()
         modesMenu.addItem(NSMenuItem(title: "Auto (Smart)", action: #selector(setModeAuto(_:)), keyEquivalent: ""))
@@ -211,10 +267,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             ("Sit", 5), ("Spin", 6), ("Sulk", 7), ("Dizzy", 8), ("Tickled", 9),
             ("Peek Window", 10), ("Sit on Taskbar", 11), ("Investigate", 12),
             ("Step Back", 13), ("Dance", 14), ("Bow", 15), ("Stretch", 16),
-            ("Roll", 17), ("Hide", 18)
+            ("Roll", 17), ("Hide", 18),
+            ("---", -1),
+            ("Sit on Corner", 19), ("Sit on Menu Bar", 20), ("Climb Window", 21),
+            ("Push Widget", 22), ("Tap Window", 23),
+            ("Sneeze", 24), ("Backflip", 25), ("Headbang", 26), ("Trip", 27), ("Wave", 28)
         ]
         
         for (name, tag) in animations {
+            if tag == -1 {
+                animationsMenu.addItem(NSMenuItem.separator())
+                continue
+            }
             let item = NSMenuItem(title: name, action: #selector(testAnimationClicked(_:)), keyEquivalent: "")
             item.tag = tag
             animationsMenu.addItem(item)
@@ -234,10 +298,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let scene = scnView.scene as? PetScene else { return }
         let actions: [PetAction] = [
             .idle, .wander, .followCursor, .sleep, .jump, .sit, .spin, .sulk, .dizzy, .tickled,
-            .peekWindow, .sitOnTaskbar, .investigate, .stepBack, .dance, .bow, .stretch, .roll, .hide
+            .peekWindow, .sitOnTaskbar, .investigate, .stepBack, .dance, .bow, .stretch, .roll, .hide,
+            .sitOnCorner, .sitOnMenuBar, .climbWindow, .pushWidget, .tapWindow,
+            .sneeze, .backflip, .headbang, .trip, .wave
         ]
         if sender.tag >= 0 && sender.tag < actions.count {
             scene.brain.forceAction(actions[sender.tag])
+        }
+    }
+    
+    @objc private func commandClicked(_ sender: NSMenuItem) {
+        guard let scene = scnView.scene as? PetScene else { return }
+        let commandActions: [PetAction] = [
+            .sitOnCorner, .sitOnMenuBar, .climbWindow, .pushWidget, .tapWindow,
+            .backflip, .wave, .headbang, .sneeze, .trip
+        ]
+        if sender.tag >= 0 && sender.tag < commandActions.count {
+            scene.brain.forceAction(commandActions[sender.tag])
         }
     }
     
