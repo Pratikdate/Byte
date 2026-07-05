@@ -645,9 +645,9 @@ class PetScene: SCNScene {
         
         if let screen = NSScreen.main {
             let aspect = screen.frame.width / screen.frame.height
-            maxX = 7.0 * aspect - 0.5 // 0.5 margin keeps him barely on screen
-            maxY = 7.0 - 0.5
-            minY = -7.0 + 0.5
+            maxX = 7.0 * aspect
+            maxY = 7.0
+            minY = -7.0
         }
         var finalTargetY = requestedY
         var minX = -maxX
@@ -655,10 +655,12 @@ class PetScene: SCNScene {
         if let screen = NSScreen.main {
             let dockApps = DesktopEnvironmentManager.shared.visibleElements.filter { $0.type == .taskbar }
             if let dock = dockApps.first {
+                let aspect = screen.frame.width / screen.frame.height
+                let worldWidth = 14.0 * aspect
                 let ratioMinX = (dock.frame.minX / screen.frame.width) - 0.5
                 let ratioMaxX = (dock.frame.maxX / screen.frame.width) - 0.5
-                let dockWorldMinX = ratioMinX * 70.0
-                let dockWorldMaxX = ratioMaxX * 70.0
+                let dockWorldMinX = ratioMinX * worldWidth
+                let dockWorldMaxX = ratioMaxX * worldWidth
                 
                 if requestedX >= (dockWorldMinX - 1.0) && requestedX <= (dockWorldMaxX + 1.0) {
                     if finalTargetY < -3.2 {
