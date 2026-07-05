@@ -7,10 +7,11 @@
 <br/>
 
 <p align="center">
-  <img src="./motion_walking.png" width="24%" title="Walking & Listening" />
-  <img src="./motion_sleeping.png" width="24%" title="Sleeping" />
-  <img src="./motion_looking.png" width="24%" title="Looking Forward" />
-  <img src="./motion_sideways.png" width="24%" title="Turned Sideways" />
+  <img src="./motion_walking.png" width="19%" title="Walking & Listening" />
+  <img src="./motion_walk_curious.png" width="19%" title="Walk Curious" />
+  <img src="./motion_sleeping.png" width="19%" title="Sleeping" />
+  <img src="./motion_looking.png" width="19%" title="Looking Forward" />
+  <img src="./motion_sideways.png" width="19%" title="Turned Sideways" />
 </p>
 
 **Byte** is an open-source, context-aware 3D desktop companion built natively for macOS using Swift and SceneKit. Operating as an overlay on the macOS desktop, Byte interacts with your workspace, responds to system events, and exhibits dynamic AI-driven behaviors based on environmental context.
