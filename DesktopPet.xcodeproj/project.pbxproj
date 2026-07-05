@@ -13,6 +13,7 @@
 		412825B1A6574AAC42469AA8 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 876CB15E9530806E4E89BA7A /* Cocoa.framework */; };
 		5C5A4371C7C7AD0C2198E386 /* DesktopEnvironmentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29B47E975927BDC63809CED6 /* DesktopEnvironmentManager.swift */; };
 		65F48B9BA47C0FF92860E566 /* DesktopPetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5149C488C595BF2D5CD5020C /* DesktopPetApp.swift */; };
+		86B79417D0EA470EDD75B7B1 /* MemoryGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F93D9D078727251D11DD76 /* MemoryGraph.swift */; };
 		D2E1F9FBEE3196F16F52E19E /* PetBrain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5BDE1A5345D2905D2E1C3B2 /* PetBrain.swift */; };
 		FC04256D1D295C2EDFC9922B /* AIEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF6CC1C9A988569D994DD4C /* AIEngine.swift */; };
 		FCFE6983DB1D79241BCFDDB8 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A3F5505318DC72EA7657D2 /* AppDelegate.swift */; };
@@ -27,6 +28,7 @@
 		70AC30867D89B1EFAD32EACC /* VoiceInputManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = VoiceInputManager.swift; sourceTree = "<group>"; };
 		876CB15E9530806E4E89BA7A /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
 		A5BDE1A5345D2905D2E1C3B2 /* PetBrain.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PetBrain.swift; sourceTree = "<group>"; };
+		B4F93D9D078727251D11DD76 /* MemoryGraph.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoryGraph.swift; sourceTree = "<group>"; };
 		C7A3F5505318DC72EA7657D2 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		DBF6CC1C9A988569D994DD4C /* AIEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AIEngine.swift; sourceTree = "<group>"; };
 		E8B6C54E2048EC3CB99972A3 /* DesktopPet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DesktopPet.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -56,6 +58,7 @@
 				6ED488F29515D6F8F656B23C /* EnvironmentMonitor.swift */,
 				A5BDE1A5345D2905D2E1C3B2 /* PetBrain.swift */,
 				70AC30867D89B1EFAD32EACC /* VoiceInputManager.swift */,
+				B4F93D9D078727251D11DD76 /* MemoryGraph.swift */,
 			);
 			name = DesktopPet;
 			path = DesktopPet;
@@ -166,6 +169,7 @@
 				3A467A195077AC259C5FDA4B /* EnvironmentMonitor.swift in Sources */,
 				D2E1F9FBEE3196F16F52E19E /* PetBrain.swift in Sources */,
 				142200ED3D37C1CD9CC46C41 /* VoiceInputManager.swift in Sources */,
+				86B79417D0EA470EDD75B7B1 /* MemoryGraph.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

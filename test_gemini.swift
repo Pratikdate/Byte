@@ -1,86 +1,112 @@
 import Foundation
 
-struct AIPetDecision: Codable {
-    let emotion: String
+struct AIAgentDecision: Codable {
     let action: String
-    let thought: String
+    let emotion: String
+    let speech: String
 }
 
-let apiKey = "AQ.Ab8RN6JquuZTkTTYuwK4u8G1zZeUG6NXcKmWbqVohVFvSbyawA"
-let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent"
-
-let systemPrompt = """
-You are a cute, slightly mischievous AI desktop pet living on a macOS screen.
-You can see what the user is doing. Your goal is to decide your next move based on your environment.
-Respond ONLY in valid JSON format matching this structure, with no markdown, no backticks, and no extra text:
-{
-    "emotion": "happy|sad|sleepy|excited|curious|bored|thinking",
-    "action": "wander|peekWindow|sitOnTaskbar|idle|sleep|jump|spin",
-    "thought": "A short, cute internal thought about what you see or feel (max 10 words)"
-}
-
-Current Environment:
-Visible Windows: Xcode. Taskbar/Dock is visible. Current Energy: 90. Current Emotion: normal.
-"""
-
-let payload: [String: Any] = [
-    "contents": [
-        [
-            "parts": [
-                ["text": systemPrompt]
+class GeminiAPIProvider {
+    private let apiKey: String
+    private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    
+    init(apiKey: String) {
+        self.apiKey = apiKey
+    }
+    
+    func generateAgentDecision(systemPrompt: String, completion: @escaping (AIAgentDecision?) -> Void) {
+        let urlString = "\(endpoint)?key=\(apiKey)"
+        guard let url = URL(string: urlString) else {
+            completion(nil)
+            return
+        }
+        
+        let payload: [String: Any] = [
+            "contents": [
+                ["role": "user", "parts": [["text": systemPrompt]]]
+            ],
+            "generationConfig": [
+                "temperature": 0.8,
+                "response_mime_type": "application/json"
             ]
         ]
-    ],
-    "generationConfig": [
-        "responseMimeType": "application/json"
-    ]
-]
-
-guard let url = URL(string: "\(endpoint)?key=\(apiKey)") else {
-    print("Invalid URL")
-    exit(1)
-}
-
-var request = URLRequest(url: url)
-request.httpMethod = "POST"
-request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-request.httpBody = try! JSONSerialization.data(withJSONObject: payload, options: [])
-
-let group = DispatchGroup()
-group.enter()
-
-let task = URLSession.shared.dataTask(with: request) { data, response, error in
-    defer { group.leave() }
-    guard let data = data, error == nil else {
-        print("Network Error: \(error?.localizedDescription ?? "Unknown")")
-        return
-    }
-    
-    if let httpResponse = response as? HTTPURLResponse {
-        print("HTTP Status Code: \(httpResponse.statusCode)")
-    }
-    
-    let str = String(data: data, encoding: .utf8)
-    print("Raw Response: \(str ?? "")")
-    
-    do {
-        if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let candidates = json["candidates"] as? [[String: Any]],
-           let firstCandidate = candidates.first,
-           let content = firstCandidate["content"] as? [String: Any],
-           let parts = content["parts"] as? [[String: Any]],
-           let firstPart = parts.first,
-           let responseString = firstPart["text"] as? String,
-           let responseData = responseString.data(using: .utf8) {
-            
-            let decision = try JSONDecoder().decode(AIPetDecision.self, from: responseData)
-            print("Successfully parsed decision: \(decision)")
-        } else {
-            print("Failed to traverse JSON hierarchy.")
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        } catch {
+            completion(nil)
+            return
         }
-    } catch {
-        print("Parse Error: \(error)")
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data = data, error == nil else {
+                print("Error: \(error?.localizedDescription ?? "Unknown")")
+                completion(nil)
+                return
+            }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let candidates = json["candidates"] as? [[String: Any]],
+                   let first = candidates.first,
+                   let content = first["content"] as? [String: Any],
+                   let parts = content["parts"] as? [[String: Any]],
+                   let text = parts.first?["text"] as? String {
+                    
+                    print("Raw Gemini Output: \(text)")
+                    
+                    if let data = text.data(using: .utf8) {
+                        let decoder = JSONDecoder()
+                        let decision = try decoder.decode(AIAgentDecision.self, from: data)
+                        completion(decision)
+                        return
+                    }
+                } else {
+                    if let jsonString = String(data: data, encoding: .utf8) {
+                        print("Failed to parse candidates. Full response: \(jsonString)")
+                    }
+                }
+            } catch {
+                print("Failed to decode Gemini JSON decision: \(error)")
+            }
+            completion(nil)
+        }
+        task.resume()
     }
 }
-task.resume()
-group.wait()
+
+let provider = GeminiAPIProvider(apiKey: "AQ.Ab8RN6JquuZTkTTYuwK4u8G1zZeUG6NXcKmWbqVohVFvSbyawA")
+
+let systemPrompt = """
+You are an autonomous AI desktop pet. You must decide your next physical action and what you want to say.
+
+ENVIRONMENT CONTEXT: Desktop has windows open: Safari, Xcode
+YOUR CURRENT EMOTION: normal
+AVAILABLE ACTIONS: idle, wander, sleep, jump, sit, spin, dance, stretch, roll
+
+CRITICAL RULES:
+1. You must respond in valid JSON format.
+2. Pick one action from the AVAILABLE ACTIONS list.
+3. Pick an emotion that matches your choice (e.g. happy, sad, curious, angry, sleepy, bored, shock, love, normal).
+4. Provide a very short sentence of speech (under 10 words).
+"""
+
+let semaphore = DispatchSemaphore(value: 0)
+
+provider.generateAgentDecision(systemPrompt: systemPrompt) { decision in
+    if let decision = decision {
+        print("\nSUCCESS!")
+        print("Action: \(decision.action)")
+        print("Emotion: \(decision.emotion)")
+        print("Speech: \(decision.speech)")
+    } else {
+        print("\nFAILED TO GET DECISION!")
+    }
+    semaphore.signal()
+}
+
+semaphore.wait()

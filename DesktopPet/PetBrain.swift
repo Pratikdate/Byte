@@ -3,14 +3,21 @@ import GameplayKit
 import CoreGraphics
 
 // Keep the enums for the scene to map easily to animations/eyes
-enum PetAction {
+enum PetAction: String {
     case idle, wander, followCursor, sleep, jump, sit, spin, sulk, dizzy, tickled
     case peekWindow, sitOnTaskbar, investigate
-    case stepBack, dance, bow, stretch, roll, hide
+    case stepBack, dance, bow, stretch, roll, hide, chaseLaser, seekTreat
 }
 
-enum PetEmotion {
-    case normal, happy, sad, angry, sleepy, love, shock, thinking, dizzy, bored, excited, curious, embarrassed
+enum PetEmotion: String {
+    case happy, sad, angry, curious, sleepy, bored, thinking, normal, dizzy, shock, love, excited, embarrassed
+}
+
+enum PetMode: String {
+    case auto = "Auto"
+    case work = "Work"
+    case play = "Play"
+    case sleep = "Sleep"
 }
 
 // MARK: - GKAgent
@@ -34,31 +41,47 @@ class PetBaseState: GKState {
 }
 
 class PetIdleState: PetBaseState {
-    private var idleTime: TimeInterval = 0
-    private var aiTimer: TimeInterval = 20.0 // Start high so it queries immediately on boot
-    private var nextWanderTime: TimeInterval = 0
+    private var actionTimer: TimeInterval = 0
+    private var nextActionTime: TimeInterval = 0
     
     override func didEnter(from previousState: GKState?) {
-        brain.currentAction = .idle
-        brain.currentEmotion = .normal
-        idleTime = 0
-        // Very short pause before wandering again — 1 to 3 seconds max
-        nextWanderTime = TimeInterval.random(in: 1.0...3.0)
+        // Don't overwrite one-off animations back to idle immediately
+        let oneOffs: [PetAction] = [.jump, .spin, .sit, .sulk, .dizzy, .tickled, .dance, .bow, .stretch, .roll, .hide, .stepBack]
+        if !oneOffs.contains(brain.currentAction) {
+            brain.currentAction = .idle
+        }
+        actionTimer = 0
+        // Make the idle time shorter so he decides to do things faster
+        nextActionTime = TimeInterval.random(in: 1.0...4.0)
         brain.agent.behavior = nil // Stop moving
     }
     
     override func update(deltaTime seconds: TimeInterval) {
-        idleTime += seconds
-        aiTimer += seconds
+        actionTimer += seconds
         
-        // Every 25 seconds, ask the AI what to do (free local inference!)
-        if aiTimer > 25.0 {
-            aiTimer = 0
-            brain.queryAI()
-        } else if idleTime > nextWanderTime {
-            // Autonomously wander — always active, always exploring!
-            brain.currentAction = .wander
-            stateMachine?.enter(PetWanderState.self)
+        // Every few seconds, score possible actions
+        if actionTimer > nextActionTime {
+            actionTimer = 0
+            
+            if brain.exploreCount > 0 {
+                brain.exploreCount -= 1
+                let nextActions: [PetAction] = [.wander, .jump, .spin, .investigate]
+                let action = nextActions.randomElement()!
+                
+                // If it picked an animation, wait and then we will hit idle again and continue exploring.
+                // If it picked wander, he walks immediately!
+                brain.applyAction(action)
+                nextActionTime = TimeInterval.random(in: 1.0...2.0)
+            } else {
+                nextActionTime = TimeInterval.random(in: 4.0...10.0) // Slower LLM loop to avoid spam
+                if brain.isMuted {
+                    // Fallback to offline lightweight logic when muted
+                    brain.evaluateNextAction()
+                } else {
+                    // LLM takes complete control!
+                    brain.requestLLMAction()
+                }
+            }
         }
     }
 }
@@ -74,20 +97,48 @@ class PetWanderState: PetBaseState {
             brain.currentEmotion = .curious
         }
         wanderTime = 0
-        maxWanderTime = TimeInterval.random(in: 8...18) // Walk for a good while
+        maxWanderTime = TimeInterval.random(in: 8...18)
         brain.agent.behavior = nil
         
-        // Pick a random X within visible screen bounds (camera shows ±6 world units)
-        let currentX = CGFloat(brain.agent.position.x)
-        let goRight = currentX <= 0
-        targetX = goRight ? CGFloat.random(in: 2.0...5.5) : CGFloat.random(in: -5.5...(-2.0))
+        let elements = DesktopEnvironmentManager.shared.visibleElements.filter { $0.type == .window }
+        var targetedWindow = false
         
-        // Pick a random Y within visible screen bounds (Y goes from -2.8 to 4.5)
-        targetY = CGFloat.random(in: -2.5...4.5)
+        if !elements.isEmpty && Double.random(in: 0...1) < 0.3 {
+            if let targetWindow = elements.randomElement() {
+                // Approximate screen to world mapping
+                // Assuming main screen for simplicity
+                // CGWindow coords: origin top-left
+                let screenBounds = CGDisplayBounds(CGMainDisplayID())
+                let screenW = screenBounds.width
+                let screenH = screenBounds.height
+                
+                // We want to sit on top of the window, so Y is the minY of the frame
+                let winX = targetWindow.frame.midX
+                let winY = targetWindow.frame.minY
+                
+                // Map to SceneKit (-12.5 to 12.5 for X, 7 to -7 for Y roughly)
+                targetX = (winX / screenW - 0.5) * 25.0
+                targetY = (0.5 - winY / screenH) * 14.0
+                targetedWindow = true
+            }
+        }
+        
+        if !targetedWindow {
+            if brain.currentMode == .work && !brain.isMuted {
+                let corner = brain.findFreeCorner()
+                // Add randomness so he doesn't walk to the exact same pixel every time!
+                targetX = corner.0 + CGFloat.random(in: -5.0...5.0)
+                targetY = corner.1
+            } else {
+                let currentX = CGFloat(brain.agent.position.x)
+                let goRight = currentX <= 0
+                // Play/Auto mode: walk anywhere
+                targetX = goRight ? CGFloat.random(in: 5.0...35.0) : CGFloat.random(in: -35.0...(-5.0))
+                targetY = CGFloat.random(in: -10.0...10.0)
+            }
+        }
         
         brain.currentAction = .wander
-        
-        // Tell the scene to start the step-based walk animation
         brain.onStartWalk?(targetX, targetY)
     }
     
@@ -111,9 +162,7 @@ class PetSleepState: PetBaseState {
     
     override func update(deltaTime seconds: TimeInterval) {
         brain.energy = min(100, brain.energy + (5.0 * seconds))
-        if brain.energy > 80 {
-            stateMachine?.enter(PetIdleState.self)
-        }
+        // Remains in sleep state indefinitely until user clicks to wake him up
     }
 }
 
@@ -138,6 +187,10 @@ class PetInteractState: PetBaseState {
 
 // MARK: - PetBrain
 class PetBrain {
+    var isGoingToSleep = false
+    var currentMode: PetMode = .auto
+    var exploreCount: Int = 0
+    
     let agent = PetAgent()
     lazy var stateMachine = GKStateMachine(states: [
         PetIdleState(brain: self),
@@ -162,87 +215,213 @@ class PetBrain {
     
     private var lastTickTime: TimeInterval = 0
     private var isQueryingAI = false
+    var forceUpdate = false
+    var isMuted = false
     
     init() {
         stateMachine.enter(PetIdleState.self) // Start idle — let AI decide what to do first
-    }
-    
-    func queryAI(userMessage: String? = nil) {
-        guard !isQueryingAI else { return }
-        isQueryingAI = true
         
-        let envManager = DesktopEnvironmentManager.shared
-        
-        // Get the frontmost app name via Accessibility API
-        var frontApp = "Desktop"
-        if let frontmostApp = NSWorkspace.shared.frontmostApplication {
-            frontApp = frontmostApp.localizedName ?? "Desktop"
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("ActiveAppChanged"), object: nil, queue: .main) { [weak self] notification in
+            guard let self = self, let appName = notification.object as? String else { return }
+            
+            // Wake up if sleeping and app changes
+            if self.currentAction == .sleep {
+                self.applyAction(.idle)
+            }
+            
+            // Occasionally comment on the new app
+            if Double.random(in: 0...1) < 0.3 {
+                self.requestLLMAction()
+            }
         }
         
-        var windowList: [String] = []
-        for el in envManager.visibleElements where el.type == .window {
-            if let title = el.title, !title.isEmpty { windowList.append(title) }
-        }
-        let hasDock = envManager.visibleElements.contains(where: { $0.type == .taskbar })
-        
-        var context = "Active app: \(frontApp)."
-        if !windowList.isEmpty {
-            context += " Open windows: \(windowList.prefix(3).joined(separator: ", "))."
-        }
-        if hasDock { context += " Dock is visible." }
-        context += " Energy: \(Int(energy)). Mood: \(currentEmotion)."
-        
-        AIEngine.shared.decideNextMove(context: context, userMessage: userMessage) { [weak self] decision in
-            DispatchQueue.main.async {
-                self?.isQueryingAI = false
-                guard let self = self, let decision = decision else { return }
-                
-                self.applyDecision(decision)
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("UserTypingFast"), object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            if self.currentAction == .idle && Double.random(in: 0...1) < 0.4 {
+                // If idle, occasionally dance to the typing rhythm
+                self.triggerTypingDance()
             }
         }
     }
     
-    private func applyDecision(_ decision: AIPetDecision) {
-        if let thought = decision.thought as String?, !thought.isEmpty {
-            self.onThoughtGenerated?(thought)
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    func resolveEmotion() -> PetEmotion {
+        if annoyance > 80 { return .angry }
+        if energy < 15 { return .sleepy }
+        if curiosity > 80 { return .curious }
+        if mood > 70 && curiosity > 60 { return .happy }
+        if mood < 30 { return .sad }
+        if curiosity < 20 { return .bored }
+        return .normal
+    }
+    var isListeningToUser: Bool = false
+    
+    func requestLLMAction(userMessage: String? = nil) {
+        if isListeningToUser && userMessage == nil { return } // Prevent background chatter while listening
+        if isQueryingAI { return }
+        isQueryingAI = true
+        
+        let elements = DesktopEnvironmentManager.shared.visibleElements
+        let activeWindows = elements.filter { $0.type == .window }.compactMap { $0.title }.joined(separator: ", ")
+        
+        let currentApp = DesktopEnvironmentManager.shared.activeAppTracker
+        let timeActive = Date().timeIntervalSince(DesktopEnvironmentManager.shared.activeAppStartTime)
+        let timeString = String(format: "%.0f", timeActive)
+        
+        let context = "Desktop has windows open: \(activeWindows.isEmpty ? "None" : activeWindows). The user is currently using \(currentApp) and has been for \(timeString) seconds."
+        
+        let emotionStr = String(describing: currentEmotion)
+        let actions = ["idle", "wander", "sleep", "jump", "sit", "spin", "dance", "stretch", "roll"]
+        
+        // Show thinking while waiting
+        currentEmotion = .thinking
+        forceUpdate = true
+        
+        AIEngine.shared.generateAgentDecision(context: context, currentEmotion: emotionStr, availableActions: actions, userMessage: userMessage) { [weak self] decision in
+            DispatchQueue.main.async {
+                self?.isQueryingAI = false
+                
+                guard let decision = decision else {
+                    // Fallback to basic random if LLM fails
+                    self?.evaluateNextAction()
+                    return
+                }
+                
+                if let action = PetAction(rawValue: decision.action) {
+                    self?.applyAction(action)
+                } else {
+                    self?.evaluateNextAction() // fallback
+                }
+                
+                if let emotion = PetEmotion(rawValue: decision.emotion) {
+                    self?.currentEmotion = emotion
+                }
+                
+                if let memory = decision.store_memory {
+                    MemoryGraph.shared.addFact(subject: memory.subject, predicate: memory.predicate, object: memory.object)
+                }
+                
+                if !decision.speech.isEmpty && decision.speech != "..." && !(self?.isMuted ?? false) {
+                    self?.onThoughtGenerated?(decision.speech)
+                }
+            }
+        }
+    }
+    
+    func evaluateNextAction() {
+        if currentMode == .sleep {
+            applyAction(.sleep)
+            return
         }
         
-        // Map strings to Enums
-        switch decision.emotion.lowercased() {
-        case "happy": currentEmotion = .happy
-        case "sad": currentEmotion = .sad
-        case "angry": currentEmotion = .angry
-        case "sleepy": currentEmotion = .sleepy
-        case "excited": currentEmotion = .excited
-        case "curious": currentEmotion = .curious
-        case "bored": currentEmotion = .bored
-        case "thinking": currentEmotion = .thinking
-        case "love": currentEmotion = .love
-        case "shock": currentEmotion = .shock
-        case "embarrassed": currentEmotion = .embarrassed
-        default: currentEmotion = .normal
+        let elements = DesktopEnvironmentManager.shared.visibleElements
+        let hasActiveWindows = !elements.filter({ $0.type == .window }).isEmpty
+        
+        // Auto mode logic: if windows are active, act like work mode
+        let effectiveMode: PetMode
+        if currentMode == .auto {
+            let idleTime = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
+            effectiveMode = (idleTime < 10.0 && hasActiveWindows) ? .work : .play
+        } else {
+            effectiveMode = currentMode
         }
         
-        switch decision.action.lowercased() {
-        case "wander": stateMachine.enter(PetWanderState.self)
-        case "peekwindow":
-            currentAction = .peekWindow
-            stateMachine.enter(PetWanderState.self)
-        case "sitontaskbar":
-            currentAction = .sitOnTaskbar
-            stateMachine.enter(PetWanderState.self)
-        case "sleep": stateMachine.enter(PetSleepState.self)
-        case "jump": currentAction = .jump
-        case "spin": currentAction = .spin
-        case "stepback": currentAction = .stepBack
-        case "dance": currentAction = .dance
-        case "bow": currentAction = .bow
-        case "stretch": currentAction = .stretch
-        case "roll": currentAction = .roll
-        case "hide": currentAction = .hide
-        case "idle": stateMachine.enter(PetIdleState.self)
-        default: break
+        var weights: [PetAction: Double] = [
+            .idle: 40.0,
+            .wander: 30.0,
+            .sleep: 10.0,
+            .jump: 5.0,
+            .sit: 10.0,
+            .spin: 5.0
+        ]
+        
+        if effectiveMode == .work {
+            // Work mode: prefer quiet, stay out of the way
+            weights = [
+                .idle: 50.0,
+                .wander: 10.0, // wandering will route to free corner
+                .sleep: 20.0,
+                .sit: 20.0,
+                .jump: 0.0,
+                .spin: 0.0
+            ]
+        } else if effectiveMode == .play {
+            // Play mode: active and wandering
+            weights[.wander] = 50.0
+            weights[.jump] = 20.0
+            weights[.spin] = 10.0
+            weights[.sleep] = 0.0
+            weights[.idle] = 20.0
         }
+        
+        if isMuted {
+            // When muted, prefer exploring rather than just standing idle
+            weights[.wander] = (weights[.wander] ?? 0) + 40.0
+            weights[.idle] = (weights[.idle] ?? 0) / 2.0
+        }
+        
+        let bestAction = weights.max { a, b in a.value < b.value }?.key ?? .idle
+        
+        if effectiveMode == .play && bestAction == .wander && exploreCount == 0 {
+            // Start an interesting exploration loop chaining 2-4 walks together
+            exploreCount = Int.random(in: 2...4)
+        }
+        
+        applyAction(bestAction)
+    }
+    
+    func applyAction(_ action: PetAction) {
+        currentAction = action
+        currentEmotion = resolveEmotion()
+        forceUpdate = true
+        
+        switch action {
+        case .wander, .peekWindow, .sitOnTaskbar, .investigate, .chaseLaser, .seekTreat:
+            stateMachine.enter(PetWanderState.self)
+        case .sleep:
+            // Don't sleep immediately. Wander to an extreme empty corner first.
+            isGoingToSleep = true
+            let (targetX, targetY) = findFreeCorner()
+            onStartWalk?(targetX, targetY)
+            currentAction = .wander
+            stateMachine.enter(PetWanderState.self)
+        case .idle:
+            stateMachine.enter(PetIdleState.self)
+        default:
+            // One-off animations like jump, spin, sit, etc. just stay in idle logic essentially
+            stateMachine.enter(PetIdleState.self)
+        }
+        
+        // 20% chance to generate flavor text on any autonomous action change
+        if Double.random(in: 0...1) < 0.20 {
+            requestLLMAction()
+        }
+    }
+    
+    func notifyWalkFinished() {
+        if isGoingToSleep {
+            isGoingToSleep = false
+            currentAction = .sleep
+            currentEmotion = .sleepy
+            stateMachine.enter(PetSleepState.self)
+            forceUpdate = true
+        } else {
+            currentAction = .idle
+            stateMachine.enter(PetIdleState.self)
+        }
+    }
+    
+    // For when the user clicks 'Talk to me'
+    func queryAI(userMessage: String? = nil) {
+        requestLLMAction(userMessage: userMessage)
+    }
+    
+    // Allows forcing an animation for testing via the menu bar
+    func forceAction(_ action: PetAction) {
+        applyAction(action)
     }
     
     func tick(currentTime: TimeInterval, cursorMoved: Bool) -> (action: PetAction, emotion: PetEmotion, changed: Bool) {
@@ -254,54 +433,84 @@ class PetBrain {
         let idleTime = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
         if idleTime > 25.0 {
             if currentAction == .idle {
-                currentAction = .sleep
-                currentEmotion = .sleepy
-                stateMachine.enter(PetSleepState.self)
-            } else if currentAction != .sleep && currentAction != .wander {
-                // If not wandering to a corner and not sleeping, force it to wander to a corner
-                let targetX: CGFloat = Bool.random() ? -16.0 : 16.0
-                let targetY: CGFloat = -3.2 // Bottom corner
+                isGoingToSleep = true
+                let (targetX, targetY) = findFreeCorner()
                 onStartWalk?(targetX, targetY)
                 currentAction = .wander
-                currentEmotion = .bored
+                currentEmotion = .sleepy
                 stateMachine.enter(PetWanderState.self)
             }
-        } else {
-            // User is active! Wake up if sleeping.
-            if currentAction == .sleep {
-                currentAction = .idle
-                currentEmotion = .curious
-                stateMachine.enter(PetIdleState.self)
+        }
+        
+        // Constantly decay/grow state variables slightly to make them dynamic
+        energy = min(100, max(0, energy + (currentAction == .sleep ? 1.0 : -0.1) * dt))
+        curiosity = min(100, max(0, curiosity + (currentAction == .wander ? -0.2 : 0.1) * dt))
+        annoyance = min(100, max(0, annoyance - 0.2 * dt))
+        mood = min(100, max(0, mood + (currentAction == .sleep ? 0.0 : -0.05) * dt))
+        
+        // Every tick, passively evaluate if our emotion should change based on variables
+        if currentEmotion != .thinking && currentEmotion != .shock && currentEmotion != .dizzy {
+            let newlyResolvedEmotion = resolveEmotion()
+            if newlyResolvedEmotion != currentEmotion && Double.random(in: 0...1) < 0.1 {
+                currentEmotion = newlyResolvedEmotion
             }
         }
         
         stateMachine.update(deltaTime: dt)
         agent.update(deltaTime: dt)
         
-        let changed = (oldAction != currentAction) || (oldEmotion != currentEmotion)
+        let changed = (oldAction != currentAction) || (oldEmotion != currentEmotion) || forceUpdate
+        if forceUpdate { forceUpdate = false }
         return (currentAction, currentEmotion, changed)
     }
     
-    // External Triggers
     func triggerDizzy() {
+        forceUpdate = true
         stateMachine.enter(PetInteractState.self)
         currentAction = .dizzy
         currentEmotion = .dizzy
     }
     
     func triggerTickle() {
+        forceUpdate = true
         stateMachine.enter(PetInteractState.self)
         currentAction = .tickled
         currentEmotion = .happy
     }
     
     func triggerStartle() {
+        forceUpdate = true
         stateMachine.enter(PetInteractState.self)
         currentAction = .jump
         currentEmotion = .shock
     }
     
+    func triggerPetting() {
+        forceUpdate = true
+        stateMachine.enter(PetInteractState.self)
+        currentAction = .dance
+        currentEmotion = .love
+        mood = min(100, mood + 10)
+    }
+    
+    func triggerEating() {
+        forceUpdate = true
+        stateMachine.enter(PetInteractState.self)
+        currentAction = .bow
+        currentEmotion = .happy
+        energy = min(100, energy + 30)
+    }
+    
+    func triggerTypingDance() {
+        forceUpdate = true
+        stateMachine.enter(PetInteractState.self)
+        currentAction = .dance
+        currentEmotion = .excited
+        mood = min(100, mood + 5)
+    }
+    
     func setDragged(_ dragged: Bool) {
+        forceUpdate = true
         isBeingDragged = dragged
         if dragged {
             stateMachine.enter(PetInteractState.self)
@@ -310,5 +519,38 @@ class PetBrain {
         } else {
             stateMachine.enter(PetIdleState.self)
         }
+    }
+    
+    // Finds an empty corner on the screen in world coordinates
+    func findFreeCorner() -> (CGFloat, CGFloat) {
+        let screenBounds = CGDisplayBounds(CGMainDisplayID())
+        let screenW = screenBounds.width
+        let screenH = screenBounds.height
+        
+        let corners = [
+            CGPoint(x: screenW * 0.1, y: screenH * 0.1), // Top-Left
+            CGPoint(x: screenW * 0.9, y: screenH * 0.1), // Top-Right
+            CGPoint(x: screenW * 0.1, y: screenH * 0.9), // Bottom-Left
+            CGPoint(x: screenW * 0.9, y: screenH * 0.9)  // Bottom-Right
+        ]
+        
+        let windows = DesktopEnvironmentManager.shared.visibleElements.filter { $0.type == .window }
+        
+        var bestCorner = corners[2] // Default to bottom-left
+        
+        for corner in corners {
+            let intersects = windows.contains { $0.frame.contains(corner) }
+            if !intersects {
+                bestCorner = corner
+                break
+            }
+        }
+        
+        // Map to SceneKit
+        // Using wider bounds for edge-to-edge (-35 to 35 for X, 15 to -15 for Y)
+        let targetX = (bestCorner.x / screenW - 0.5) * 70.0
+        let targetY = (0.5 - bestCorner.y / screenH) * 30.0
+        
+        return (targetX, targetY)
     }
 }

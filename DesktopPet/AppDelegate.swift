@@ -36,6 +36,27 @@ class PetSCNView: SCNView {
     override func mouseUp(with event: NSEvent) {
         (scene as? PetScene)?.handleMouseUp()
     }
+    
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        let location = convert(sender.draggingLocation, from: nil)
+        let hits = self.hitTest(location, options: [:])
+        let validHits = hits.filter { $0.node.geometry is SCNBox || $0.node.geometry is SCNPlane || $0.node.geometry is SCNCylinder }
+        if !validHits.isEmpty {
+            return .copy
+        }
+        return []
+    }
+    
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        let location = convert(sender.draggingLocation, from: nil)
+        let hits = self.hitTest(location, options: [:])
+        let validHits = hits.filter { $0.node.geometry is SCNBox || $0.node.geometry is SCNPlane || $0.node.geometry is SCNCylinder }
+        if !validHits.isEmpty {
+            (scene as? PetScene)?.brain.triggerEating()
+            return true
+        }
+        return false
+    }
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -68,6 +89,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         scnView.autoenablesDefaultLighting = false
         scnView.wantsLayer = true
         scnView.layer?.isOpaque = false
+        scnView.registerForDraggedTypes([.fileURL])
         
         window.contentView = scnView
         
@@ -117,9 +139,106 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         menu.addItem(NSMenuItem.separator())
+        
+        let dropTreatItem = NSMenuItem(title: "🍬 Drop Treat", action: #selector(dropTreat(_:)), keyEquivalent: "t")
+        menu.addItem(dropTreatItem)
+        
+        // Pet Modes Sub-Menu
+        let modesMenu = NSMenu()
+        modesMenu.addItem(NSMenuItem(title: "Auto (Smart)", action: #selector(setModeAuto(_:)), keyEquivalent: ""))
+        modesMenu.addItem(NSMenuItem(title: "Work Mode (Quiet/Corner)", action: #selector(setModeWork(_:)), keyEquivalent: ""))
+        modesMenu.addItem(NSMenuItem(title: "Play Mode (Active/Wander)", action: #selector(setModePlay(_:)), keyEquivalent: ""))
+        modesMenu.addItem(NSMenuItem(title: "Sleep Mode", action: #selector(setModeSleep(_:)), keyEquivalent: ""))
+        
+        let modesMenuItem = NSMenuItem(title: "⚙️ Pet Mode", action: nil, keyEquivalent: "")
+        modesMenuItem.submenu = modesMenu
+        menu.addItem(modesMenuItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        let muteItem = NSMenuItem(title: "🔇 Mute Pet", action: #selector(toggleMute(_:)), keyEquivalent: "m")
+        menu.addItem(muteItem)
+        
+        let cloudAIItem = NSMenuItem(title: "☁️ Use Cloud AI (Gemini API)", action: #selector(toggleCloudAI(_:)), keyEquivalent: "")
+        cloudAIItem.state = .off
+        menu.addItem(cloudAIItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
+        // Test Animations Sub-Menu
+        let animationsMenu = NSMenu()
+        let animations: [(String, Int)] = [
+            ("Idle", 0), ("Wander / Walk", 1), ("Sleep", 3), ("Jump", 4),
+            ("Sit", 5), ("Spin", 6), ("Sulk", 7), ("Dizzy", 8), ("Tickled", 9),
+            ("Peek Window", 10), ("Sit on Taskbar", 11), ("Investigate", 12),
+            ("Step Back", 13), ("Dance", 14), ("Bow", 15), ("Stretch", 16),
+            ("Roll", 17), ("Hide", 18)
+        ]
+        
+        for (name, tag) in animations {
+            let item = NSMenuItem(title: name, action: #selector(testAnimationClicked(_:)), keyEquivalent: "")
+            item.tag = tag
+            animationsMenu.addItem(item)
+        }
+        
+        let animationsMenuItem = NSMenuItem(title: "🎬 Test Animations", action: nil, keyEquivalent: "")
+        animationsMenuItem.submenu = animationsMenu
+        menu.addItem(animationsMenuItem)
+        
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Quit Desktop Pet", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         
         statusItem?.menu = menu
+    }
+    
+    @objc private func testAnimationClicked(_ sender: NSMenuItem) {
+        guard let scene = scnView.scene as? PetScene else { return }
+        let actions: [PetAction] = [
+            .idle, .wander, .followCursor, .sleep, .jump, .sit, .spin, .sulk, .dizzy, .tickled,
+            .peekWindow, .sitOnTaskbar, .investigate, .stepBack, .dance, .bow, .stretch, .roll, .hide
+        ]
+        if sender.tag >= 0 && sender.tag < actions.count {
+            scene.brain.forceAction(actions[sender.tag])
+        }
+    }
+    
+    @objc private func toggleMute(_ sender: NSMenuItem) {
+        guard let scene = scnView.scene as? PetScene else { return }
+        scene.isMuted.toggle()
+        scene.brain.isMuted = scene.isMuted
+        sender.state = scene.isMuted ? .on : .off
+    }
+    
+    @objc private func toggleCloudAI(_ sender: NSMenuItem) {
+        let isCurrentlyCloud = sender.state == .on
+        if isCurrentlyCloud {
+            AIEngine.shared.provider = LocalOllamaProvider()
+            sender.state = .off
+        } else {
+            AIEngine.shared.provider = GeminiAPIProvider(apiKey: "AQ.Ab8RN6JquuZTkTTYuwK4u8G1zZeUG6NXcKmWbqVohVFvSbyawA")
+            sender.state = .on
+        }
+    }
+    
+    @objc private func dropTreat(_ sender: NSMenuItem) {
+        guard let scene = scnView.scene as? PetScene else { return }
+        scene.dropTreat()
+    }
+    
+    @objc private func setModeAuto(_ sender: NSMenuItem) {
+        (scnView.scene as? PetScene)?.brain.currentMode = .auto
+    }
+    
+    @objc private func setModeWork(_ sender: NSMenuItem) {
+        (scnView.scene as? PetScene)?.brain.currentMode = .work
+    }
+    
+    @objc private func setModePlay(_ sender: NSMenuItem) {
+        (scnView.scene as? PetScene)?.brain.currentMode = .play
+    }
+    
+    @objc private func setModeSleep(_ sender: NSMenuItem) {
+        (scnView.scene as? PetScene)?.brain.currentMode = .sleep
     }
     
     // MARK: - Keyboard Shortcuts
@@ -129,6 +248,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var otherKeyPressed = false        // Tracks if another key was pressed during Command hold
     
     private var eventMonitors: [Any?] = []
+    private var keystrokeDates: [Date] = []
+    
+    private func trackKeystroke() {
+        let now = Date()
+        keystrokeDates.append(now)
+        // Keep only keystrokes from the last 3 seconds
+        keystrokeDates = keystrokeDates.filter { now.timeIntervalSince($0) < 3.0 }
+        
+        if keystrokeDates.count > 15 {
+            // Typing fast! (avg > 5 keys/sec over 3 seconds)
+            NotificationCenter.default.post(name: NSNotification.Name("UserTypingFast"), object: nil)
+            keystrokeDates.removeAll() // Reset to avoid spam
+        }
+    }
     
     private func setupKeyboardShortcuts() {
         let options = ["AXTrustedCheckOptionPrompt" as NSString: true as NSNumber] as CFDictionary
@@ -149,8 +282,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         })
         
         // Detect if any other key is pressed during Command hold to cancel it
+        // and track typing speed
         eventMonitors.append(NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return event }
+            self.trackKeystroke()
             if event.modifierFlags.contains(.command) {
                 self.otherKeyPressed = true
                 self.commandLongPressTimer?.invalidate()
@@ -160,6 +295,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         eventMonitors.append(NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self = self else { return }
+            self.trackKeystroke()
             if event.modifierFlags.contains(.command) {
                 self.otherKeyPressed = true
                 self.commandLongPressTimer?.invalidate()
@@ -170,6 +306,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Command Long-Press Detection (Talk to Pet)
     private func handleFlagsChanged(_ event: NSEvent) {
         let commandDown = event.modifierFlags.contains(.command)
+        let optionDown = event.modifierFlags.contains(.option)
+        
+        if let scene = scnView?.scene as? PetScene {
+            scene.isLaserPointerActive = optionDown
+        }
         
         if commandDown && commandPressTime == nil && !isListeningForPet {
             // Command just pressed — start long-press timer
@@ -194,11 +335,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
-    // MARK: - Shift+D: Talk to Pet
+    // MARK: - Voice Input (Command Long-Press)
     private func beginPetListening() {
         guard !isListeningForPet else { return }
         guard let scene = scnView.scene as? PetScene else { return }
         isListeningForPet = true
+        scene.brain.isListeningToUser = true
         scene.showListeningState(true)
         VoiceInputManager.shared.startListening { _ in }
     }
@@ -207,6 +349,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard isListeningForPet else { return }
         guard let scene = scnView.scene as? PetScene else { return }
         isListeningForPet = false
+        scene.brain.isListeningToUser = false
         scene.showListeningState(false)
         
         VoiceInputManager.shared.finishListeningWithResult { transcript in

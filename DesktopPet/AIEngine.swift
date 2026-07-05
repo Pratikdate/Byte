@@ -1,75 +1,41 @@
 import Foundation
 
-struct AIPetDecision: Codable {
-    let emotion: String
+struct AIAgentDecision: Codable {
     let action: String
-    let thought: String
+    let emotion: String
+    let speech: String
+    let store_memory: MemoryFact?
 }
 
-class AIEngine {
-    static let shared = AIEngine()
+// MARK: - AI Provider Protocol
+/// Allows swapping out the underlying AI engine (e.g. Local vs Cloud API)
+protocol AIProvider {
+    func generateComment(systemPrompt: String, completion: @escaping (String?) -> Void)
+    func generateAgentDecision(systemPrompt: String, completion: @escaping (AIAgentDecision?) -> Void)
+}
+
+// MARK: - Gemini API Provider
+class GeminiAPIProvider: AIProvider {
+    private let apiKey: String
+    private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     
-    // Ollama Local API Configuration
-    private let endpoint = "http://localhost:11434/api/generate"
+    init(apiKey: String) {
+        self.apiKey = apiKey
+    }
     
-    func decideNextMove(context: String, userMessage: String? = nil, completion: @escaping (AIPetDecision?) -> Void) {
-        guard let url = URL(string: endpoint) else {
+    func generateComment(systemPrompt: String, completion: @escaping (String?) -> Void) {
+        let urlString = "\(endpoint)?key=\(apiKey)"
+        guard let url = URL(string: urlString) else {
             completion(nil)
             return
         }
         
-        var userInstruction = ""
-        if let msg = userMessage, !msg.isEmpty {
-            userInstruction = """
-            
-            USER DIRECTLY SPOKE TO YOU:
-            "\(msg)"
-            
-            CRITICAL: The user just talked to you. You MUST reply to what they said in the "thought" field.
-            - Mirror their tone exactly! If they are casual, be casual. If they are excited, match it. If they are annoyed, be sarcastic or apologetic.
-            - Speak like a genuine, real human friend. DO NOT sound like an AI assistant.
-            - You may use up to 12 words for this direct reply.
-            """
-        }
-        
-        let systemPrompt = """
-        You are a tiny, highly-observant digital companion living on a macOS screen. You watch what the user does and offer genuine commentary.
-
-        STRICT RULES:
-        - When observing the screen passively, "thought" MUST be 5 words or fewer.
-        - Your "thought" MUST be a genuine, dry, witty, or thoughtful comment on the active app or what is on screen.
-        - Avoid childish, overly cute noise. Make observations that feel extremely real, contextual, and human.
-        - Never use phrases like "As an AI" or "I am an AI". Act alive.
-        - Never repeat yourself.
-
-        Examples when user is in Xcode: "Clean code only, please." or "Let's compile that."
-        Examples when user is in Safari: "Searching for answers?" or "Interesting read."
-
-        Respond ONLY with valid JSON, no markdown, no extra text:
-        {
-            "emotion": "happy|sad|sleepy|excited|curious|bored|thinking|love|shock|embarrassed|angry",
-            "action": "wander|peekWindow|sitOnTaskbar|idle|sleep|jump|spin",
-            "thought": "your genuine comment or reply here"
-        }
-
-        Current Screen:
-        \(context)
-        \(userInstruction)
-        """
-        
-        let isDirectMessage = !userInstruction.isEmpty
-        let maxTokens = isDirectMessage ? 60 : 25
-        
         let payload: [String: Any] = [
-            "model": "gemma:2b",
-            "prompt": systemPrompt,
-            "stream": false,
-            "format": "json",
-            "options": [
-                "temperature": 0.7,
-                "num_predict": maxTokens,
-                "top_k": 40,
-                "top_p": 0.9
+            "contents": [
+                ["role": "user", "parts": [["text": systemPrompt]]]
+            ],
+            "generationConfig": [
+                "temperature": 0.9
             ]
         ]
         
@@ -86,40 +52,259 @@ class AIEngine {
         
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
             guard let data = data, error == nil else {
-                print("AIEngine Error: \(error?.localizedDescription ?? "Unknown")")
                 completion(nil)
                 return
             }
             
             do {
-                // Parse Ollama's response format
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let responseString = json["response"] as? String,
-                   let responseData = responseString.data(using: .utf8) {
-                    
-                    print("🤖 Gemma AI Response: \(responseString)")
-                    
-                    var decision = try JSONDecoder().decode(AIPetDecision.self, from: responseData)
-                    
-                    // Safety net: enforce 5-word max even if model ignores the rule
-                    let words = decision.thought.split(separator: " ")
-                    if words.count > 6 {
-                        let truncated = words.prefix(5).joined(separator: " ") + "..."
-                        decision = AIPetDecision(emotion: decision.emotion, action: decision.action, thought: truncated)
-                    }
-                    
-                    print("🐾 Thought: \(decision.thought)")
-                    completion(decision)
+                   let candidates = json["candidates"] as? [[String: Any]],
+                   let first = candidates.first,
+                   let content = first["content"] as? [String: Any],
+                   let parts = content["parts"] as? [[String: Any]],
+                   let text = parts.first?["text"] as? String {
+                    let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\"", with: "")
+                    completion(cleaned)
                 } else {
-                    print("AIEngine Error: Unexpected JSON format from Ollama")
                     completion(nil)
                 }
             } catch {
-                print("AIEngine Parse Error: \(error)")
                 completion(nil)
             }
         }
-        
         task.resume()
+    }
+    
+    func generateAgentDecision(systemPrompt: String, completion: @escaping (AIAgentDecision?) -> Void) {
+        let urlString = "\(endpoint)?key=\(apiKey)"
+        guard let url = URL(string: urlString) else {
+            completion(nil)
+            return
+        }
+        
+        let payload: [String: Any] = [
+            "contents": [
+                ["role": "user", "parts": [["text": systemPrompt]]]
+            ],
+            "generationConfig": [
+                "temperature": 0.8,
+                "response_mime_type": "application/json"
+            ]
+        ]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        } catch {
+            completion(nil)
+            return
+        }
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data = data, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let candidates = json["candidates"] as? [[String: Any]],
+                   let first = candidates.first,
+                   let content = first["content"] as? [String: Any],
+                   let parts = content["parts"] as? [[String: Any]],
+                   let text = parts.first?["text"] as? String {
+                    
+                    if let data = text.data(using: .utf8) {
+                        let decoder = JSONDecoder()
+                        let decision = try decoder.decode(AIAgentDecision.self, from: data)
+                        completion(decision)
+                        return
+                    }
+                }
+            } catch {
+                print("Failed to decode Gemini JSON decision: \(error)")
+            }
+            completion(nil)
+        }
+        task.resume()
+    }
+}
+
+// MARK: - Local Ollama Provider
+class LocalOllamaProvider: AIProvider {
+    private let endpoint = "http://localhost:11434/api/generate"
+    private let modelName = "llama3.2"
+    
+    func generateComment(systemPrompt: String, completion: @escaping (String?) -> Void) {
+        guard let url = URL(string: endpoint) else {
+            completion(nil)
+            return
+        }
+        
+        let payload: [String: Any] = [
+            "model": modelName,
+            "prompt": systemPrompt,
+            "stream": false
+        ]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        } catch {
+            completion(nil)
+            return
+        }
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data = data, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let responseText = json["response"] as? String {
+                    let cleaned = responseText.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\"", with: "")
+                    completion(cleaned)
+                } else {
+                    completion(nil)
+                }
+            } catch {
+                completion(nil)
+            }
+        }
+        task.resume()
+    }
+    
+    func generateAgentDecision(systemPrompt: String, completion: @escaping (AIAgentDecision?) -> Void) {
+        guard let url = URL(string: endpoint) else {
+            completion(nil)
+            return
+        }
+        
+        let payload: [String: Any] = [
+            "model": modelName,
+            "prompt": systemPrompt,
+            "stream": false,
+            "format": "json"
+        ]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload, options: [])
+        } catch {
+            completion(nil)
+            return
+        }
+        
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data = data, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let responseText = json["response"] as? String,
+                   let responseData = responseText.data(using: .utf8) {
+                    
+                    let decoder = JSONDecoder()
+                    let decision = try decoder.decode(AIAgentDecision.self, from: responseData)
+                    completion(decision)
+                    return
+                }
+            } catch {
+                print("Failed to decode Ollama JSON decision: \(error)")
+            }
+            completion(nil)
+        }
+        task.resume()
+    }
+}
+
+// MARK: - AI Engine
+class AIEngine {
+    static let shared = AIEngine()
+    
+    // Configure API Key here
+    var provider: AIProvider = LocalOllamaProvider()
+    
+    func generateComment(context: String, emotion: String, userMessage: String? = nil, completion: @escaping (String?) -> Void) {
+        var userInstruction = ""
+        if let msg = userMessage, !msg.isEmpty {
+            userInstruction = """
+            
+            USER DIRECTLY SPOKE TO YOU: "\(msg)"
+            Mirror their tone. Reply naturally.
+            """
+        }
+        
+        let randomTopics = ["space", "snacks", "bugs", "magic", "the mouse cursor", "shiny things", "naps", "games", "the active window", "music", "clouds", "colors", "exploring", "dancing", "secrets"]
+        let randomTopic = randomTopics.randomElement()!
+        
+        let systemPrompt = """
+        You are a small, curious, and slightly chaotic creature living on the user's desktop. Your name is Byte.
+        Speak in short, plain sentences. Under 12 words. No emojis.
+        You are feeling: \(emotion).
+        Context: \(context)
+        \(userInstruction)
+        
+        CRITICAL RULE: Be highly creative, weird, or funny! NEVER repeat the same phrase twice.
+        Right now, you are thinking about: \(randomTopic).
+        
+        Write ONLY your spoken dialogue. Do not include quotes or actions.
+        """
+        
+        provider.generateComment(systemPrompt: systemPrompt, completion: completion)
+    }
+    
+    func generateAgentDecision(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, completion: @escaping (AIAgentDecision?) -> Void) {
+        var userInstruction = ""
+        if let msg = userMessage, !msg.isEmpty {
+            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully in the 'speech' field. Be conversational, friendly, and show your quirky personality! There is no length limit for your response to the user.\n"
+        } else {
+            userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment, or leave 'speech' empty if you have nothing to say.\n"
+        }
+        
+        let memoryContext = MemoryGraph.shared.getAllFactsString()
+        
+        let systemPrompt = """
+        You are an autonomous AI desktop pet named Byte. You must decide your next physical action and what you want to say.
+        
+        ENVIRONMENT CONTEXT: \(context)
+        YOUR MEMORIES ABOUT USER: \(memoryContext)
+        YOUR CURRENT EMOTION: \(currentEmotion)
+        AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
+        
+        CRITICAL RULES:
+        1. You must respond in valid JSON format exactly matching the requested keys.
+        2. Pick one action from the AVAILABLE ACTIONS list.
+        3. Pick an emotion that matches your choice (e.g. happy, sad, curious, angry, sleepy, bored, shock, love, normal).
+        4. If the user spoke to you, answer them fully and naturally in the 'speech' field. If you are just idling, keep it very short (under 10 words) or leave it empty ("").
+        5. If you learn a NEW fact about the user, include a 'store_memory' object with 'subject', 'predicate', and 'object'. Otherwise, omit it.
+        
+        Example JSON:
+        {
+            "action": "wander",
+            "emotion": "curious",
+            "speech": "I will remember that your favorite color is green!",
+            "store_memory": {
+                "subject": "User",
+                "predicate": "likes color",
+                "object": "green"
+            }
+        }
+        """
+        
+        provider.generateAgentDecision(systemPrompt: systemPrompt, completion: completion)
     }
 }
