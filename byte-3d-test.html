@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Byte 3D - Exact Model</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%); color: #fff; padding: 20px; overflow-x: hidden; }
+        .container { max-width: 1600px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 30px; font-size: 2.5em; background: linear-gradient(135deg, #00d9ff, #00ff88); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px; margin-bottom: 30px; }
+        .section { background: rgba(255,255,255,0.05); border: 2px solid rgba(0,217,255,0.3); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); }
+        .section-title { font-size: 1.2em; margin-bottom: 15px; color: #00d9ff; font-weight: 600; }
+        #canvas { width: 100%; height: 700px; background: linear-gradient(180deg, #0a0e27 0%, #16213e 100%); border-radius: 8px; display: block; }
+        .control-group { margin-bottom: 20px; }
+        .control-label { font-size: 0.9em; font-weight: 600; margin-bottom: 10px; color: #00ff88; text-transform: uppercase; }
+        .button-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .button-grid.emotions { grid-template-columns: repeat(2, 1fr); }
+        .button-grid.actions { grid-template-columns: repeat(2, 1fr); }
+        button { padding: 8px 10px; border: 2px solid rgba(0,217,255,0.5); background: rgba(0,217,255,0.1); color: #00d9ff; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: 500; transition: all 0.2s; }
+        button:hover { background: rgba(0,217,255,0.2); border-color: #00d9ff; transform: translateY(-2px); }
+        button.active { background: rgba(0,217,255,0.4); border-color: #00d9ff; box-shadow: 0 0 10px rgba(0,217,255,0.5); }
+        .state-display { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); padding: 12px; border-radius: 6px; margin-bottom: 15px; font-family: monospace; font-size: 0.8em; }
+        .state-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .state-key { color: #00ff88; font-weight: 600; }
+        .state-value { color: #00d9ff; }
+        .footer { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); font-size: 0.9em; }
+        .scroll-container { max-height: 600px; overflow-y: auto; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Byte 3D - Exact SceneKit Replica</h1>
+        <div class="grid">
+            <div class="section">
+                <div class="section-title">3D Model (Full Size)</div>
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="section scroll-container">
+                <div class="control-group">
+                    <div class="control-label">State</div>
+                    <div class="state-display">
+                        <div class="state-row"><span class="state-key">Emotion:</span><span class="state-value" id="emotionDisplay">normal</span></div>
+                        <div class="state-row"><span class="state-key">Action:</span><span class="state-value" id="actionDisplay">idle</span></div>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">Emotions (14)</div>
+                    <div class="button-grid emotions" id="emotionButtons"></div>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">Actions (30+)</div>
+                    <div class="button-grid actions" id="actionButtons"></div>
+                </div>
+            </div>
+        </div>
+        <div class="footer">Three.js Replica of SceneKit Model • All geometry & eye paths exact • 0.28x base scale</div>
+    </div>
+
+    <script>
+        const EMOTIONS = ['happy', 'sad', 'angry', 'curious', 'sleepy', 'bored', 'thinking', 'normal', 'dizzy', 'shock', 'love', 'excited', 'embarrassed', 'proud'];
+        const ACTIONS = ['idle', 'wander', 'followCursor', 'sleep', 'jump', 'sit', 'spin', 'sulk', 'dizzy', 'tickled', 'peekWindow', 'sitOnTaskbar', 'investigate', 'stepBack', 'dance', 'bow', 'stretch', 'roll', 'hide', 'chaseLaser', 'seekTreat', 'sitOnCorner', 'sitOnMenuBar', 'climbWindow', 'pushWidget', 'tapWindow', 'sneeze', 'backflip', 'headbang', 'trip', 'wave'];
+
+        let state = { emotion: 'normal', action: 'idle', animationTime: 0 };
+
+        const canvas = document.getElementById('canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(50, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+        renderer.setClearColor(0x000000, 0);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFShadowShadowMap;
+        camera.position.set(0, 2, 20);
+        camera.lookAt(0, 0, 0);
+
+        // Orbit Controls (mouse drag)
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let rotation = { x: 0, y: 0 };
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = e.clientX - previousMousePosition.x;
+                const deltaY = e.clientY - previousMousePosition.y;
+                rotation.y += deltaX * 0.01;
+                rotation.x += deltaY * 0.01;
+                previousMousePosition = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+
+        // Zoom with scroll
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomSpeed = 2;
+            camera.position.z += e.deltaY > 0 ? zoomSpeed : -zoomSpeed;
+            camera.position.z = Math.max(10, Math.min(50, camera.position.z));
+        });
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        directionalLight.position.set(-8, 15, 12);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.set(2048, 2048);
+        scene.add(directionalLight);
+
+        // Materials (exact from Swift)
+        const shellMat = new THREE.MeshStandardMaterial({
+            color: 0x1a1a1a,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const darkMat = new THREE.MeshStandardMaterial({
+            color: 0x0d0d0d,
+            metalness: 0.5,
+            roughness: 0.6
+        });
+
+        // Pet Container (NO scale - geometry is full size now)
+        const petContainer = new THREE.Group();
+        scene.add(petContainer);
+
+        // SCALE FACTOR for visibility
+        const SCALE = 2.5;
+
+        // HEAD (4.0 x 3.2 x 3.2, chamfer 0.6)
+        const headGeo = new THREE.BoxGeometry(4.0 * SCALE, 3.2 * SCALE, 3.2 * SCALE);
+        const headMesh = new THREE.Mesh(headGeo, shellMat);
+        petContainer.add(headMesh);
+
+        // HEADPHONES (0.85 radius, 0.4 height cylinders at ±2.1)
+        const headphoneGeo = new THREE.CylinderGeometry(0.85 * SCALE, 0.85 * SCALE, 0.4 * SCALE, 32);
+        const leftHeadphone = new THREE.Mesh(headphoneGeo, darkMat);
+        leftHeadphone.position.set(-2.1 * SCALE, 0, 0);
+        leftHeadphone.rotation.z = Math.PI / 2;
+        headMesh.add(leftHeadphone);
+
+        const rightHeadphone = new THREE.Mesh(headphoneGeo, darkMat);
+        rightHeadphone.position.set(2.1 * SCALE, 0, 0);
+        rightHeadphone.rotation.z = Math.PI / 2;
+        headMesh.add(rightHeadphone);
+
+        // BACKPACK (2.2 x 1.8 x 0.6 at 0, -0.2, -1.8)
+        const backpackGeo = new THREE.BoxGeometry(2.2 * SCALE, 1.8 * SCALE, 0.6 * SCALE);
+        const backpackMesh = new THREE.Mesh(backpackGeo, darkMat);
+        backpackMesh.position.set(0, -0.2 * SCALE, -1.8 * SCALE);
+        headMesh.add(backpackMesh);
+
+        // LEGS (hip pivots at ±0.6, -1.6, 0)
+        const legGeo = new THREE.BoxGeometry(0.55 * SCALE, 0.9 * SCALE, 0.55 * SCALE);
+        const jointGeo = new THREE.SphereGeometry(0.35 * SCALE, 32, 32);
+
+        const leftLegPivot = new THREE.Group();
+        leftLegPivot.position.set(-0.6 * SCALE, -1.6 * SCALE, 0);
+        petContainer.add(leftLegPivot);
+
+        const leftJoint = new THREE.Mesh(jointGeo, shellMat);
+        leftJoint.castShadow = true;
+        leftLegPivot.add(leftJoint);
+
+        const leftLegMesh = new THREE.Mesh(legGeo, darkMat);
+        leftLegMesh.position.set(0, -0.45 * SCALE, 0);
+        leftLegMesh.castShadow = true;
+        leftLegPivot.add(leftLegMesh);
+
+        const rightLegPivot = new THREE.Group();
+        rightLegPivot.position.set(0.6 * SCALE, -1.6 * SCALE, 0);
+        petContainer.add(rightLegPivot);
+
+        const rightJoint = new THREE.Mesh(jointGeo, shellMat);
+        rightJoint.castShadow = true;
+        rightLegPivot.add(rightJoint);
+
+        const rightLegMesh = new THREE.Mesh(legGeo, darkMat);
+        rightLegMesh.position.set(0, -0.45 * SCALE, 0);
+        rightLegMesh.castShadow = true;
+        rightLegPivot.add(rightLegMesh);
+
+        // SHOES (1.0 x 0.3 x 1.5 at 0, -0.5, 0.35)
+        const shoeGeo = new THREE.BoxGeometry(1.0 * SCALE, 0.3 * SCALE, 1.5 * SCALE);
+        const leftShoe = new THREE.Mesh(shoeGeo, shellMat);
+        leftShoe.position.set(0, -0.5 * SCALE, 0.35 * SCALE);
+        leftShoe.castShadow = true;
+        leftLegMesh.add(leftShoe);
+
+        const rightShoe = new THREE.Mesh(shoeGeo, shellMat);
+        rightShoe.position.set(0, -0.5 * SCALE, 0.35 * SCALE);
+        rightShoe.castShadow = true;
+        rightLegMesh.add(rightShoe);
+
+        // DJ HEADBAND
+        const topBandGeo = new THREE.BoxGeometry(4.6 * SCALE, 0.3 * SCALE, 0.6 * SCALE);
+        const topBand = new THREE.Mesh(topBandGeo, shellMat);
+        topBand.position.set(0, 1.7 * SCALE, 0);
+        headMesh.add(topBand);
+
+        const leftBandGeo = new THREE.BoxGeometry(0.3 * SCALE, 1.5 * SCALE, 0.6 * SCALE);
+        const leftBand = new THREE.Mesh(leftBandGeo, shellMat);
+        leftBand.position.set(-2.15 * SCALE, 1.0 * SCALE, 0);
+        headMesh.add(leftBand);
+
+        const rightBand = new THREE.Mesh(leftBandGeo, shellMat);
+        rightBand.position.set(2.15 * SCALE, 1.0 * SCALE, 0);
+        headMesh.add(rightBand);
+
+        // SCREEN (3.6 x 2.8 plane at 0, 0, 1.61) with canvas texture for eyes
+        const screenCanvas = document.createElement('canvas');
+        screenCanvas.width = 512;
+        screenCanvas.height = 512;
+        const screenCtx = screenCanvas.getContext('2d');
+
+        const screenTexture = new THREE.CanvasTexture(screenCanvas);
+        screenTexture.magFilter = THREE.LinearFilter;
+        screenTexture.minFilter = THREE.LinearFilter;
+
+        const screenMat = new THREE.MeshStandardMaterial({
+            map: screenTexture,
+            emissiveMap: screenTexture,
+            emissive: 0x0066ff,
+            emissiveIntensity: 0.8,
+            metalness: 0.1,
+            roughness: 0.2
+        });
+
+        const screenGeo = new THREE.PlaneGeometry(3.6 * SCALE, 2.8 * SCALE);
+        const screenMesh = new THREE.Mesh(screenGeo, screenMat);
+        screenMesh.position.set(0, 0, 1.61 * SCALE);
+        headMesh.add(screenMesh);
+
+        // Eye path generator (EXACT from Swift getEyePath)
+        function getEyePath(emotion, isLeft) {
+            const w = 36;
+            const h = 80;
+            const r = 14;
+            let path = new Path2D();
+
+            // Base points (will be modified per emotion)
+            let topLeft = { x: -w/2, y: h/2 };
+            let topRight = { x: w/2, y: h/2 };
+            let botRight = { x: w/2, y: -h/2 };
+            let botLeft = { x: -w/2, y: -h/2 };
+
+            switch (emotion) {
+                case 'angry':
+                case 'embarrassed':
+                    if (isLeft) {
+                        topRight.y -= 25;
+                        topLeft.y += 5;
+                    } else {
+                        topLeft.y -= 25;
+                        topRight.y += 5;
+                    }
+                    break;
+                case 'sad':
+                    if (isLeft) {
+                        topLeft.y -= 25;
+                        topRight.y += 5;
+                        botRight.y += 5;
+                    } else {
+                        topRight.y -= 25;
+                        topLeft.y += 5;
+                        botLeft.y += 5;
+                    }
+                    break;
+                case 'bored':
+                case 'sleepy':
+                    topLeft.y -= 20;
+                    topRight.y -= 20;
+                    botLeft.y += 5;
+                    botRight.y += 5;
+                    break;
+                case 'happy':
+                case 'excited':
+                    path.moveTo(-25, -10);
+                    path.quadraticCurveTo(0, 30, 25, -10);
+                    path.quadraticCurveTo(0, 10, -25, -10);
+                    path.closePath();
+                    return path;
+                case 'proud':
+                    path.moveTo(-22, 0);
+                    path.quadraticCurveTo(0, 20, 22, 0);
+                    path.quadraticCurveTo(0, 8, -22, 0);
+                    path.closePath();
+                    return path;
+                case 'curious':
+                    if (isLeft) {
+                        topLeft.y += 8;
+                        topRight.y += 8;
+                        botLeft.y -= 8;
+                        botRight.y -= 8;
+                    } else {
+                        topLeft.y -= 10;
+                        topRight.y -= 10;
+                    }
+                    break;
+                case 'shock':
+                    path.arc(0, 0, 30, 0, Math.PI * 2);
+                    return path;
+                case 'thinking':
+                    path.arc(0, 0, 12, 0, Math.PI * 2);
+                    return path;
+                case 'love':
+                    path.moveTo(0, -20);
+                    path.bezierCurveTo(12, -10, 25, 0, 25, 10);
+                    path.bezierCurveTo(25, 25, 0, 25, 0, 10);
+                    path.bezierCurveTo(0, 25, -25, 25, -25, 10);
+                    path.bezierCurveTo(-25, 0, -12, -10, 0, -20);
+                    path.closePath();
+                    return path;
+                case 'dizzy':
+                    if (isLeft) {
+                        topLeft.y -= 20;
+                        botRight.y += 20;
+                    } else {
+                        topRight.y -= 20;
+                        botLeft.y += 20;
+                    }
+                    break;
+                case 'normal':
+                default:
+                    break;
+            }
+
+            // Draw rounded rectangle with modified corners
+            const midBotX = (botLeft.x + botRight.x) / 2;
+            const midBotY = (botLeft.y + botRight.y) / 2;
+
+            path.moveTo(midBotX, midBotY);
+
+            // Bottom right arc
+            path.lineTo(botRight.x - r, botRight.y);
+            path.quadraticCurveTo(botRight.x, botRight.y, botRight.x, botRight.y + r);
+
+            // Right side
+            path.lineTo(topRight.x, topRight.y - r);
+            path.quadraticCurveTo(topRight.x, topRight.y, topRight.x - r, topRight.y);
+
+            // Top side
+            path.lineTo(topLeft.x + r, topLeft.y);
+            path.quadraticCurveTo(topLeft.x, topLeft.y, topLeft.x, topLeft.y - r);
+
+            // Left side
+            path.lineTo(botLeft.x, botLeft.y + r);
+            path.quadraticCurveTo(botLeft.x, botLeft.y, botLeft.x + r, botLeft.y);
+
+            path.closePath();
+            return path;
+        }
+
+        // Draw eyes on screen canvas
+        function drawEyes(emotion) {
+            screenCtx.fillStyle = '#000000';
+            screenCtx.fillRect(0, 0, 512, 512);
+
+            const eyeColor = ['sad', 'angry', 'shock'].includes(emotion) ?
+                (['sad'].includes(emotion) ? '#4a90e2' : ['angry'].includes(emotion) ? '#ff4757' : '#ffffff') :
+                (['love', 'excited', 'happy'].includes(emotion) ? '#00ff88' : '#4a90e2');
+
+            screenCtx.fillStyle = eyeColor;
+            screenCtx.shadowColor = eyeColor;
+            screenCtx.shadowBlur = 20;
+            screenCtx.shadowOffsetX = 0;
+            screenCtx.shadowOffsetY = 0;
+
+            const scale = 2.5;
+            const centerX = 256;
+            const centerY = 256;
+
+            // Left eye (isLeft = true)
+            screenCtx.save();
+            screenCtx.translate(centerX - 128, centerY);
+            screenCtx.scale(scale * 1.2, scale * 1.2);
+            screenCtx.fill(getEyePath(emotion, true));
+            screenCtx.restore();
+
+            // Right eye (isLeft = false)
+            screenCtx.save();
+            screenCtx.translate(centerX + 128, centerY);
+            screenCtx.scale(scale * 1.2, scale * 1.2);
+            screenCtx.fill(getEyePath(emotion, false));
+            screenCtx.restore();
+
+            screenTexture.needsUpdate = true;
+        }
+
+        // Animation loop
+        function animate() {
+            state.animationTime++;
+            const time = state.animationTime * 0.03;
+
+            // Apply camera rotation (orbit)
+            const radius = 20;
+            camera.position.x = Math.sin(rotation.y) * radius;
+            camera.position.y = 2 + Math.tan(rotation.x) * 5;
+            camera.position.z = Math.cos(rotation.y) * radius;
+            camera.lookAt(0, 0, 0);
+
+            // Reset transforms
+            petContainer.position.set(0, 0, 0);
+            petContainer.rotation.set(0, 0, 0);
+            headMesh.position.y = 0;
+            headMesh.rotation.set(0, 0, 0);
+            leftLegPivot.rotation.set(0, 0, 0);
+            rightLegPivot.rotation.set(0, 0, 0);
+
+            // Apply action animations (SCALE = 2.5)
+            const SCALE = 2.5;
+            switch (state.action) {
+                case 'jump':
+                    const jumpH = Math.sin(time * Math.PI) * (2 * SCALE);
+                    petContainer.position.y = jumpH;
+                    break;
+                case 'spin':
+                    petContainer.rotation.y = time;
+                    break;
+                case 'dance':
+                    petContainer.position.x = Math.sin(time * 2) * SCALE;
+                    headMesh.rotation.z = Math.sin(time) * 0.15;
+                    break;
+                case 'wander':
+                    petContainer.position.x = Math.sin(time * 0.5) * SCALE;
+                    petContainer.position.y = Math.cos(time * 0.3) * (0.5 * SCALE);
+                    break;
+                case 'walk':
+                case 'followCursor':
+                    headMesh.position.y = Math.sin(time * 2) * (0.15 * SCALE);
+                    leftLegPivot.rotation.x = Math.sin(time * 2) * 0.7;
+                    rightLegPivot.rotation.x = Math.cos(time * 2) * 0.7;
+                    break;
+                case 'dizzy':
+                    petContainer.rotation.z = time * 4;
+                    break;
+                case 'sleep':
+                    headMesh.rotation.z = -0.2;
+                    headMesh.position.y = -0.8 * SCALE;
+                    break;
+                case 'bow':
+                    headMesh.rotation.x = Math.sin(time * 2) * 0.5;
+                    break;
+                case 'stretch':
+                    petContainer.scale.set(1, 1 + Math.sin(time * Math.PI) * 0.1, 1);
+                    break;
+                case 'wave':
+                    headMesh.rotation.z = Math.sin(time * 3) * 0.3;
+                    break;
+            }
+
+            drawEyes(state.emotion);
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        // UI
+        function setupUI() {
+            EMOTIONS.forEach(e => {
+                const btn = document.createElement('button');
+                btn.textContent = e;
+                btn.addEventListener('click', () => setEmotion(e));
+                document.getElementById('emotionButtons').appendChild(btn);
+            });
+
+            ACTIONS.forEach(a => {
+                const btn = document.createElement('button');
+                btn.textContent = a;
+                btn.addEventListener('click', () => setAction(a));
+                document.getElementById('actionButtons').appendChild(btn);
+            });
+        }
+
+        function setEmotion(emotion) {
+            state.emotion = emotion;
+            document.getElementById('emotionDisplay').textContent = emotion;
+            document.querySelectorAll('#emotionButtons button').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === emotion);
+            });
+        }
+
+        function setAction(action) {
+            state.action = action;
+            state.animationTime = 0;
+            document.getElementById('actionDisplay').textContent = action;
+            document.querySelectorAll('#actionButtons button').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent === action);
+            });
+        }
+
+        window.addEventListener('resize', () => {
+            const rect = canvas.getBoundingClientRect();
+            renderer.setSize(rect.width, rect.height);
+            camera.aspect = rect.width / rect.height;
+            camera.updateProjectionMatrix();
+        });
+
+        setupUI();
+        setEmotion('normal');
+        setAction('idle');
+        animate();
+    </script>
+</body>
+</html>

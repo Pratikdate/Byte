@@ -12,7 +12,7 @@ enum ParticleType {
     case angryCloud
 }
 
-class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
+class PetScene: SCNScene {
     private var petContainer: SCNNode!
     
     // Robot 3D Parts
@@ -41,7 +41,7 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
     private var speechContainer: SKNode?
     private var speechBubbleSKScene: SKScene!
     private var speechBubbleNode: SCNNode!
-    private let synthesizer = AVSpeechSynthesizer()
+    // Removed local synthesizer; using VoiceInputManager.speak() instead for emotion-aware TTS
     private var pendingSpeechTexts: [String] = []
     
     // Particle Emitter Layer
@@ -107,7 +107,7 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
     
     override init() {
         super.init()
-        synthesizer.delegate = self
+        // TTS now handled via VoiceInputManager with emotion awareness
         EnvironmentMonitor.shared.startMonitoring()
         DesktopEnvironmentManager.shared.startMonitoring()
         setup3DEnvironment()
@@ -1944,43 +1944,27 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
         speechContainer?.alpha = 1.0
     }
     
-    // MARK: - AVSpeechSynthesizerDelegate
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            if !self.pendingSpeechTexts.isEmpty {
-                let originalText = self.pendingSpeechTexts.removeFirst()
-                self.speechContainer?.removeAllActions()
-                self.updateSpeechBubble(text: originalText)
-            }
-        }
-    }
-    
-    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        DispatchQueue.main.async { [weak self] in
-            let fadeOut = SKAction.sequence([
-                SKAction.wait(forDuration: 3.0),
-                SKAction.fadeAlpha(to: 0, duration: 0.8)
-            ])
-            self?.speechContainer?.run(fadeOut)
-        }
-    }
+    // Speech lifecycle now handled by VoiceInputManager.onSpeakingFinished callback
+    // No longer need synthesizer delegate methods
     
     func say(_ text: String) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.speechContainer?.removeAllActions()
-            self.synthesizer.stopSpeaking(at: .immediate)
             self.pendingSpeechTexts.removeAll()
-            
-            // Chunk into sentences without the emotion tag so TTS doesn't read it
+
+            // Split into sentences
             var sentences: [String] = []
             text.enumerateSubstrings(in: text.startIndex..<text.endIndex, options: .bySentences) { (substring, _, _, _) in
                 if let s = substring { sentences.append(s.trimmingCharacters(in: .whitespacesAndNewlines)) }
             }
             if sentences.isEmpty { sentences = [text] }
-            
+
+            let voiceManager = VoiceInputManager.shared
+            let emotionStr = self.brain.currentEmotion.rawValue
+
             if self.isMuted {
+                // Text-only display
                 var actions: [SKAction] = []
                 for (index, sentence) in sentences.enumerated() {
                     let displaySentence = index == 0 ? "[\(self.brain.currentEmotion)] \(sentence)" : sentence
@@ -1993,44 +1977,27 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
                 actions.append(SKAction.fadeAlpha(to: 0, duration: 0.8))
                 self.speechContainer?.run(SKAction.sequence(actions))
             } else {
-                for (index, sentence) in sentences.enumerated() {
-                    let allowedCharacters = CharacterSet.alphanumerics.union(.whitespacesAndNewlines).union(CharacterSet(charactersIn: ".,!?'\"-"))
-                    var spokenText = String(sentence.unicodeScalars.filter { allowedCharacters.contains($0) }).trimmingCharacters(in: .whitespacesAndNewlines)
-                    let displaySentence = index == 0 ? "[\(self.brain.currentEmotion)] \(sentence)" : sentence
-                    
-                    if spokenText.isEmpty {
-                        // Just emojis/symbols. Make it a space so the TTS engine still triggers the delegate safely!
-                        spokenText = " "
-                    }
-                    
-                    let utterance = AVSpeechUtterance(string: spokenText)
-                    utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-                    utterance.volume = 0.8
-                    
-                    // Dynamic pitch based on emotion for more genuine feel
-                    switch self.brain.currentEmotion {
-                    case .excited, .happy:
-                        utterance.pitchMultiplier = 1.15
-                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.95
-                    case .sad, .sleepy, .bored:
-                        utterance.pitchMultiplier = 0.90
-                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.80
-                    case .angry, .dizzy:
-                        utterance.pitchMultiplier = 0.85
-                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.05
-                    case .love:
-                        utterance.pitchMultiplier = 1.20
-                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.85
-                    case .curious:
-                        utterance.pitchMultiplier = 1.10
-                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.90
-                    default:
-                        utterance.pitchMultiplier = 1.0 // Natural pitch
-                        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.85 // Slower, highly conversational
-                    }
-                    
-                    self.pendingSpeechTexts.append(displaySentence)
-                    self.synthesizer.speak(utterance)
+                // Speak the WHOLE utterance in a single TTS call.
+                // (AudioManager drops overlapping speak() calls, so per-sentence looping
+                //  silently lost every sentence after the first — felt like queueing/cutting.)
+                let allowedCharacters = CharacterSet.alphanumerics.union(.whitespacesAndNewlines).union(CharacterSet(charactersIn: ".,!?'\"-"))
+                let spokenText = String(text.unicodeScalars.filter { allowedCharacters.contains($0) }).trimmingCharacters(in: .whitespacesAndNewlines)
+
+                let displayText = "[\(self.brain.currentEmotion)] \(sentences.first ?? text)"
+                self.pendingSpeechTexts = [displayText]
+                self.updateSpeechBubble(text: displayText)
+
+                if !spokenText.isEmpty {
+                    voiceManager.speak(spokenText, emotion: emotionStr)
+                }
+
+                // Fade out after speaking
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
+                    let fadeOut = SKAction.sequence([
+                        SKAction.wait(forDuration: 1.0),
+                        SKAction.fadeAlpha(to: 0, duration: 0.8)
+                    ])
+                    self.speechContainer?.run(fadeOut)
                 }
             }
         }
@@ -2044,9 +2011,8 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
     
     func showListeningState(_ listening: Bool) {
         if listening {
-            self.synthesizer.stopSpeaking(at: .immediate)
             self.pendingSpeechTexts.removeAll()
-            
+
             applyEmotion(.curious)
             speechContainer?.removeAllActions()
             updateSpeechBubble(text: "🎤 Listening...")
@@ -2054,12 +2020,11 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
             updateSpeechBubble(text: "🤔 Thinking...")
         }
     }
-    
+
     func showDictationState(_ dictating: Bool) {
         if dictating {
-            self.synthesizer.stopSpeaking(at: .immediate)
             self.pendingSpeechTexts.removeAll()
-            
+
             applyEmotion(.excited)
             speechContainer?.removeAllActions()
             updateSpeechBubble(text: "📝 Dictating...")
@@ -2080,7 +2045,7 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
         let now = Date().timeIntervalSince1970
         let timeSinceLastClick = now - lastClickTime
         lastClickTime = now
-        
+
         if timeSinceLastClick < 0.3 {
             // Rapid Clicks / Double Click
             brain.annoyance += 10
@@ -2182,12 +2147,15 @@ class PetScene: SCNScene, AVSpeechSynthesizerDelegate {
                 self.say("Hey, don't poke me!")
                 self.brain.applyAction(.wander)
             } else {
-                // Was dragged and dropped - engage falling physics!
+                // Was dragged and dropped — stay put at the drop position (no falling).
                 stopAll()
-                isFalling = true
-                brain.applyAction(.dizzy) // He gets dizzy when thrown!
+                isFalling = false
+                velocityX = 0
+                velocityY = 0
+                // Settle in place: keep current position, return to a calm idle.
+                brain.applyAction(.idle)
             }
-            
+
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 self.applyAction(self.brain.currentAction)
             }
