@@ -16,3 +16,7 @@ DerivedData
 *.ipa
 *.xcuserstate
 **/.DS_Store
+
+.venv/
+Kokoro/
+

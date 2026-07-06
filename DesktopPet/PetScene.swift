@@ -114,8 +114,12 @@ class PetScene: SCNScene {
         setup3DRobot()
         startIdleAnimation()
         
-        brain.onThoughtGenerated = { [weak self] thought in
-            self?.say(thought)
+        brain.onSentenceGenerated = { [weak self] sentence in
+            self?.saySentence(sentence)
+        }
+        
+        brain.onSpeechComplete = { [weak self] in
+            self?.finishSpeech()
         }
         
         brain.onStartWalk = { [weak self] targetX, targetY in
@@ -2003,6 +2007,46 @@ class PetScene: SCNScene {
         }
     }
     
+    func saySentence(_ text: String) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            self.speechContainer?.removeAllActions()
+            let voiceManager = VoiceInputManager.shared
+            let emotionStr = self.brain.currentEmotion.rawValue
+            
+            let displayText = "[\(self.brain.currentEmotion)] \(text)"
+            self.updateSpeechBubble(text: displayText)
+            self.speechContainer?.alpha = 1.0
+            
+            if !self.isMuted {
+                let allowedCharacters = CharacterSet.alphanumerics.union(.whitespacesAndNewlines).union(CharacterSet(charactersIn: ".,!?'\"-"))
+                let spokenText = String(text.unicodeScalars.filter { allowedCharacters.contains($0) }).trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if !spokenText.isEmpty {
+                    voiceManager.speak(spokenText, emotion: emotionStr)
+                }
+            } else {
+                let waitDuration = max(2.5, Double(text.count) * 0.08)
+                self.speechContainer?.run(SKAction.wait(forDuration: waitDuration))
+            }
+        }
+    }
+    
+    func finishSpeech() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            // If the TTS is still playing, AudioManager manages its own queue and lifecycle,
+            // but we can just schedule a fadeOut that won't interrupt TTS playback.
+            // When AudioManager finishes its whole queue, it sets isSpeaking = false.
+            let fadeOut = SKAction.sequence([
+                SKAction.wait(forDuration: 3.5),
+                SKAction.fadeAlpha(to: 0, duration: 0.8)
+            ])
+            self.speechContainer?.run(fadeOut)
+        }
+    }
+    
     func sayToPet(_ message: String) {
         // Show "thinking..." emotion nodes and query AI with user message!
         applyEmotion(.thinking)
@@ -2011,6 +2055,8 @@ class PetScene: SCNScene {
     
     func showListeningState(_ listening: Bool) {
         if listening {
+            // STOP speaking when user wants to talk!
+            AudioManager.shared.stopSpeaking()
             self.pendingSpeechTexts.removeAll()
 
             applyEmotion(.curious)
@@ -2147,17 +2193,26 @@ class PetScene: SCNScene {
                 self.say("Hey, don't poke me!")
                 self.brain.applyAction(.wander)
             } else {
-                // Was dragged and dropped — stay put at the drop position (no falling).
+                let speed = sqrt(velocityX * velocityX + velocityY * velocityY)
                 stopAll()
-                isFalling = false
-                velocityX = 0
-                velocityY = 0
-                // Settle in place: keep current position, return to a calm idle.
-                brain.applyAction(.idle)
+                
+                if speed > 0.1 {
+                    // Was thrown — let him fall!
+                    isFalling = true
+                    brain.applyAction(.dizzy) // Make him dizzy while falling
+                } else {
+                    // Was carefully placed — stay put (no falling)
+                    isFalling = false
+                    velocityX = 0
+                    velocityY = 0
+                    brain.applyAction(.idle)
+                }
             }
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                self.applyAction(self.brain.currentAction)
+                if !self.isFalling {
+                    self.applyAction(self.brain.currentAction)
+                }
             }
         }
     }

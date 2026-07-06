@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Text AI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            width: 80%;
+            max-width: 800px;
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        h1 {
+            margin-top: 0;
+            font-size: 24px;
+            color: #e0e0e0;
+        }
+        .input-area {
+            width: 100%;
+            height: 150px;
+            background: #2d2d2d;
+            border: 1px solid #3d3d3d;
+            color: #ffffff;
+            font-size: 18px;
+            padding: 15px;
+            border-radius: 8px;
+            resize: none;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        .input-area:focus {
+            border-color: #007acc;
+        }
+        .ai-response {
+            margin-top: 20px;
+            min-height: 100px;
+            padding: 15px;
+            background: #252526;
+            border-left: 4px solid #007acc;
+            border-radius: 4px;
+            font-size: 18px;
+            color: #aaaaaa;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .status {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+        .status.connected { color: #4caf50; }
+        .status.disconnected { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Continuous Real-Time AI</h1>
+        <p style="color: #888; font-size: 14px; margin-bottom: 20px;">
+            Type below. The AI will constantly read your keystrokes and generate a response. If you keep typing or backspace, it instantly cancels its current thought and restarts, simulating full-duplex micro-turns.
+        </p>
+        
+        <textarea id="userInput" class="input-area" placeholder="Start typing..."></textarea>
+        
+        <div id="aiResponse" class="ai-response">Waiting for input...</div>
+        
+        <div id="status" class="status disconnected">Disconnected</div>
+    </div>
+
+    <script>
+        const ws = new WebSocket(`ws://${window.location.host}/ws`);
+        const inputArea = document.getElementById('userInput');
+        const aiResponse = document.getElementById('aiResponse');
+        const statusDiv = document.getElementById('status');
+        
+        let typingTimer;
+        
+        ws.onopen = () => {
+            statusDiv.textContent = "Connected to Real-Time AI";
+            statusDiv.className = "status connected";
+        };
+        
+        ws.onclose = () => {
+            statusDiv.textContent = "Disconnected from Server";
+            statusDiv.className = "status disconnected";
+        };
+        
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === "clear") {
+                aiResponse.textContent = "";
+            } else if (data.type === "token") {
+                if (aiResponse.textContent === "Waiting for input...") {
+                    aiResponse.textContent = "";
+                }
+                aiResponse.textContent += data.content;
+            }
+        };
+
+        // Listen to every keystroke
+        inputArea.addEventListener('input', () => {
+            const text = inputArea.value;
+            
+            if (text.trim() === "") {
+                aiResponse.textContent = "Waiting for input...";
+            }
+            
+            // Send the entire text state immediately on keystroke
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: "input",
+                    text: text
+                }));
+            }
+        });
+    </script>
+</body>
+</html>

@@ -32,13 +32,13 @@ class SystemTTSFallback {
     private static func speechRateForEmotion(_ emotion: String) -> Float {
         switch emotion.lowercased() {
         case "excited", "happy":
-            return AVSpeechUtteranceMaximumSpeechRate * 0.6  // Much faster
+            return AVSpeechUtteranceDefaultSpeechRate * 1.1  // Slightly faster
         case "sleepy", "sad", "bored":
-            return AVSpeechUtteranceMinimumSpeechRate * 1.3  // Slower but not too slow
+            return AVSpeechUtteranceDefaultSpeechRate * 0.9  // Slightly slower
         case "annoyed", "angry":
-            return AVSpeechUtteranceDefaultSpeechRate * 1.3  // Faster
+            return AVSpeechUtteranceDefaultSpeechRate * 1.05 // A bit faster
         default:
-            return AVSpeechUtteranceDefaultSpeechRate * 1.2  // Default faster (was 1.0)
+            return AVSpeechUtteranceDefaultSpeechRate        // Normal speed
         }
     }
 

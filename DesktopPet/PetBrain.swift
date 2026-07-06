@@ -255,7 +255,8 @@ class PetBrain {
     // Particle callbacks (set by PetScene)
     var onShowParticle: ((ParticleType) -> Void)?
     
-    var onThoughtGenerated: ((String) -> Void)?
+    var onSentenceGenerated: ((String) -> Void)?
+    var onSpeechComplete: (() -> Void)?
     var onStartWalk: ((CGFloat, CGFloat) -> Void)?  // Called by PetWanderState with target X and Y
     
     private var lastTickTime: TimeInterval = 0
@@ -397,20 +398,15 @@ class PetBrain {
         currentEmotion = .thinking
         forceUpdate = true
         
-        AIEngine.shared.generateAgentDecision(context: context, currentEmotion: emotionStr, availableActions: actions, userMessage: userMessage) { [weak self] decision in
-            DispatchQueue.main.async {
+        AIEngine.shared.generateAgentDecisionStreaming(
+            context: context, 
+            currentEmotion: emotionStr, 
+            availableActions: actions, 
+            userMessage: userMessage,
+            onAction: { [weak self] decision in
                 guard let self = self else { return }
-                // Drop stale results superseded by a newer request (kills queued/overlapping replies).
                 if myGeneration != self.queryGeneration { return }
-                self.isQueryingAI = false
-
-                guard let decision = decision else {
-                    // Fallback to basic random if LLM fails
-                    self.evaluateNextAction()
-                    return
-                }
                 
-                // Check if AI provided spatial coordinates
                 if decision.target_x != nil || decision.target_y != nil {
                     let tx = decision.target_x.map { CGFloat($0) }
                     let ty = decision.target_y.map { CGFloat($0) }
@@ -418,25 +414,30 @@ class PetBrain {
                 } else if let action = PetAction(rawValue: decision.action) {
                     self.applyAction(action)
                 } else {
-                    self.evaluateNextAction() // fallback
+                    self.evaluateNextAction()
                 }
 
                 if let emotion = PetEmotion(rawValue: decision.emotion) {
                     self.currentEmotion = emotion
                 }
-
-                if let memory = decision.store_memory {
-                    MemoryGraph.shared.addFact(subject: memory.subject, predicate: memory.predicate, object: memory.object)
-                }
-
-                if !decision.speech.isEmpty && decision.speech != "..." {
-                    // Record the turn (min-gap clock + conversation thread) so we don't repeat.
-                    InteractionDirector.shared.noteSpoke(decision.speech)
+            },
+            onSentence: { [weak self] sentence in
+                guard let self = self else { return }
+                if myGeneration != self.queryGeneration { return }
+                
+                if !sentence.isEmpty && sentence != "..." {
+                    InteractionDirector.shared.noteSpoke(sentence)
                     InteractionDirector.shared.consumeReturnGreeting()
-                    self.onThoughtGenerated?(decision.speech)
+                    self.onSentenceGenerated?(sentence)
                 }
+            },
+            onComplete: { [weak self] in
+                guard let self = self else { return }
+                if myGeneration != self.queryGeneration { return }
+                self.isQueryingAI = false
+                self.onSpeechComplete?()
             }
-        }
+        )
     }
     
     func evaluateNextAction() {
@@ -810,7 +811,8 @@ class PetBrain {
             AIEngine.shared.generateComment(context: context, emotion: "curious") { [weak self] comment in
                 DispatchQueue.main.async {
                     if let comment = comment {
-                        self?.onThoughtGenerated?(comment)
+                        self?.onSentenceGenerated?(comment)
+                        self?.onSpeechComplete?()
                     }
                 }
             }
