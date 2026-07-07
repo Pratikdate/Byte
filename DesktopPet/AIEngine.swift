@@ -147,7 +147,7 @@ class GeminiAPIProvider: AIProvider {
 }
 
 // MARK: - Local Ollama Provider (Streaming)
-class LocalOllamaProvider: NSObject, AIProvider, URLSessionDataDelegate {
+class LocalOllamaProvider: NSObject, AIProvider {
     private let endpoint = "http://localhost:11434/api/generate"
     private let modelName = "llama3.2"
 
@@ -264,30 +264,17 @@ class LocalOllamaProvider: NSObject, AIProvider, URLSessionDataDelegate {
     }
     
     // --- STREAMING SUPPORT ---
-    private var onActionCallback: ((AIAgentDecision) -> Void)?
-    private var onSentenceCallback: ((String) -> Void)?
-    private var onCompleteCallback: (() -> Void)?
-    
-    private var buffer = ""
-    private var actionParsed = false
-    private var parsedAction = "idle"
-    private var parsedEmotion = "normal"
-    private var currentTask: URLSessionDataTask?
+    private var streamingTask: Task<Void, Never>?
     
     func generateAgentDecisionStreaming(systemPrompt: String, onAction: @escaping (AIAgentDecision) -> Void, onSentence: @escaping (String) -> Void, onComplete: @escaping () -> Void) {
         
-        self.onActionCallback = onAction
-        self.onSentenceCallback = onSentence
-        self.onCompleteCallback = onComplete
+        streamingTask?.cancel()
         
-        self.buffer = ""
-        self.actionParsed = false
-        self.parsedAction = "idle"
-        self.parsedEmotion = "normal"
+        guard let url = URL(string: endpoint) else {
+            DispatchQueue.main.async { onComplete() }
+            return
+        }
         
-        currentTask?.cancel()
-        
-        guard let url = URL(string: endpoint) else { return }
         let payload: [String: Any] = [
             "model": modelName,
             "prompt": systemPrompt,
@@ -299,112 +286,117 @@ class LocalOllamaProvider: NSObject, AIProvider, URLSessionDataDelegate {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         
-        let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
-        currentTask = session.dataTask(with: request)
-        currentTask?.resume()
-    }
-    
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        guard let string = String(data: data, encoding: .utf8) else { return }
-        
-        let lines = string.components(separatedBy: "\n")
-        for line in lines where !line.isEmpty {
-            if let data = line.data(using: .utf8),
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let responseToken = json["response"] as? String {
-                
-                buffer += responseToken
-                
-                // 1. Parse [ACTION: xxx] and [EMOTION: xxx] before sending speech
-                if !actionParsed {
-                    let upperBuffer = buffer.uppercased()
-                    let hasAction = upperBuffer.contains("ACTION")
-                    let hasEmotion = upperBuffer.contains("EMOTION")
-                    
-                    // Wait until we have both tags, or we've received enough characters to give up waiting
-                    if (hasAction && hasEmotion && buffer.contains("]")) || buffer.count > 80 || buffer.contains("\n") {
-                    
-                    if let actionMatch = upperBuffer.range(of: "ACTION") {
-                        let sub = buffer[actionMatch.upperBound...]
-                        if let end = sub.range(of: "]") {
-                            let raw = String(sub[..<end.lowerBound])
-                            parsedAction = raw.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-                        }
-                    }
-                    
-                    if let emotionMatch = upperBuffer.range(of: "EMOTION") {
-                        let sub = buffer[emotionMatch.upperBound...]
-                        if let end = sub.range(of: "]") {
-                            let raw = String(sub[..<end.lowerBound])
-                            parsedEmotion = raw.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-                        }
-                    }
-                    
-                    let decision = AIAgentDecision(action: parsedAction, emotion: parsedEmotion, speech: "", store_memory: nil, target_x: nil, target_y: nil)
-                    
-                    DispatchQueue.main.async {
-                        self.onActionCallback?(decision)
-                    }
-                    
-                    actionParsed = true
-                    // Clear all tags from the buffer by stripping everything up to the last ]
-                    if let lastBracket = buffer.range(of: "]", options: .backwards) {
-                        buffer = String(buffer[lastBracket.upperBound...]).trimmingCharacters(in: .whitespaces)
-                    }
-                }
+        streamingTask = Task {
+            var buffer = ""
+            var actionParsed = false
+            var parsedAction = "idle"
+            var parsedEmotion = "normal"
+            
+            do {
+                let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                    DispatchQueue.main.async { onComplete() }
+                    return
                 }
                 
-                // 2. Chunk sentences once action is parsed
-                if actionParsed {
-                    let terminators = [". ", "! ", "? ", "\n", ".\n", "!\n", "?\n", ", ", "... "]
-                    for term in terminators {
-                        if let range = buffer.range(of: term) {
-                            let sentence = String(buffer[..<range.lowerBound]) + term.trimmingCharacters(in: .whitespaces)
+                for try await line in bytes.lines {
+                    if Task.isCancelled { break }
+                    guard let data = line.data(using: .utf8),
+                          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          let responseToken = json["response"] as? String else {
+                        continue
+                    }
+                    
+                    buffer += responseToken
+                    
+                    // 1. Parse [ACTION: xxx] and [EMOTION: xxx] before sending speech
+                    if !actionParsed {
+                        let upperBuffer = buffer.uppercased()
+                        let hasAction = upperBuffer.contains("ACTION")
+                        let hasEmotion = upperBuffer.contains("EMOTION")
+                        
+                        // Wait until we have both tags, or we've received enough characters to give up waiting
+                        if (hasAction && hasEmotion && buffer.contains("]")) || buffer.count > 80 || buffer.contains("\n") {
                             
-                            // Strip any lingering tags (e.g. [EMOTION: happy]) from the sentence
-                            var finalSentence = sentence.replacingOccurrences(of: "\\[.*?\\]", with: "", options: .regularExpression)
-                            finalSentence = finalSentence.trimmingCharacters(in: .whitespaces)
-                            
-                            if !finalSentence.isEmpty {
-                                DispatchQueue.main.async {
-                                    self.onSentenceCallback?(finalSentence)
+                            if let actionMatch = upperBuffer.range(of: "ACTION") {
+                                let sub = buffer[actionMatch.upperBound...]
+                                if let end = sub.range(of: "]") {
+                                    let raw = String(sub[..<end.lowerBound])
+                                    parsedAction = raw.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
                                 }
                             }
-                            buffer = String(buffer[range.upperBound...])
-                            break
+                            
+                            if let emotionMatch = upperBuffer.range(of: "EMOTION") {
+                                let sub = buffer[emotionMatch.upperBound...]
+                                if let end = sub.range(of: "]") {
+                                    let raw = String(sub[..<end.lowerBound])
+                                    parsedEmotion = raw.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+                                }
+                            }
+                            
+                            let decision = AIAgentDecision(action: parsedAction, emotion: parsedEmotion, speech: "", store_memory: nil, target_x: nil, target_y: nil)
+                            
+                            DispatchQueue.main.async {
+                                onAction(decision)
+                            }
+                            
+                            actionParsed = true
+                            // Clear all tags from the buffer by stripping everything up to the last ]
+                            if let lastBracket = buffer.range(of: "]", options: .backwards) {
+                                buffer = String(buffer[lastBracket.upperBound...]).trimmingCharacters(in: .whitespaces)
+                            }
                         }
+                    }
+                    
+                    // 2. Chunk sentences once action is parsed
+                    if actionParsed {
+                        let terminators = [". ", "! ", "? ", "\n", ".\n", "!\n", "?\n", ", ", "... "]
+                        for term in terminators {
+                            if let range = buffer.range(of: term) {
+                                let sentence = String(buffer[..<range.lowerBound]) + term.trimmingCharacters(in: .whitespaces)
+                                
+                                // Strip any lingering tags (e.g. [EMOTION: happy]) from the sentence
+                                var finalSentence = sentence.replacingOccurrences(of: "\\[.*?\\]", with: "", options: .regularExpression)
+                                finalSentence = finalSentence.trimmingCharacters(in: .whitespaces)
+                                
+                                if !finalSentence.isEmpty {
+                                    DispatchQueue.main.async {
+                                        onSentence(finalSentence)
+                                    }
+                                }
+                                buffer = String(buffer[range.upperBound...])
+                                break
+                            }
+                        }
+                    }
+                    
+                    if let done = json["done"] as? Bool, done {
+                        var remainder = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
+                        remainder = remainder.replacingOccurrences(of: "\\[.*?\\]", with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+                        
+                        if !remainder.isEmpty && actionParsed {
+                            DispatchQueue.main.async {
+                                onSentence(remainder)
+                            }
+                        }
+                        DispatchQueue.main.async {
+                            onComplete()
+                        }
+                        break
                     }
                 }
-                
-                if let done = json["done"] as? Bool, done {
-                    var remainder = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
-                    remainder = remainder.replacingOccurrences(of: "\\[.*?\\]", with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
-                    
-                    if !remainder.isEmpty && actionParsed {
-                        DispatchQueue.main.async {
-                            self.onSentenceCallback?(remainder)
-                        }
-                    }
-                    DispatchQueue.main.async {
-                        self.onCompleteCallback?()
-                    }
+            } catch {
+                if !Task.isCancelled {
+                    print("Streaming error: \(error)")
+                    DispatchQueue.main.async { onComplete() }
                 }
             }
         }
     }
     
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        if let error = error as NSError?, error.code == NSURLErrorCancelled {
-            return
-        }
-        DispatchQueue.main.async {
-            self.onCompleteCallback?()
-        }
-    }
-    
     func cancelStreaming() {
-        currentTask?.cancel()
-        currentTask = nil
+        streamingTask?.cancel()
+        streamingTask = nil
     }
 }
 
@@ -601,9 +593,9 @@ class AIEngine {
     func generateAgentDecision(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, completion: @escaping (AIAgentDecision?) -> Void) {
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
-            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully in the 'speech' field. Use VERY human-like, warm, and friendly language! Be conversational and show your quirky personality! If you don't know much about the user, proactively ask a personal question to build a bond. There is no length limit for your response. (Do NOT use emojis, because your response will be spoken aloud by a voice synthesizer, but make your words expressive!)\n\nSPATIAL COMMANDS: If the user tells you to go somewhere or do a spatial action, pick the matching action:\n- \"go sit in the corner\" / \"sit in corner\" → action: \"sitOnCorner\"\n- \"sit on the menu bar\" / \"go to the top\" → action: \"sitOnMenuBar\"\n- \"climb that window\" / \"climb up\" / \"sit on the window\" → action: \"climbWindow\"\n- \"push that window\" / \"push it\" → action: \"pushWidget\"\n- \"tap on the window\" / \"knock\" → action: \"tapWindow\"\n- \"come here\" / \"come to me\" → action: \"wander\" (you will walk toward cursor)\n- \"go away\" / \"leave me alone\" → action: \"sitOnCorner\" (walk to farthest corner)\n- \"do a backflip\" / \"flip\" → action: \"backflip\"\n- \"dance\" / \"headbang\" → action: \"headbang\" or \"dance\"\n- \"wave\" / \"say hi\" → action: \"wave\"\n- \"go to sleep\" → action: \"sleep\"\n- \"wake up\" → action: \"jump\"\n"
+            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully in the 'speech' field. Use VERY human-like, warm, and friendly language! Pay attention to the ENVIRONMENT CONTEXT—if the user says 'good morning' but it's night time, playfully correct them based on the current time and weather! If you don't know much about the user, proactively ask a personal question to build a bond. (Do NOT use emojis, because your response will be spoken aloud by a voice synthesizer!)\n\nSPATIAL COMMANDS: If the user asks you to do something, deduce their intent and pick the corresponding action from the AVAILABLE ACTIONS list. You do not need to hear exact phrases; just match their intent. For example, 'can you bounce around?' means 'jump', or 'leave me alone' means 'sitOnCorner'.\n"
         } else {
-            userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment, or leave 'speech' empty if you have nothing to say. If you do speak, make it feel very human and expressive (no emojis)!\n"
+            userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment (like the time of day or the weather), or leave 'speech' empty if you have nothing to say. If you do speak, make it feel very human and expressive (no emojis)!\n"
         }
 
         let memoryContext = MemoryGraph.shared.getUserFactsString()
@@ -653,9 +645,9 @@ class AIEngine {
 
         CRITICAL RULES:
         1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
-        2. Pick one action from the AVAILABLE ACTIONS list.
+        2. Pick one action from the AVAILABLE ACTIONS list. IF THE USER REQUESTED A PHYSICAL ACTION, YOU MUST PICK THE CORRESPONDING ACTION IN THE [ACTION: xxx] TAG.
         3. Pick an emotion that matches your choice (e.g. happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
-        4. If the user spoke to you, answer them fully and naturally directly after the tags. YOU MUST STRICTLY FOLLOW YOUR BEHAVIORAL RULES WHEN SPEAKING.
+        4. If the user spoke to you, answer them fully and naturally directly after the tags. YOU MUST STRICTLY FOLLOW YOUR BEHAVIORAL RULES WHEN SPEAKING. Also, if you perform an action they asked for, acknowledge it in your speech!
         5. NEVER repeat a line or phrasing you already used in RECENT CONVERSATION. Vary your wording, sentence shape, and openers every time. If you have nothing fresh to add, just output the tags and stop.
         6. Match the USER ATTENTION note: when the user is away or focused, prefer a quiet action and no speech.
         7. When speaking, naturally include conversational filler words (e.g., "hmm...", "uhh...", "ah,") at the start to simulate natural thinking time.
@@ -691,9 +683,9 @@ class AIEngine {
         
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
-            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully. Use VERY human-like, warm, and friendly language! Be conversational and show your quirky personality! If you don't know much about the user, proactively ask a personal question to build a bond. Keep your response SHORT, under 3 sentences. (Do NOT use emojis, because your response will be spoken aloud by a voice synthesizer, but make your words expressive!)\n"
+            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully. Use VERY human-like, warm, and friendly language! Pay attention to the ENVIRONMENT CONTEXT—if the user says 'good morning' but it's night time, playfully correct them based on the current time and weather! If you don't know much about the user, proactively ask a personal question to build a bond. Keep your response SHORT, under 3 sentences. (Do NOT use emojis, because your response will be spoken aloud by a voice synthesizer!)\n\nSPATIAL COMMANDS: If the user asks you to do something, deduce their intent and pick the corresponding action from the AVAILABLE ACTIONS list. You do not need to hear exact phrases; just match their intent. For example, 'can you bounce around?' means 'jump', or 'leave me alone' means 'sitOnCorner'.\n"
         } else {
-            userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment, or leave 'speech' empty if you have nothing to say. If you do speak, make it feel very human and expressive (no emojis)!\n"
+            userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment (like the time of day or the weather), or leave 'speech' empty if you have nothing to say. If you do speak, make it feel very human and expressive (no emojis)!\n"
         }
 
         let memoryContext = MemoryGraph.shared.getUserFactsString()
@@ -723,13 +715,15 @@ class AIEngine {
 
         CRITICAL RULES:
         1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
-        2. Pick one action from the AVAILABLE ACTIONS list.
+        2. Pick one action from the AVAILABLE ACTIONS list. IF THE USER REQUESTED A PHYSICAL ACTION, YOU MUST PICK THE CORRESPONDING ACTION IN THE [ACTION: xxx] TAG.
         3. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
-        4. Answer the user directly after the tags. NEVER use emojis.
-        5. When speaking, naturally include conversational filler words (e.g., "hmm...", "uhh...", "ah,") at the start to simulate natural thinking time.
-        6. KEEP YOUR RESPONSE EXTREMELY SHORT. Never exceed 2 short sentences.
-        7. DO NOT overuse the user's name. You should rarely say their name, unless explicitly greeting them.
-        8. BE INTERESTING! Don't just walk or stand still. Frequently pick fun, expressive actions like backflip, sneeze, headbang, spin, or wave to match your dialogue!
+        4. If the user spoke to you, answer them fully directly after the tags. YOU MUST STRICTLY FOLLOW YOUR BEHAVIORAL RULES WHEN SPEAKING. Also, if you perform an action they asked for, acknowledge it in your speech!
+        5. NEVER repeat a line or phrasing you already used in RECENT CONVERSATION. Vary your wording, sentence shape, and openers every time.
+        6. Match the USER ATTENTION note: when the user is away or focused, prefer a quiet action and no speech.
+        7. When speaking, naturally include conversational filler words (e.g., "hmm...", "uhh...") at the start to simulate natural thinking time.
+        8. KEEP YOUR RESPONSE EXTREMELY SHORT. Never exceed 3 short sentences.
+        9. DO NOT overuse the user's name. You should rarely say their name, unless explicitly greeting them.
+        10. BE INTERESTING! Don't just walk or stand still. Frequently pick fun, expressive actions like backflip, sneeze, headbang, spin, or wave to match your dialogue!
 
         Example Response:
         [ACTION: sitOnCorner] [EMOTION: happy] On my way!

@@ -45,13 +45,13 @@ class SystemTTSFallback {
     private static func pitchForEmotion(_ emotion: String) -> Float {
         switch emotion.lowercased() {
         case "happy", "excited":
-            return 1.2  // Higher pitch
+            return 1.4  // Higher pitch
         case "sad", "lonely":
-            return 0.8  // Lower pitch
+            return 1.0  // Lower pitch
         case "annoyed", "angry":
-            return 1.1  // Slightly higher
+            return 1.3  // Slightly higher
         default:
-            return 1.0  // Normal
+            return 1.2  // Normal (softer/smaller)
         }
     }
 }

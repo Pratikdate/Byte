@@ -240,7 +240,7 @@ class AudioManager {
             "text": text,
             "emotion": emotion,
             "speed": speed,
-            "voice_id": "default"
+            "voice_id": "af_bella" // Changed from "default" to a softer voice
         ]
 
         guard let url = URL(string: kokoroEndpoint) else {

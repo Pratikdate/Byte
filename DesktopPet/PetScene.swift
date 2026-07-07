@@ -2048,6 +2048,8 @@ class PetScene: SCNScene {
     }
     
     func sayToPet(_ message: String) {
+        FeedbackLogger.shared.logExplicit(comment: message, context: "User explicitly spoke to Byte while he was doing: \(brain.currentAction.rawValue)")
+        
         // Show "thinking..." emotion nodes and query AI with user message!
         applyEmotion(.thinking)
         brain.queryAI(userMessage: message)
@@ -2191,6 +2193,7 @@ class PetScene: SCNScene {
                 self.brain.annoyance += 10
                 self.applyEmotion(.shock)
                 self.say("Hey, don't poke me!")
+                FeedbackLogger.shared.logNegative(context: "User poked Byte to interrupt him while he was doing: \(brain.currentAction.rawValue)")
                 self.brain.applyAction(.wander)
             } else {
                 let speed = sqrt(velocityX * velocityX + velocityY * velocityY)
@@ -2198,6 +2201,7 @@ class PetScene: SCNScene {
                 
                 if speed > 0.1 {
                     // Was thrown — let him fall!
+                    FeedbackLogger.shared.logNegative(context: "User grabbed and threw Byte away while he was doing: \(brain.currentAction.rawValue)")
                     isFalling = true
                     brain.applyAction(.dizzy) // Make him dizzy while falling
                 } else {

@@ -188,6 +188,13 @@ class PetSleepState: PetBaseState {
         brain.currentAction = .sleep
         brain.currentEmotion = .sleepy
         brain.agent.behavior = nil
+        
+        // Trigger self-reflection feedback loop when going to sleep
+        ReflectionEngine.shared.performReflection { success in
+            if success {
+                print("ReflectionEngine: Byte successfully learned from recent feedback.")
+            }
+        }
     }
     
     override func update(deltaTime seconds: TimeInterval) {
