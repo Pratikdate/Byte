@@ -41,6 +41,14 @@ The project is structured into distinct managers and engines to ensure a clean s
 - **`DesktopEnvironmentManager.swift`**: Handles low-level macOS Accessibility integrations to parse the UI tree.
 - **`AudioMonitor.swift` / `WeatherManager.swift`**: Dedicated hardware/network observers.
 
+## 🌐 Documentation & Web Sandbox
+
+In addition to the native macOS application, Byte includes a fully interactive documentation website built with React and Docusaurus (located in the `website/` directory).
+
+- **Web-Based 3D Engine**: The Docusaurus homepage features a 1:1 React & Three.js port of the SceneKit Byte model. It runs entirely in the browser, featuring idle animations, dynamic blinking, and real-time mouse tracking.
+- **Kokoro TTS Sandbox**: The project includes a dedicated sandbox for testing the Kokoro text-to-speech engine (`Kokoro/kokoro.js`), allowing you to experiment with Byte's voice synthesis capabilities locally.
+- **Retro-Tech Aesthetic**: The entire documentation site follows a custom typography system utilizing the `VT323` pixel font, explicitly styled to render with hard, unsmoothed square edges for a pristine digital aesthetic.
+
 ## 🚀 Getting Started
 
 ### Prerequisites
