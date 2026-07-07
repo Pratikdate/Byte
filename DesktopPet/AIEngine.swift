@@ -148,7 +148,7 @@ class GeminiAPIProvider: AIProvider {
 
 // MARK: - Local Ollama Provider (Streaming)
 class LocalOllamaProvider: NSObject, AIProvider {
-    private let endpoint = "http://localhost:11434/api/generate"
+    private let endpoint = "http://localhost:11434/api/chat"
     private let modelName = "llama3.2"
 
     func generateComment(systemPrompt: String, completion: @escaping (String?) -> Void) {
@@ -159,7 +159,9 @@ class LocalOllamaProvider: NSObject, AIProvider {
 
         let payload: [String: Any] = [
             "model": modelName,
-            "prompt": systemPrompt,
+            "messages": [
+                ["role": "system", "content": systemPrompt]
+            ],
             "stream": false
         ]
 
@@ -182,7 +184,8 @@ class LocalOllamaProvider: NSObject, AIProvider {
 
             do {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let responseText = json["response"] as? String {
+                   let msg = json["message"] as? [String: Any],
+                   let responseText = msg["content"] as? String {
                     let cleaned = responseText.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\"", with: "")
                     completion(cleaned)
                 } else {
@@ -204,7 +207,9 @@ class LocalOllamaProvider: NSObject, AIProvider {
 
         let payload: [String: Any] = [
             "model": modelName,
-            "prompt": systemPrompt,
+            "messages": [
+                ["role": "system", "content": systemPrompt]
+            ],
             "stream": false
         ]
 
@@ -227,7 +232,8 @@ class LocalOllamaProvider: NSObject, AIProvider {
 
             do {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let responseText = json["response"] as? String {
+                   let msg = json["message"] as? [String: Any],
+                   let responseText = msg["content"] as? String {
                    
                    // Try to parse [ACTION: xxx] [EMOTION: xxx] from the response instead of JSON
                    var action = "idle"
@@ -275,9 +281,28 @@ class LocalOllamaProvider: NSObject, AIProvider {
             return
         }
         
+        let toolsArray = ToolManager.shared.availableTools.map { tool -> [String: Any] in
+            let properties = tool.function.parameters.properties.mapValues { ["type": $0.type, "description": $0.description] }
+            return [
+                "type": tool.type,
+                "function": [
+                    "name": tool.function.name,
+                    "description": tool.function.description,
+                    "parameters": [
+                        "type": tool.function.parameters.type,
+                        "properties": properties,
+                        "required": tool.function.parameters.required
+                    ]
+                ]
+            ]
+        }
+        
         let payload: [String: Any] = [
             "model": modelName,
-            "prompt": systemPrompt,
+            "messages": [
+                ["role": "system", "content": systemPrompt]
+            ],
+            "tools": toolsArray,
             "stream": true // Enable streaming
         ]
         
@@ -302,12 +327,26 @@ class LocalOllamaProvider: NSObject, AIProvider {
                 for try await line in bytes.lines {
                     if Task.isCancelled { break }
                     guard let data = line.data(using: .utf8),
-                          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                          let responseToken = json["response"] as? String else {
+                          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                         continue
                     }
                     
-                    buffer += responseToken
+                    if let msg = json["message"] as? [String: Any] {
+                        if let toolCalls = msg["tool_calls"] as? [[String: Any]] {
+                            for toolCall in toolCalls {
+                                if let function = toolCall["function"] as? [String: Any],
+                                   let name = function["name"] as? String,
+                                   let arguments = function["arguments"] as? [String: Any] {
+                                    DispatchQueue.global(qos: .background).async {
+                                        _ = ToolManager.shared.executeTool(name: name, arguments: arguments)
+                                    }
+                                }
+                            }
+                        }
+                        if let responseToken = msg["content"] as? String {
+                            buffer += responseToken
+                        }
+                    }
                     
                     // 1. Parse [ACTION: xxx] and [EMOTION: xxx] before sending speech
                     if !actionParsed {
@@ -751,5 +790,118 @@ class AIEngine {
         if let streamingProvider = provider as? LocalOllamaProvider {
             streamingProvider.cancelStreaming()
         }
+    }
+}
+import Foundation
+import AppKit
+
+/// A Tool definition for the LLM JSON schema
+struct AITool: Codable {
+    let type: String
+    let function: AIToolFunction
+}
+
+struct AIToolFunction: Codable {
+    let name: String
+    let description: String
+    let parameters: AIToolParameters
+}
+
+struct AIToolParameters: Codable {
+    let type: String
+    let properties: [String: AIToolProperty]
+    let required: [String]
+}
+
+struct AIToolProperty: Codable {
+    let type: String
+    let description: String
+}
+
+class ToolManager {
+    static let shared = ToolManager()
+    
+    // Define the available tools for the LLM
+    let availableTools: [AITool] = [
+        AITool(
+            type: "function",
+            function: AIToolFunction(
+                name: "play_music",
+                description: "Plays music using the macOS Music app. Call this when the user asks to play music, play a song, or resume music.",
+                parameters: AIToolParameters(
+                    type: "object",
+                    properties: [:], // No parameters needed for simple play
+                    required: []
+                )
+            )
+        ),
+        AITool(
+            type: "function",
+            function: AIToolFunction(
+                name: "pause_music",
+                description: "Pauses the currently playing music in the macOS Music app.",
+                parameters: AIToolParameters(
+                    type: "object",
+                    properties: [:],
+                    required: []
+                )
+            )
+        ),
+        AITool(
+            type: "function",
+            function: AIToolFunction(
+                name: "next_track",
+                description: "Skips to the next track in the macOS Music app.",
+                parameters: AIToolParameters(
+                    type: "object",
+                    properties: [:],
+                    required: []
+                )
+            )
+        )
+    ]
+    
+    /// Executes a tool by name and returns a string result (for logging or passing back to the LLM)
+    func executeTool(name: String, arguments: [String: Any]) -> String {
+        print("[ToolManager] Executing tool: \(name) with args: \(arguments)")
+        
+        switch name {
+        case "play_music":
+            return executeAppleScript("""
+                tell application "Music"
+                    play
+                end tell
+            """) ? "Successfully started playing music." : "Failed to play music."
+            
+        case "pause_music":
+            return executeAppleScript("""
+                tell application "Music"
+                    pause
+                end tell
+            """) ? "Successfully paused music." : "Failed to pause music."
+            
+        case "next_track":
+            return executeAppleScript("""
+                tell application "Music"
+                    next track
+                end tell
+            """) ? "Successfully skipped to the next track." : "Failed to skip track."
+            
+        default:
+            return "Error: Unknown tool '\(name)'"
+        }
+    }
+    
+    private func executeAppleScript(_ source: String) -> Bool {
+        var error: NSDictionary?
+        if let scriptObject = NSAppleScript(source: source) {
+            scriptObject.executeAndReturnError(&error)
+            if let err = error {
+                print("[ToolManager] AppleScript Error: \(err)")
+                return false
+            }
+            return true
+        }
+        return false
     }
 }
