@@ -1,126 +1,217 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Silkscreen&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Pixelify+Sans:wght@400;500;600;700&family=Press+Start+2P&family=VT323&display=swap');
 
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Byte Documentation - Nothing.tech / Thinking Machines Inspired Light Aesthetic
  */
 
-/* You can override the default Infima variables here. */
 :root {
-  --ifm-color-primary: #ff0000;
-  --ifm-color-primary-dark: #cc0000;
-  --ifm-color-primary-darker: #b30000;
-  --ifm-color-primary-darkest: #800000;
-  --ifm-color-primary-light: #ff3333;
-  --ifm-color-primary-lighter: #ff4d4d;
-  --ifm-color-primary-lightest: #ff8080;
-  
+  /* Nothing Red Accent */
+  --ifm-color-primary: #ea3323;
+  /* Bright tech red */
+  --ifm-color-primary-dark: #d32d1f;
+  --ifm-color-primary-darker: #c72a1e;
+  --ifm-color-primary-darkest: #a42318;
+  --ifm-color-primary-light: #ec4839;
+  --ifm-color-primary-lighter: #ed5244;
+  --ifm-color-primary-lightest: #f17267;
+
+  /* Fonts */
   --ifm-font-family-base: 'Inter', sans-serif;
-  --ifm-font-family-monospace: 'Silkscreen', monospace;
-  
-  --ifm-background-color: #050505;
-  --ifm-navbar-background-color: rgba(5, 5, 5, 0.8);
-  --ifm-color-content: #e0e0e0;
+  --ifm-font-family-monospace: 'Pixelify Sans', monospace;
+  --ifm-heading-font-family: 'VT323', monospace;
+
+  /* Core Colors (Light Theme) */
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #f7f7f7;
+  --ifm-navbar-background-color: rgba(255, 255, 255, 0.9);
+  --ifm-color-content: #1a1a1a;
+
+  /* Borders */
+  --ifm-color-emphasis-200: rgba(0, 0, 0, 0.1);
 }
 
-/* Force dark mode */
-html[data-theme='dark'] {
-  --ifm-background-color: #050505;
-  --ifm-background-surface-color: #121212;
+/* Force light mode variables across all HTML attributes */
+html,
+html[data-theme='light'] {
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #f7f7f7;
+  --ifm-color-content: #000000;
 }
 
 body {
   background-color: var(--ifm-background-color);
-  background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 20px 20px;
-  color: #fff;
+  /* Nothing-style fine dot matrix background (dark dots on white) */
+  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ifm-color-content);
+  font-family: var(--ifm-font-family-base);
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
-/* Glassmorphism Navbar */
+/* Navbar */
 .navbar {
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: none;
+  padding: 1rem 2rem;
 }
 
 .navbar__title {
-  font-family: 'Silkscreen', monospace;
-  letter-spacing: 2px;
+  font-family: var(--ifm-font-family-base);
+  font-weight: 700;
   font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  color: #000000;
 }
 
-/* Headings */
-h1, h2, h3 {
-  font-family: 'Silkscreen', monospace;
-  text-transform: uppercase;
+.navbar__item {
+  font-family: var(--ifm-font-family-base);
+  font-weight: 500;
+  font-size: 1rem;
+  letter-spacing: 0;
+  color: #000000;
 }
 
-/* Hero Section Styles */
+/* Headings (Pixelated) */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--ifm-font-family-base);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #000000;
+}
+
+/* Hero Section */
 .heroBanner {
-  padding: 8rem 0;
+  padding: 10rem 0 8rem 0;
   text-align: center;
   position: relative;
   overflow: hidden;
+  background: transparent;
 }
 
 .heroTitle {
-  font-family: 'Silkscreen', monospace;
-  font-size: 5rem;
-  letter-spacing: 8px;
-  margin-bottom: 1rem;
-  color: #fff;
-  text-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+  font-family: 'VT323', monospace;
+  font-size: 6.5rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  margin-bottom: 1.5rem;
+  color: #000000;
+  line-height: 1.05;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  image-rendering: pixelated;
 }
 
 .heroSubtitle {
-  font-weight: 300;
-  font-size: 1.5rem;
-  color: #a0a0a0;
-  margin-bottom: 2rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 1.4rem;
+  color: #555555;
+  margin-bottom: 3rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  letter-spacing: 0.02em;
 }
 
-/* Buttons */
+/* Minimalist Buttons */
 .button--primary {
-  background-color: transparent;
-  color: var(--ifm-color-primary);
-  border: 2px solid var(--ifm-color-primary);
+  background-color: #000000;
+  color: #ffffff;
+  border: 1px solid #000000;
   border-radius: 0;
-  font-family: 'Silkscreen', monospace;
-  text-transform: uppercase;
-  transition: all 0.3s ease;
+  padding: 0.8rem 2.5rem;
+  font-family: var(--ifm-font-family-base);
+  font-weight: 500;
+  font-size: 1.1rem;
+  transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .button--primary:hover {
   background-color: var(--ifm-color-primary);
-  color: #000;
-  box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+  color: #ffffff;
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 4px 14px rgba(234, 51, 35, 0.4);
+  transform: scale(1.02);
 }
 
-/* Feature Cards */
+/* Feature Grid Minimalist Cards */
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  padding: 2rem 0;
+}
+
 .featureCard {
-  background: rgba(25, 25, 25, 0.6);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 2rem;
-  transition: transform 0.3s ease, border-color 0.3s ease;
-  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 0;
+  padding: 2.5rem 2rem;
+  text-align: left;
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+/* Red accent bar on hover */
+.featureCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--ifm-color-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s ease;
 }
 
 .featureCard:hover {
-  transform: translateY(-5px);
-  border-color: var(--ifm-color-primary);
+  transform: translateY(-8px);
+  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.featureCard:hover::before {
+  transform: scaleX(1);
 }
 
 .featureCard h3 {
-  font-size: 1.2rem;
-  color: #fff;
+  font-size: 1.5rem;
+  color: #000000;
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .featureCard p {
-  color: #a0a0a0;
-  font-size: 0.95rem;
-  line-height: 1.5;
+  color: #555555;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  font-weight: 400;
+  margin: 0;
+}
+
+/* Code blocks (Terminal style but light) */
+code {
+  font-family: 'Pixelify Sans', monospace !important;
+  font-size: 0.9em;
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: var(--ifm-color-primary) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 0;
 }

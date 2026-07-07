@@ -1,7 +1,7 @@
 import React from 'react';
 import Layout from '@theme/Layout';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import styles from './index.module.css';
+import Byte3DModel from '../components/Byte3DModel';
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
@@ -10,9 +10,10 @@ function HomepageHeader() {
       <div className="container">
         <h1 className="heroTitle">{siteConfig.title}</h1>
         <p className="heroSubtitle">{siteConfig.tagline}</p>
-        <div className={styles.buttons}>
+        <Byte3DModel />
+        <div style={{ marginTop: '2rem' }}>
           <a
-            className="button button--primary button--lg"
+            className="button button--primary"
             href="/DesktopPet/docs/architecture">
             READ THE DOCS
           </a>
@@ -54,11 +55,9 @@ const FeatureList = [
 
 function Feature({title, description}) {
   return (
-    <div className="col col--4">
-      <div className="featureCard">
-        <h3>{title}</h3>
-        <p>{description}</p>
-      </div>
+    <div className="featureCard">
+      <h3>{title}</h3>
+      <p>{description}</p>
     </div>
   );
 }
@@ -71,9 +70,9 @@ export default function Home(): JSX.Element {
       description="Documentation for Byte: Intelligent 3D Desktop Pet">
       <HomepageHeader />
       <main>
-        <section style={{ padding: '4rem 0' }}>
+        <section style={{ padding: '2rem 0 6rem 0' }}>
           <div className="container">
-            <div className="row">
+            <div className="featuresGrid">
               {FeatureList.map((props, idx) => (
                 <Feature key={idx} {...props} />
               ))}
