@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Byte's Memory Graph</title>
+    <!-- Use vis-network for graph visualization -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #header {
+            padding: 20px;
+            background-color: #1e1e1e;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #00e676;
+        }
+        .instructions {
+            font-size: 0.9rem;
+            color: #aaaaaa;
+            margin-top: 5px;
+        }
+        input[type="file"] {
+            background: #333;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #555;
+            color: white;
+            cursor: pointer;
+        }
+        #mynetwork {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #121212; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <div>
+            <h1>Byte's Memory Graph Visualizer</h1>
+            <div class="instructions">Select the <b>memory_graph.json</b> file (located in ~/Documents/DesktopPet/memory_graph.json)</div>
+        </div>
+        <input type="file" id="fileInput" accept=".json" />
+    </div>
+
+    <div id="mynetwork"></div>
+
+    <script type="text/javascript">
+        // Create an empty network
+        var container = document.getElementById('mynetwork');
+        var nodes = new vis.DataSet([]);
+        var edges = new vis.DataSet([]);
+        var data = { nodes: nodes, edges: edges };
+        
+        var options = {
+            nodes: {
+                shape: 'dot',
+                size: 20,
+                font: {
+                    size: 16,
+                    color: '#ffffff',
+                    face: 'Inter, sans-serif'
+                },
+                borderWidth: 2,
+                color: {
+                    background: '#1f2937',
+                    border: '#00e676',
+                    highlight: { background: '#00e676', border: '#ffffff' }
+                }
+            },
+            edges: {
+                width: 2,
+                font: {
+                    size: 12,
+                    color: '#aaaaaa',
+                    align: 'middle'
+                },
+                color: { color: '#555555', highlight: '#00e676' },
+                arrows: {
+                    to: { enabled: true, scaleFactor: 0.5 }
+                },
+                smooth: { type: 'continuous' }
+            },
+            physics: {
+                barnesHut: { gravitationalConstant: -30000, centralGravity: 0.3, springLength: 150 },
+                stabilization: { iterations: 200 }
+            }
+        };
+
+        var network = new vis.Network(container, data, options);
+
+        // Handle File Upload
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const facts = JSON.parse(e.target.result);
+                    processGraphData(facts);
+                } catch (err) {
+                    alert("Error parsing JSON. Make sure it is the correct memory_graph.json file.");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function processGraphData(facts) {
+            nodes.clear();
+            edges.clear();
+
+            let nodeSet = new Set();
+            let newNodes = [];
+            let newEdges = [];
+
+            facts.forEach(fact => {
+                let subject = fact.subject;
+                let object = fact.object;
+                let predicate = fact.predicate;
+
+                // Add unique nodes
+                if (!nodeSet.has(subject)) {
+                    nodeSet.add(subject);
+                    let color = subject.toLowerCase() === 'rule' ? '#ef4444' : '#3b82f6';
+                    newNodes.push({ id: subject, label: subject, color: { background: color, border: '#ffffff' } });
+                }
+                
+                if (!nodeSet.has(object)) {
+                    nodeSet.add(object);
+                    newNodes.push({ id: object, label: object });
+                }
+
+                // Add edge
+                newEdges.push({
+                    from: subject,
+                    to: object,
+                    label: predicate
+                });
+            });
+
+            nodes.add(newNodes);
+            edges.add(newEdges);
+            network.fit();
+        }
+    </script>
+</body>
+</html>

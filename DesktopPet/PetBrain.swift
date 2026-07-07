@@ -101,14 +101,16 @@ class PetIdleState: PetBaseState {
                 brain.applyAction(action)
                 nextActionTime = TimeInterval.random(in: 1.0...2.0)
             } else {
-                nextActionTime = TimeInterval.random(in: 4.0...10.0) // Slower LLM loop to avoid spam
-                if brain.isMuted {
-                    // Fallback to offline lightweight logic when muted
-                    brain.evaluateNextAction()
-                } else {
-                    // LLM takes complete control!
-                    brain.requestLLMAction()
+                // Pace autonomy to the user's attention: back off when they're idle/away.
+                switch InteractionDirector.shared.currentAttention() {
+                case .away:
+                    nextActionTime = TimeInterval.random(in: 20.0...40.0)
+                case .idle:
+                    nextActionTime = TimeInterval.random(in: 10.0...20.0)
+                default:
+                    nextActionTime = TimeInterval.random(in: 4.0...10.0)
                 }
+                brain.requestAmbientAction()
             }
         }
     }
@@ -186,6 +188,13 @@ class PetSleepState: PetBaseState {
         brain.currentAction = .sleep
         brain.currentEmotion = .sleepy
         brain.agent.behavior = nil
+        
+        // Trigger self-reflection feedback loop when going to sleep
+        ReflectionEngine.shared.performReflection { success in
+            if success {
+                print("ReflectionEngine: Byte successfully learned from recent feedback.")
+            }
+        }
     }
     
     override func update(deltaTime seconds: TimeInterval) {
@@ -245,15 +254,22 @@ class PetBrain {
     // Emotion Transition Guard (Spec §8 — no instant extreme flips)
     private var lastEmotionChangeTime: TimeInterval = 0
     private let emotionCooldown: TimeInterval = 1.5
-    
+
+    // Emotional momentum: a new feeling must persist before it takes over (no random jitter).
+    private var emotionCandidate: PetEmotion = .normal
+    private var emotionCandidateSince: TimeInterval = 0
+
     // Particle callbacks (set by PetScene)
     var onShowParticle: ((ParticleType) -> Void)?
     
-    var onThoughtGenerated: ((String) -> Void)?
+    var onSentenceGenerated: ((String) -> Void)?
+    var onSpeechComplete: (() -> Void)?
     var onStartWalk: ((CGFloat, CGFloat) -> Void)?  // Called by PetWanderState with target X and Y
     
     private var lastTickTime: TimeInterval = 0
     private var isQueryingAI = false
+    // Monotonic query id: a newer request invalidates older in-flight ones (no stale/queued replies).
+    private var queryGeneration = 0
     var forceUpdate = false
     var isMuted = false
     
@@ -276,8 +292,8 @@ class PetBrain {
                 self.applyAction(.idle)
             }
             
-            // Occasionally comment on the new app
-            if Double.random(in: 0...1) < 0.3 {
+            // Occasionally comment on the new app — reactive event, but respect attention.
+            if Double.random(in: 0...1) < 0.3 && InteractionDirector.shared.shouldSpeak(.reactive) {
                 self.requestLLMAction()
             }
         }
@@ -333,12 +349,41 @@ class PetBrain {
         return .normal
     }
     var isListeningToUser: Bool = false
-    
+
+    /// Autonomous "what should I do next" tick, paced by how present the user is.
+    /// Quiet/local behavior when the user is idle or away; LLM-driven when they're around.
+    func requestAmbientAction() {
+        switch InteractionDirector.shared.currentAttention() {
+        case .away, .idle:
+            // Present-but-quiet: pick a gentle local behavior, no LLM chatter.
+            evaluateNextAction()
+        case .active, .engaged, .returning:
+            if isMuted {
+                evaluateNextAction()
+            } else {
+                requestLLMAction()
+            }
+        }
+    }
+
     func requestLLMAction(userMessage: String? = nil) {
-        if isListeningToUser && userMessage == nil { return } // Prevent background chatter while listening
-        if isQueryingAI { return }
+        let isUserDirected = (userMessage != nil && !(userMessage?.isEmpty ?? true))
+
+        if isListeningToUser && !isUserDirected { return } // Prevent background chatter while listening
+        // A user-directed message always gets through — never dropped behind an ambient query.
+        if isQueryingAI && !isUserDirected { return }
+
+        if isUserDirected {
+            // Barge-in: cut off any ambient speech so the reply feels immediate, not queued.
+            AudioManager.shared.stopSpeaking()
+            InteractionDirector.shared.recordUserTurn(userMessage!)
+        }
+
+        // Bump generation so any older in-flight request is discarded when it returns.
+        queryGeneration += 1
+        let myGeneration = queryGeneration
         isQueryingAI = true
-        
+
         let elements = DesktopEnvironmentManager.shared.visibleElements
         let activeWindows = elements.filter { $0.type == .window }.compactMap { $0.title }.joined(separator: ", ")
         
@@ -360,40 +405,46 @@ class PetBrain {
         currentEmotion = .thinking
         forceUpdate = true
         
-        AIEngine.shared.generateAgentDecision(context: context, currentEmotion: emotionStr, availableActions: actions, userMessage: userMessage) { [weak self] decision in
-            DispatchQueue.main.async {
-                self?.isQueryingAI = false
+        AIEngine.shared.generateAgentDecisionStreaming(
+            context: context, 
+            currentEmotion: emotionStr, 
+            availableActions: actions, 
+            userMessage: userMessage,
+            onAction: { [weak self] decision in
+                guard let self = self else { return }
+                if myGeneration != self.queryGeneration { return }
                 
-                guard let decision = decision else {
-                    // Fallback to basic random if LLM fails
-                    self?.evaluateNextAction()
-                    return
-                }
-                
-                // Check if AI provided spatial coordinates
                 if decision.target_x != nil || decision.target_y != nil {
                     let tx = decision.target_x.map { CGFloat($0) }
                     let ty = decision.target_y.map { CGFloat($0) }
-                    self?.handleSpatialCommand(action: decision.action, targetX: tx, targetY: ty)
+                    self.handleSpatialCommand(action: decision.action, targetX: tx, targetY: ty)
                 } else if let action = PetAction(rawValue: decision.action) {
-                    self?.applyAction(action)
+                    self.applyAction(action)
                 } else {
-                    self?.evaluateNextAction() // fallback
+                    self.evaluateNextAction()
                 }
-                
+
                 if let emotion = PetEmotion(rawValue: decision.emotion) {
-                    self?.currentEmotion = emotion
+                    self.currentEmotion = emotion
                 }
+            },
+            onSentence: { [weak self] sentence in
+                guard let self = self else { return }
+                if myGeneration != self.queryGeneration { return }
                 
-                if let memory = decision.store_memory {
-                    MemoryGraph.shared.addFact(subject: memory.subject, predicate: memory.predicate, object: memory.object)
+                if !sentence.isEmpty && sentence != "..." {
+                    InteractionDirector.shared.noteSpoke(sentence)
+                    InteractionDirector.shared.consumeReturnGreeting()
+                    self.onSentenceGenerated?(sentence)
                 }
-                
-                if !decision.speech.isEmpty && decision.speech != "..." {
-                    self?.onThoughtGenerated?(decision.speech)
-                }
+            },
+            onComplete: { [weak self] in
+                guard let self = self else { return }
+                if myGeneration != self.queryGeneration { return }
+                self.isQueryingAI = false
+                self.onSpeechComplete?()
             }
-        }
+        )
     }
     
     func evaluateNextAction() {
@@ -547,9 +598,12 @@ class PetBrain {
             stateMachine.enter(PetIdleState.self)
         }
         
-        // 20% chance to generate flavor text on any autonomous action change
+        // Occasional flavor text on autonomous action change — only when the user is present.
         if Double.random(in: 0...1) < 0.20 {
-            requestLLMAction()
+            let attention = InteractionDirector.shared.currentAttention()
+            if attention == .active || attention == .engaged || attention == .returning {
+                requestLLMAction()
+            }
         }
     }
     
@@ -590,8 +644,8 @@ class PetBrain {
             let newPhase = PetRoutinePhase.current()
             if newPhase != currentRoutinePhase {
                 currentRoutinePhase = newPhase
-                // Phase transition — Byte notices the time change
-                if !isMuted && Double.random(in: 0...1) < 0.5 {
+                // Phase transition — ambient time-of-day remark, gated by attention.
+                if !isMuted && Double.random(in: 0...1) < 0.5 && InteractionDirector.shared.shouldSpeak(.ambient) {
                     requestLLMAction()
                 }
             }
@@ -645,19 +699,40 @@ class PetBrain {
         annoyance = min(100, max(0, annoyance - 0.2 * dt))
         mood = min(100, max(0, mood + (currentAction == .sleep ? 0.0 : -0.05) * dt))
         
-        // Every tick, passively evaluate if our emotion should change based on variables
-        // with cooldown guard to prevent jarring instant flips
+        // Emotional momentum (replaces the old random 10%/tick flip).
+        // A newly-resolved feeling must PERSIST for a dwell time before it takes over,
+        // so moods have inertia — Byte stays sad/happy/curious for a while, then shifts
+        // deliberately instead of jittering. Reactive states (thinking/shock/dizzy) are
+        // owned elsewhere and skipped here.
         if currentEmotion != .thinking && currentEmotion != .shock && currentEmotion != .dizzy {
-            let newlyResolvedEmotion = resolveEmotion()
-            if newlyResolvedEmotion != currentEmotion && Double.random(in: 0...1) < 0.1 {
-                // Emotion cooldown guard: prevent flipping too fast
-                if (currentTime - lastEmotionChangeTime) > emotionCooldown {
-                    // Check for extreme flip (angry↔love, angry↔happy, etc.) — must pass through normal
+            let resolved = resolveEmotion()
+
+            if resolved == currentEmotion {
+                // Already feeling this — reset any pending candidate.
+                emotionCandidate = currentEmotion
+                emotionCandidateSince = currentTime
+            } else {
+                // A different feeling is being pushed by the state variables.
+                if resolved != emotionCandidate {
+                    // New candidate — start its dwell clock.
+                    emotionCandidate = resolved
+                    emotionCandidateSince = currentTime
+                }
+
+                // Strong feelings assert faster; subtle ones need to linger.
+                let strong: Set<PetEmotion> = [.angry, .sleepy, .sad]
+                let dwell: TimeInterval = strong.contains(resolved) ? 1.5 : 3.5
+
+                let persisted = (currentTime - emotionCandidateSince) >= dwell
+                let cooledDown = (currentTime - lastEmotionChangeTime) > emotionCooldown
+
+                if persisted && cooledDown {
+                    // Extreme flips pass through neutral first (no angry→love snap).
                     let extremes: Set<PetEmotion> = [.angry, .love, .excited]
-                    if extremes.contains(oldEmotion) && extremes.contains(newlyResolvedEmotion) && oldEmotion != newlyResolvedEmotion {
-                        currentEmotion = .normal  // Force through neutral first
+                    if extremes.contains(oldEmotion) && extremes.contains(resolved) && oldEmotion != resolved {
+                        currentEmotion = .normal
                     } else {
-                        currentEmotion = newlyResolvedEmotion
+                        currentEmotion = resolved
                     }
                     lastEmotionChangeTime = currentTime
                 }
@@ -737,13 +812,14 @@ class PetBrain {
         currentEmotion = .curious
         onShowParticle?(.sparkle)
         
-        if !isMuted {
-            // Ask AI to comment on the new file
+        // Reactive event — comment only if the user is around to notice.
+        if !isMuted && InteractionDirector.shared.shouldSpeak(.reactive) {
             let context = "A new file just appeared in the user's Downloads folder: \(fileName)"
             AIEngine.shared.generateComment(context: context, emotion: "curious") { [weak self] comment in
                 DispatchQueue.main.async {
                     if let comment = comment {
-                        self?.onThoughtGenerated?(comment)
+                        self?.onSentenceGenerated?(comment)
+                        self?.onSpeechComplete?()
                     }
                 }
             }

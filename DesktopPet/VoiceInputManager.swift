@@ -1,114 +1,71 @@
 import Foundation
-import Speech
 import AVFoundation
 
+/// Unified voice I/O manager using local faster-whisper (STT) + Kokoro (TTS)
+/// All processing on-device: whisper for speech-to-text, Kokoro for natural TTS.
 class VoiceInputManager {
     static let shared = VoiceInputManager()
-    
-    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
-    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
-    private var recognitionTask: SFSpeechRecognitionTask?
-    private let audioEngine = AVAudioEngine()
-    
+
+    private let audioManager = AudioManager.shared
+
     var onTranscriptionUpdate: ((String) -> Void)?
     var onFinishedTranscribing: ((String) -> Void)?
     private(set) var currentTranscript: String = ""
-    
+
+    init() {
+        setupAudioManagerCallbacks()
+    }
+
+    private func setupAudioManagerCallbacks() {
+        audioManager.onTranscriptionUpdate = { [weak self] text in
+            self?.currentTranscript = text
+            if !text.isEmpty { DialogueContextTracker.shared.recordInteraction() }
+            self?.onTranscriptionUpdate?(text)
+        }
+
+        audioManager.onTranscriptionFinished = { [weak self] text in
+            self?.currentTranscript = text
+            if !text.isEmpty { DialogueContextTracker.shared.recordInteraction() }
+            self?.onFinishedTranscribing?(text)
+        }
+    }
+
     func startListening(completion: @escaping (Bool) -> Void) {
-        currentTranscript = "" // Reset on new session
-        // Request Speech Recognition permission
-        SFSpeechRecognizer.requestAuthorization { authStatus in
-            DispatchQueue.main.async {
-                guard authStatus == .authorized else {
-                    completion(false)
-                    return
-                }
-                
-                // Request Microphone permission (macOS compatible)
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
-                    DispatchQueue.main.async {
-                        guard granted else {
-                            completion(false)
-                            return
-                        }
-                        
-                        do {
-                            try self.startRecording()
-                            completion(true)
-                        } catch {
-                            print("Audio Engine failed to start: \(error)")
-                            completion(false)
-                        }
-                    }
-                }
-            }
+        currentTranscript = ""
+        // macOS microphone permissions handled at system level
+        // Just start listening
+        DispatchQueue.main.async {
+            self.audioManager.startListening()
+            completion(true)
         }
     }
-    
+
     func stopListening() {
-        if audioEngine.isRunning {
-            audioEngine.stop()
-            recognitionRequest?.endAudio()
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
-        
-        recognitionRequest = nil
-        recognitionTask = nil
+        audioManager.stopListening()
     }
-    
+
     func finishListeningWithResult(completion: @escaping (String) -> Void) {
-        if audioEngine.isRunning {
-            audioEngine.stop()
-            recognitionRequest?.endAudio()
-            audioEngine.inputNode.removeTap(onBus: 0)
-        }
-        
-        // Give the speech recognizer 0.6 seconds to process the final words
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-            let final = self.currentTranscript
-            self.recognitionRequest = nil
-            self.recognitionTask = nil
-            completion(final)
+        audioManager.stopListening()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            completion(self.currentTranscript)
         }
     }
-    
-    private func startRecording() throws {
-        // Cancel any active tasks
-        recognitionTask?.cancel()
-        recognitionTask = nil
-        
-        let inputNode = audioEngine.inputNode
-        
-        // CRITICAL FIX: Always explicitly remove any lingering tap before installing a new one 
-        // to prevent "nullptr == Tap()" crash!
-        inputNode.removeTap(onBus: 0)
-        
-        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-        guard let recognitionRequest = recognitionRequest else { return }
-        recognitionRequest.shouldReportPartialResults = true
-        
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-            self.recognitionRequest?.append(buffer)
-        }
-        
-        audioEngine.prepare()
-        try audioEngine.start()
-        
-        recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
-            if let result = result {
-                let transcription = result.bestTranscription.formattedString
-                self.currentTranscript = transcription
-                self.onTranscriptionUpdate?(transcription)
-                
-                if result.isFinal {
-                    self.onFinishedTranscribing?(transcription)
-                }
-            }
-            
-            if error != nil || result?.isFinal == true {
-                self.stopListening()
-            }
+
+    /// Speak dialogue with emotion-aware TTS
+    /// - Parameters:
+    ///   - text: what to say
+    ///   - emotion: emotional tone (happy, sad, calm, excited, sleepy, etc.)
+    func speak(_ text: String, emotion: String = "neutral") {
+        let speed = speedForEmotion(emotion)
+        audioManager.speak(text, emotion: emotion, speed: speed)
+    }
+
+    private func speedForEmotion(_ emotion: String) -> Float {
+        switch emotion.lowercased() {
+        case "excited", "happy": return 1.2
+        case "sleepy", "sad": return 0.8
+        case "annoyed": return 1.1
+        default: return 1.0
         }
     }
 }
