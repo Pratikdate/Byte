@@ -1,0 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Silkscreen&display=swap');
+
+/**
+ * Any CSS included here will be global. The classic template
+ * bundles Infima by default. Infima is a CSS framework designed to
+ * work well for content-centric websites.
+ */
+
+/* You can override the default Infima variables here. */
+:root {
+  --ifm-color-primary: #ff0000;
+  --ifm-color-primary-dark: #cc0000;
+  --ifm-color-primary-darker: #b30000;
+  --ifm-color-primary-darkest: #800000;
+  --ifm-color-primary-light: #ff3333;
+  --ifm-color-primary-lighter: #ff4d4d;
+  --ifm-color-primary-lightest: #ff8080;
+  
+  --ifm-font-family-base: 'Inter', sans-serif;
+  --ifm-font-family-monospace: 'Silkscreen', monospace;
+  
+  --ifm-background-color: #050505;
+  --ifm-navbar-background-color: rgba(5, 5, 5, 0.8);
+  --ifm-color-content: #e0e0e0;
+}
+
+/* Force dark mode */
+html[data-theme='dark'] {
+  --ifm-background-color: #050505;
+  --ifm-background-surface-color: #121212;
+}
+
+body {
+  background-color: var(--ifm-background-color);
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 20px 20px;
+  color: #fff;
+}
+
+/* Glassmorphism Navbar */
+.navbar {
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.navbar__title {
+  font-family: 'Silkscreen', monospace;
+  letter-spacing: 2px;
+  font-size: 1.5rem;
+}
+
+/* Headings */
+h1, h2, h3 {
+  font-family: 'Silkscreen', monospace;
+  text-transform: uppercase;
+}
+
+/* Hero Section Styles */
+.heroBanner {
+  padding: 8rem 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.heroTitle {
+  font-family: 'Silkscreen', monospace;
+  font-size: 5rem;
+  letter-spacing: 8px;
+  margin-bottom: 1rem;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+}
+
+.heroSubtitle {
+  font-weight: 300;
+  font-size: 1.5rem;
+  color: #a0a0a0;
+  margin-bottom: 2rem;
+}
+
+/* Buttons */
+.button--primary {
+  background-color: transparent;
+  color: var(--ifm-color-primary);
+  border: 2px solid var(--ifm-color-primary);
+  border-radius: 0;
+  font-family: 'Silkscreen', monospace;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+}
+
+.button--primary:hover {
+  background-color: var(--ifm-color-primary);
+  color: #000;
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+}
+
+/* Feature Cards */
+.featureCard {
+  background: rgba(25, 25, 25, 0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2rem;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  height: 100%;
+}
+
+.featureCard:hover {
+  transform: translateY(-5px);
+  border-color: var(--ifm-color-primary);
+}
+
+.featureCard h3 {
+  font-size: 1.2rem;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.featureCard p {
+  color: #a0a0a0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
