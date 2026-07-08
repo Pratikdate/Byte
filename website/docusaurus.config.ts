@@ -8,10 +8,10 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   url: 'https://shanacoder.github.io',
-  baseUrl: '/DesktopPet/',
+  baseUrl: '/Byte/',
 
   organizationName: 'shanacoder',
-  projectName: 'DesktopPet',
+  projectName: 'Byte',
 
   onBrokenLinks: 'throw',
 
