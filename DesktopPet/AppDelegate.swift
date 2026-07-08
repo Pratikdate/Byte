@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import SceneKit
 import SpriteKit // For the 2D screen material
+import UserNotifications
 
 class PetWindow: NSWindow {
     var acceptsKey: Bool = false
@@ -71,7 +72,7 @@ class PetSCNView: SCNView {
     }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     var window: PetWindow!
     var scnView: PetSCNView!
     var updateTimer: Timer?
@@ -127,6 +128,51 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Window open/close observers for Byte reactions
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(windowDidActivate(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(windowDidDeactivate(_:)), name: NSWorkspace.didDeactivateApplicationNotification, object: nil)
+        
+        setupNotifications()
+    }
+    
+    // MARK: - Notifications for Q-Learning
+    private func setupNotifications() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                print("Notification authorization error: \(error)")
+            }
+        }
+        
+        let goodAction = UNNotificationAction(identifier: "GOOD_ACTION", title: "Good boy!", options: [])
+        let badAction = UNNotificationAction(identifier: "BAD_ACTION", title: "Bad path!", options: [])
+        
+        let category = UNNotificationCategory(identifier: "WALK_FEEDBACK", actions: [goodAction, badAction], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([category])
+    }
+    
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+        guard let state = userInfo["state"] as? Int,
+              let actionTaken = userInfo["action"] as? Int,
+              let nextState = userInfo["nextState"] as? Int else {
+            completionHandler()
+            return
+        }
+        
+        var reward: Double = 0.0
+        if response.actionIdentifier == "GOOD_ACTION" {
+            reward = 1.0
+            print("User feedback: Good boy! (+1 reward)")
+        } else if response.actionIdentifier == "BAD_ACTION" {
+            reward = -1.0
+            print("User feedback: Bad path! (-1 reward)")
+        }
+        
+        if reward != 0 {
+            QLearningManager.shared.updateQValue(state: state, action: actionTaken, reward: reward, nextState: nextState)
+        }
+        
+        completionHandler()
     }
     
     @objc private func windowDidActivate(_ notification: Notification) {

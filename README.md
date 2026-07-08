@@ -52,16 +52,16 @@ The project is structured into distinct managers and engines to ensure a clean s
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/DesktopPet.git
-   cd DesktopPet
+   git clone https://github.com/yourusername/Byte.git
+   cd Byte
    ```
 2. Open the project in Xcode:
    ```bash
-   open DesktopPet.xcodeproj
+   open Byte.xcodeproj
    ```
 3. Select your local Mac as the build destination and hit `Cmd + R` (Run).
 4. **Permissions**: On first launch, macOS will prompt for **Accessibility Permissions**. This is required for `DesktopEnvironmentManager` to read window frames and dock positions. 
-   - Go to `System Settings` > `Privacy & Security` > `Accessibility` and toggle the switch for `DesktopPet`.
+   - Go to `System Settings` > `Privacy & Security` > `Accessibility` and toggle the switch for `Byte`.
 
 ## 🛠 Contributing
 

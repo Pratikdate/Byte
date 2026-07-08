@@ -535,10 +535,6 @@ class AIEngine {
             """
         }
 
-        let randomTopics = ["space", "snacks", "bugs", "magic", "the mouse cursor", "shiny things", "naps", "games", "the active window", "music", "clouds", "colors", "exploring", "dancing", "secrets"]
-        let randomTopic = randomTopics.randomElement()!
-
-        // Add emotional tone hints for more natural speech
         let emotionalTone = emotionalInstructions(for: emotion)
 
         let systemPrompt = """
@@ -549,7 +545,7 @@ class AIEngine {
         \(userInstruction)
 
         CRITICAL: Be creative, weird, or funny. Never repeat phrases from your last 10 lines.
-        Right now thinking about: \(randomTopic).
+        If you speak unprompted, act like you are "thinking aloud" to yourself about the Context. Do not demand the user's attention.
 
         Write ONLY dialogue. No quotes, no actions, no asterisks.
         """
@@ -685,7 +681,7 @@ class AIEngine {
         if let msg = userMessage, !msg.isEmpty {
             userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully. Use VERY human-like, warm, and friendly language! Pay attention to the ENVIRONMENT CONTEXT—if the user says 'good morning' but it's night time, playfully correct them based on the current time and weather! If you don't know much about the user, proactively ask a personal question to build a bond. Keep your response SHORT, under 3 sentences. (Do NOT use emojis, because your response will be spoken aloud by a voice synthesizer!)\n\nSPATIAL COMMANDS: If the user asks you to do something, deduce their intent and pick the corresponding action from the AVAILABLE ACTIONS list. You do not need to hear exact phrases; just match their intent. For example, 'can you bounce around?' means 'jump', or 'leave me alone' means 'sitOnCorner'.\n"
         } else {
-            userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment (like the time of day or the weather), or leave 'speech' empty if you have nothing to say. If you do speak, make it feel very human and expressive (no emojis)!\n"
+            userInstruction = "\nYou are just idling on the desktop, silently observing the user work. FAVOR the 'idle' or 'sit' actions to quietly watch. If you do speak, do NOT demand attention. Instead, 'think aloud' to yourself naturally (e.g. \"Hmm, lots of code today...\" or \"*yawns* so sleepy...\") based on the ENVIRONMENT CONTEXT. Leave 'speech' empty if you just want to observe silently.\n"
         }
 
         let memoryContext = MemoryGraph.shared.getUserFactsString()
@@ -711,7 +707,9 @@ class AIEngine {
         \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
 
         ACTION DESCRIPTIONS:
-        - idle, wander, sleep, jump, sit, spin, dance, stretch, roll, sitOnCorner, sitOnMenuBar, climbWindow, pushWidget, tapWindow, sneeze, backflip, headbang, wave
+        - idle, wander, sleep, jump, sit, spin, dance, sitOnCorner, sitOnMenuBar, climbWindow, pushWidget, tapWindow, sneeze, backflip, headbang, wave
+        - stretch: (USE RARELY) Stretch tall then shrink back
+        - roll: Roll sideways
 
         CRITICAL RULES:
         1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
