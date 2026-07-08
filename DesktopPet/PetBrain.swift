@@ -477,64 +477,12 @@ class PetBrain {
             effectiveMode = currentMode
         }
         
-        var weights: [PetAction: Double] = [
-            .idle: 30.0,
-            .wander: 25.0,
-            .sleep: 8.0,
-            .jump: 5.0,
-            .sit: 8.0,
-            .spin: 4.0,
-            // New interactive actions
-            .sitOnCorner: 4.0,
-            .sitOnMenuBar: 3.0,
-            .climbWindow: 4.0,
-            .pushWidget: 3.0,
-            .tapWindow: 3.0,
-            .sneeze: 1.0,
-            .backflip: 2.0,
-            .headbang: 2.0,
-            .wave: 3.0,
-            .trip: 0.5
-        ]
+        let state = ReinforcementLearningModel.shared.getCurrentState()
+        let isWorkMode = (effectiveMode == .work)
         
-        if effectiveMode == .work {
-            // Work mode: prefer quiet, stay out of the way
-            weights = [
-                .idle: 45.0,
-                .wander: 8.0,
-                .sleep: 20.0,
-                .sit: 15.0,
-                .jump: 0.0,
-                .spin: 0.0,
-                .sitOnCorner: 8.0,
-                .sitOnMenuBar: 4.0,
-                .wave: 1.0
-            ]
-        } else if effectiveMode == .play {
-            // Play mode: active and wandering
-            weights[.wander] = 40.0
-            weights[.jump] = 15.0
-            weights[.spin] = 8.0
-            weights[.sleep] = 0.0
-            weights[.idle] = 15.0
-            weights[.backflip] = 8.0
-            weights[.headbang] = 6.0
-            weights[.climbWindow] = 8.0
-            weights[.pushWidget] = 6.0
-            weights[.tapWindow] = 6.0
-            weights[.sitOnMenuBar] = 5.0
-            weights[.wave] = 5.0
-            weights[.trip] = 2.0
-        }
+        let bestAction = ReinforcementLearningModel.shared.chooseAction(state: state, isWorkMode: isWorkMode, isMuted: isMuted)
         
-        if isMuted {
-            // When muted, prefer exploring rather than just standing idle
-            weights[.wander] = (weights[.wander] ?? 0) + 40.0
-            weights[.idle] = (weights[.idle] ?? 0) / 2.0
-        }
-        
-        let bestAction = weights.max { a, b in a.value < b.value }?.key ?? .idle
-        
+
         if effectiveMode == .play && bestAction == .wander && exploreCount == 0 {
             // Start an interesting exploration loop chaining 2-4 walks together
             exploreCount = Int.random(in: 2...4)

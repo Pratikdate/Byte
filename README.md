@@ -18,7 +18,16 @@
 
 ## 🌟 Key Features
 
-### 3D Rendering & Physics Engine
+### 🧠 True Machine Learning & Autonomous Brain
+- **Q-Learning Action Model**: Byte's autonomous actions (wandering, sleeping, sitting) are entirely data-driven. He evaluates your current environment state (time of day, active apps, attention state) and uses a native Swift Reinforcement Learning model (`ReinforcementLearningModel`) to pick the mathematically best action.
+- **Reflection Engine & Memory Graph**: Byte learns from your feedback! When he goes to sleep, he triggers a self-reflection loop (`ReflectionEngine`) that analyzes recent interactions and deduces permanent behavioral rules (saved in a `MemoryGraph`).
+- **Context-Aware Intent Deduction**: Powered by a local LLM (`AIEngine`), Byte doesn't just parse rigid commands; he infers your intent from long, complex, or even broken sentences.
+
+### 🗣️ Local Voice & AI Capabilities
+- **On-Device Voice I/O**: Completely private and offline voice parsing using `faster-whisper` for Speech-to-Text and `Kokoro` for hyper-realistic Text-to-Speech (`VoiceInputManager`).
+- **Dynamic Dialogue**: Byte's speech lines are never hardcoded. Based on his action and environment, he generates witty, context-appropriate dialogue on the fly using a local LLM.
+
+### 🎮 3D Rendering & Physics Engine
 - **SceneKit Integration**: Fully rendered 3D models with programmatic animations and physics-based interactions.
 - **Custom Physics Simulation**: Features custom gravity, velocity, and friction models applied outside of standard SceneKit physics bodies, allowing Byte to interact with macOS UI elements (such as treating the Dock as a physical floor).
 - **Interactive Manipulation**: 
@@ -37,9 +46,11 @@ The project is structured into distinct managers and engines to ensure a clean s
 
 - **`PetScene.swift`**: The core SceneKit rendering and physics loop. Handles the `tick` event for custom gravity, velocity calculations, procedural animations, and mouse event tracking.
 - **`PetBrain.swift`**: The state machine. Evaluates conditions (energy depletion, annoyance levels) and dictates the active `PetState` protocol implementation.
-- **`AIEngine.swift`**: The analytical layer. Synthesizes data from the environment (weather, time, active apps) and generates prompts/decisions to drive spontaneous events.
+- **`ReinforcementLearningModel.swift`**: The native Swift Q-Learning engine that drives Byte's autonomous physical actions based on environmental state rewards and penalties.
+- **`AIEngine.swift`**: The analytical layer. Synthesizes data from the environment and generates prompts/decisions to drive spontaneous dialogue and infer intent from voice commands.
+- **`ReflectionEngine.swift` & `MemoryGraph.swift`**: The self-improvement loop. Analyzes user feedback logs during sleep cycles to deduce permanent behavioral rules.
 - **`DesktopEnvironmentManager.swift`**: Handles low-level macOS Accessibility integrations to parse the UI tree.
-- **`AudioMonitor.swift` / `WeatherManager.swift`**: Dedicated hardware/network observers.
+- **`VoiceInputManager.swift` / `AudioMonitor.swift` / `WeatherManager.swift`**: Dedicated hardware/network observers for voice, media, and local environment states.
 
 ## 🚀 Getting Started
 

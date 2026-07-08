@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0C00AEA0CF89F976176AEFAC /* ReinforcementLearningModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD7A0876ADBF9BAB6CF7203 /* ReinforcementLearningModel.swift */; };
 		27B352FDD3666A343D97F7DF /* DesktopPetApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDBA8D8FF50BCB5FCDA0C749 /* DesktopPetApp.swift */; };
 		2B25D2EAF6A92C71F0A0A187 /* VoiceInputManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39713A909CE3824D4EB6A409 /* VoiceInputManager.swift */; };
 		2D33E21216F640736CB547F2 /* WeatherManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1C04D0F074D5D3F2AA6E7E /* WeatherManager.swift */; };
@@ -44,6 +45,7 @@
 		B461484513570AF74412C8EB /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
 		B68D48B1782C1DFB38BC1410 /* MemoryGraph.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoryGraph.swift; sourceTree = "<group>"; };
 		CF328C5B701ACF61020B398C /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		DAD7A0876ADBF9BAB6CF7203 /* ReinforcementLearningModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReinforcementLearningModel.swift; sourceTree = "<group>"; };
 		EDBA8D8FF50BCB5FCDA0C749 /* DesktopPetApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopPetApp.swift; sourceTree = "<group>"; };
 		F485D4100FAA4DD1AD458559 /* DialogueNaturalness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DialogueNaturalness.swift; path = DesktopPet/DialogueNaturalness.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -113,6 +115,7 @@
 				A55BCC6652694E14AC30B148 /* SystemTTSFallback.swift */,
 				613428C66B6D20F131B3DF32 /* InteractionDirector.swift */,
 				9B8E272C8B41BE58DA231488 /* DialogueContextTracker.swift */,
+				DAD7A0876ADBF9BAB6CF7203 /* ReinforcementLearningModel.swift */,
 			);
 			name = DesktopPet;
 			path = DesktopPet;
@@ -198,6 +201,7 @@
 				D4B8389F1DBC4BDFB15C01EB /* SystemTTSFallback.swift in Sources */,
 				3089338628830483186DBBD9 /* InteractionDirector.swift in Sources */,
 				9B9B7540D6EF7A11219CF14F /* DialogueContextTracker.swift in Sources */,
+				0C00AEA0CF89F976176AEFAC /* ReinforcementLearningModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
