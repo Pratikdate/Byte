@@ -15,7 +15,7 @@ export default function Byte3DModel() {
     renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
     renderer.setClearColor(0x000000, 0);
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     mountRef.current.appendChild(renderer.domElement);
     
     camera.position.set(0, 2, 20);
