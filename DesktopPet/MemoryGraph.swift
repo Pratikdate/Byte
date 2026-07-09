@@ -16,16 +16,8 @@ class MemoryGraph {
     private var facts: [MemoryFact] = []
     
     private var fileURL: URL {
-        let urls = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        let documentsDir = urls[0]
-        let petDir = documentsDir.appendingPathComponent("DesktopPet", isDirectory: true)
-        
-        // Create directory if it doesn't exist
-        if !FileManager.default.fileExists(atPath: petDir.path) {
-            try? FileManager.default.createDirectory(at: petDir, withIntermediateDirectories: true, attributes: nil)
-        }
-        
-        return petDir.appendingPathComponent("memory_graph.json")
+        let currentDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        return currentDir.appendingPathComponent("memory_graph.json")
     }
     
     private init() {
