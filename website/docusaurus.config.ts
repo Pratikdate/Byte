@@ -7,10 +7,10 @@ const config: Config = {
   tagline: 'Intelligent 3D Desktop Pet for macOS',
   favicon: 'img/favicon.ico',
 
-  url: 'https://shanacoder.github.io',
+  url: 'https://pratikdate.github.io',
   baseUrl: '/Byte/',
 
-  organizationName: 'shanacoder',
+  organizationName: 'pratikdate',
   projectName: 'Byte',
 
   onBrokenLinks: 'throw',
@@ -50,7 +50,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: 'https://github.com/shanacoder/DesktopPet',
+          href: 'https://github.com/pratikdate/DesktopPet',
           label: 'GitHub',
           position: 'right',
         },

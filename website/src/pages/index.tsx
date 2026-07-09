@@ -14,7 +14,7 @@ function HomepageHeader() {
         <div style={{ marginTop: '2rem' }}>
           <a
             className="button button--primary"
-            href="/DesktopPet/docs/architecture">
+            href="/Byte/docs/architecture">
             READ THE DOCS
           </a>
         </div>
@@ -25,20 +25,20 @@ function HomepageHeader() {
 
 const FeatureList = [
   {
-    title: '🧠 Reinforcement Learning',
+    title: '🧠 Utility AI & State Engine',
     description: (
       <>
-        Byte's autonomous actions are driven by a native Swift Q-Learning engine. 
-        He learns your routine based on environmental states (Time, Active Apps, Attention) and user feedback.
+        Byte's behavior emerges dynamically from internal state variables (energy, mood, curiosity). 
+        The native Swift tick-based engine evaluates these states to choose actions organically.
       </>
     ),
   },
   {
-    title: '🗣️ Local Voice I/O',
+    title: '🗣️ On-Device LLM Integration',
     description: (
       <>
-        Completely private and offline voice parsing using <code>faster-whisper</code> for Speech-to-Text 
-        and <code>Kokoro</code> for hyper-realistic Text-to-Speech.
+        Zero network dependency for ambient behaviors. Byte uses Apple's native <code>FoundationModels</code> framework 
+        for fast, offline conversational flavor text that reacts to your environment.
       </>
     ),
   },
@@ -47,7 +47,7 @@ const FeatureList = [
     description: (
       <>
         Built on SceneKit with a custom physics engine. Byte can walk on your Dock, 
-        interact with active windows using macOS Accessibility APIs, and react to local weather.
+        interact with active windows using macOS Accessibility APIs, and react to local events.
       </>
     ),
   },
