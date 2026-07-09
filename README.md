@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/byte_preview.png" alt="Byte Desktop Pet" width="300" />
+  <img src="assets/byte_preview.png" alt="Byte Desktop Pet" width="300" />
   
   <h1>Byte: Intelligent 3D Desktop Pet for macOS</h1>
   <p>
@@ -17,11 +17,11 @@
 <br/>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_walking.png" width="19%" title="Walking & Listening" />
-  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_walk_curious.png" width="19%" title="Walk Curious" />
-  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_sleeping.png" width="19%" title="Sleeping" />
-  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_looking.png" width="19%" title="Looking Forward" />
-  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_sideways.png" width="19%" title="Turned Sideways" />
+  <img src="assets/motion_walking.png" width="19%" title="Walking & Listening" />
+  <img src="assets/motion_walk_curious.png" width="19%" title="Walk Curious" />
+  <img src="assets/motion_sleeping.png" width="19%" title="Sleeping" />
+  <img src="assets/motion_looking.png" width="19%" title="Looking Forward" />
+  <img src="assets/motion_sideways.png" width="19%" title="Turned Sideways" />
 </p>
 
 ## 📖 Overview
