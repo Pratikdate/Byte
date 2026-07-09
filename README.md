@@ -1,17 +1,17 @@
 # Byte: Intelligent 3D Desktop Pet for macOS
 
 <div align="center">
-  <img src="./byte_preview.png" alt="Byte Desktop Pet" />
+  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/byte_preview.png" alt="Byte Desktop Pet" />
 </div>
 
 <br/>
 
 <p align="center">
-  <img src="./motion_walking.png" width="19%" title="Walking & Listening" />
-  <img src="./motion_walk_curious.png" width="19%" title="Walk Curious" />
-  <img src="./motion_sleeping.png" width="19%" title="Sleeping" />
-  <img src="./motion_looking.png" width="19%" title="Looking Forward" />
-  <img src="./motion_sideways.png" width="19%" title="Turned Sideways" />
+  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_walking.png" width="19%" title="Walking & Listening" />
+  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_walk_curious.png" width="19%" title="Walk Curious" />
+  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_sleeping.png" width="19%" title="Sleeping" />
+  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_looking.png" width="19%" title="Looking Forward" />
+  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_sideways.png" width="19%" title="Turned Sideways" />
 </p>
 
 **Byte** is an open-source, context-aware 3D desktop companion built natively for macOS using Swift and SceneKit. Operating as an overlay on the macOS desktop, Byte interacts with your workspace, responds to system events, and exhibits dynamic AI-driven behaviors based on environmental context.
@@ -60,8 +60,8 @@ In addition to the native macOS application, Byte includes a fully interactive d
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/DesktopPet.git
-   cd DesktopPet
+   git clone https://github.com/pratikdate/Byte.git
+   cd Byte
    ```
 2. Open the project in Xcode:
    ```bash
