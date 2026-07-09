@@ -215,3 +215,48 @@ code {
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 0;
 }
+
+/* Mobile Responsiveness */
+@media screen and (max-width: 996px) {
+  .heroBanner {
+    padding: 6rem 1rem 4rem 1rem;
+  }
+  
+  .heroTitle {
+    font-size: 5rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .heroBanner {
+    padding: 4rem 1rem 2rem 1rem;
+  }
+  
+  .heroTitle {
+    font-size: 3.5rem;
+  }
+
+  .heroSubtitle {
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .featuresGrid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .featureCard {
+    padding: 1.5rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .heroTitle {
+    font-size: 2.8rem;
+  }
+  
+  .heroSubtitle {
+    font-size: 1rem;
+  }
+}
