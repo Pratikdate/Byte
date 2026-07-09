@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/byte_preview.png" alt="Byte Desktop Pet" width="300" />
+  <img src="assets/byte_preview.png" alt="Byte Desktop Pet" width="100%" />
   
   <h1>Byte: Intelligent 3D Desktop Pet for macOS</h1>
   <p>
