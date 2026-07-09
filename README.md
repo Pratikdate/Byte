@@ -1,7 +1,17 @@
-# Byte: Intelligent 3D Desktop Pet for macOS
-
 <div align="center">
-  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/byte_preview.png" alt="Byte Desktop Pet" />
+  <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/byte_preview.png" alt="Byte Desktop Pet" width="300" />
+  
+  <h1>Byte: Intelligent 3D Desktop Pet for macOS</h1>
+  <p>
+    <b>An open-source, context-aware 3D desktop companion built natively for macOS.</b>
+  </p>
+  
+  <p>
+    <a href="https://github.com/pratikdate/Byte/stargazers"><img src="https://img.shields.io/github/stars/pratikdate/Byte?style=for-the-badge&color=yellow" alt="Stars" /></a>
+    <a href="https://github.com/pratikdate/Byte/network/members"><img src="https://img.shields.io/github/forks/pratikdate/Byte?style=for-the-badge&color=orange" alt="Forks" /></a>
+    <a href="https://github.com/pratikdate/Byte/issues"><img src="https://img.shields.io/github/issues/pratikdate/Byte?style=for-the-badge&color=red" alt="Issues" /></a>
+    <a href="https://github.com/pratikdate/Byte/blob/main/LICENSE"><img src="https://img.shields.io/github/license/pratikdate/Byte?style=for-the-badge&color=blue" alt="License" /></a>
+  </p>
 </div>
 
 <br/>
@@ -14,64 +24,93 @@
   <img src="https://raw.githubusercontent.com/pratikdate/Byte/main/motion_sideways.png" width="19%" title="Turned Sideways" />
 </p>
 
-**Byte** is an open-source, context-aware 3D desktop companion built natively for macOS using Swift and SceneKit. Operating as an overlay on the macOS desktop, Byte interacts with your workspace, responds to system events, and exhibits dynamic AI-driven behaviors based on environmental context.
+## 📖 Overview
 
-## 🌟 Key Features
+**Byte** is a natively built macOS overlay using Swift and SceneKit. Operating right on your desktop, Byte interacts with your workspace, responds to system events, and exhibits dynamic AI-driven behaviors based on environmental context. 
 
-### 3D Rendering & Physics Engine
-- **SceneKit Integration**: Fully rendered 3D models with programmatic animations and physics-based interactions.
-- **Custom Physics Simulation**: Features custom gravity, velocity, and friction models applied outside of standard SceneKit physics bodies, allowing Byte to interact with macOS UI elements (such as treating the Dock as a physical floor).
-- **Interactive Manipulation**: 
-  - Free-form drag and drop with calculated trajectory/throw physics.
-  - Trackpad and scroll-wheel support for persistent 3D rotation (`manualRotationY`).
+Unlike traditional static widgets, Byte brings life to your desktop with completely on-device AI integration.
 
-### Context-Aware AI & State Machine
-- **`PetBrain` State Machine**: Governs behavioral states (Idle, Wander, Sleep, Sulk, Dizzy) with a sophisticated priority queue and emotion mapping (`annoyance`, `energy`, `happiness`).
-- **Workspace Awareness (`DesktopEnvironmentManager`)**: Utilizes macOS Accessibility APIs (`AXUIElement`) to track active applications, window positions, and bounds. Byte can dynamically interact with your active windows.
-- **Audio & Media Detection (`AudioMonitor`)**: Integrates with `CoreAudio` to detect physical output routes (e.g., connected headphones) and active media playback (Spotify, Apple Music), triggering contextual animations like wearing DJ headphones.
-- **Real-Time Weather Integration (`WeatherManager`)**: Subscribes to local weather APIs to adapt Byte's behavior to the physical world (e.g., deploying a programmatic 3D umbrella during rain).
+---
+
+## ✨ Key Features
+
+### 🎮 3D Rendering & Physics Engine
+* **SceneKit Integration:** Fully rendered 3D models with programmatic animations and physics-based interactions.
+* **Custom Physics Simulation:** Features custom gravity, velocity, and friction models applied outside of standard SceneKit physics bodies, allowing Byte to interact with macOS UI elements (such as treating the Dock as a physical floor).
+* **Interactive Manipulation:** 
+  * Free-form drag and drop with calculated trajectory/throw physics.
+  * Trackpad and scroll-wheel support for persistent 3D rotation (`manualRotationY`).
+
+### 🧠 Context-Aware AI & State Machine
+* **`PetBrain` State Machine:** Governs behavioral states (Idle, Wander, Sleep, Sulk, Dizzy) with a sophisticated priority queue and emotion mapping (`annoyance`, `energy`, `happiness`).
+* **Workspace Awareness:** Utilizes macOS Accessibility APIs (`AXUIElement`) to track active applications, window positions, and bounds. Byte dynamically interacts with your active windows.
+* **Audio & Media Detection:** Integrates with `CoreAudio` to detect physical output routes (e.g., connected headphones) and active media playback (Spotify, Apple Music).
+* **Real-Time Weather Integration:** Subscribes to local weather APIs to adapt Byte's behavior to the physical world.
+
+### 🎙️ 100% Local AI Intelligence
+Byte's processing power has been upgraded to run **entirely on-device**, ensuring zero data leaves your Mac:
+* **Speech Recognition:** Powered by `faster-whisper` for fast, offline transcription.
+* **Dialogue Generation:** Runs on **Gemma 2B** via Ollama, utilizing emotion-aware prompts.
+* **Natural Voice TTS:** Uses Kokoro (or a system fallback) for emotionally expressive, pause-aware text-to-speech.
+
+---
 
 ## 🏗 Architecture
 
-The project is structured into distinct managers and engines to ensure a clean separation of concerns:
+The project is cleanly structured into distinct managers and engines:
 
-- **`PetScene.swift`**: The core SceneKit rendering and physics loop. Handles the `tick` event for custom gravity, velocity calculations, procedural animations, and mouse event tracking.
-- **`PetBrain.swift`**: The state machine. Evaluates conditions (energy depletion, annoyance levels) and dictates the active `PetState` protocol implementation.
-- **`AIEngine.swift`**: The analytical layer. Synthesizes data from the environment (weather, time, active apps) and generates prompts/decisions to drive spontaneous events.
-- **`DesktopEnvironmentManager.swift`**: Handles low-level macOS Accessibility integrations to parse the UI tree.
-- **`AudioMonitor.swift` / `WeatherManager.swift`**: Dedicated hardware/network observers.
+* **`PetScene.swift`**: The core SceneKit rendering and physics loop. Handles the `tick` event for custom gravity, velocity calculations, procedural animations, and mouse event tracking.
+* **`PetBrain.swift`**: The state machine. Evaluates conditions (energy depletion, annoyance levels) and dictates the active `PetState`.
+* **`AIEngine.swift`**: The analytical layer. Synthesizes data from the environment and interacts with local LLMs (Ollama) to drive events.
+* **`DesktopEnvironmentManager.swift`**: Parses the macOS Accessibility UI tree.
+* **`AudioMonitor.swift` / `WeatherManager.swift`**: Dedicated hardware/network observers.
 
-## 🌐 Documentation & Web Sandbox
-
-In addition to the native macOS application, Byte includes a fully interactive documentation website built with React and Docusaurus (located in the `website/` directory).
-
-- **Web-Based 3D Engine**: The Docusaurus homepage features a 1:1 React & Three.js port of the SceneKit Byte model. It runs entirely in the browser, featuring idle animations, dynamic blinking, and real-time mouse tracking.
-- **Kokoro TTS Sandbox**: The project includes a dedicated sandbox for testing the Kokoro text-to-speech engine (`Kokoro/kokoro.js`), allowing you to experiment with Byte's voice synthesis capabilities locally.
-- **Retro-Tech Aesthetic**: The entire documentation site follows a custom typography system utilizing the `VT323` pixel font, explicitly styled to render with hard, unsmoothed square edges for a pristine digital aesthetic.
+---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **OS**: macOS 14.0 (Sonoma) or later
-- **IDE**: Xcode 15.0 or later
-- **Language**: Swift 5.0+
+* **OS:** macOS 14.0 (Sonoma) or later
+* **IDE:** Xcode 15.0 or later
+* **Language:** Swift 5.0+
 
 ### Installation & Build
 
-1. Clone the repository:
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/pratikdate/Byte.git
    cd Byte
    ```
-2. Open the project in Xcode:
+
+2. **Open the project in Xcode:**
    ```bash
    open DesktopPet.xcodeproj
    ```
-3. Select your local Mac as the build destination and hit `Cmd + R` (Run).
-4. **Permissions**: On first launch, macOS will prompt for **Accessibility Permissions**. This is required for `DesktopEnvironmentManager` to read window frames and dock positions. 
-   - Go to `System Settings` > `Privacy & Security` > `Accessibility` and toggle the switch for `DesktopPet`.
 
-## 🛠 Contributing
+3. **Build and Run:**
+   Select your local Mac as the build destination and hit `Cmd + R`.
+
+4. **Permissions:** 
+   On first launch, macOS will prompt for **Accessibility Permissions**. This is required to read window frames and dock positions. 
+   * Go to `System Settings > Privacy & Security > Accessibility` and toggle the switch for `DesktopPet`.
+
+> [!TIP]
+> **Want local AI speech features?**
+> Check out the [Quickstart Guide](QUICKSTART.md) for setting up Ollama (Gemma 2B) and Whisper!
+
+---
+
+## 🌐 Documentation & Web Sandbox
+
+In addition to the native macOS application, Byte includes a fully interactive documentation website built with React and Docusaurus (`website/`).
+
+* **Web-Based 3D Engine:** The Docusaurus homepage features a 1:1 React & Three.js port of the SceneKit Byte model. It runs entirely in the browser!
+* **Kokoro TTS Sandbox:** Test Byte's voice synthesis capabilities locally via the dedicated sandbox (`Kokoro/kokoro.js`).
+* **Retro-Tech Aesthetic:** The documentation site uses the `VT323` pixel font for a pristine digital look.
+
+---
+
+## 🤝 Contributing
 
 Contributions to Byte are highly encouraged! Whether it's adding new state behaviors, expanding context awareness, or optimizing the physics engine:
 
@@ -81,6 +120,12 @@ Contributions to Byte are highly encouraged! Whether it's adding new state behav
 4. Push to the branch (`git push origin feature/AmazingFeature`).
 5. Open a Pull Request.
 
+---
+
 ## 📝 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
+
+<div align="center">
+  <p>Made with ❤️ for macOS by the Byte community.</p>
+</div>
