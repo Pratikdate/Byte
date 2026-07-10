@@ -208,7 +208,7 @@ class AudioManager {
         audioQueue.async {
             self.audioPlayer?.stop()
         }
-        SystemTTSFallback.stop()
+        SystemTTSFallback.shared.stop()
         isSpeaking = false
         isDownloading = false
     }
@@ -246,9 +246,15 @@ class AudioManager {
         guard let url = URL(string: kokoroEndpoint) else {
             print("[AudioManager] Invalid Kokoro endpoint URL")
             DispatchQueue.main.async {
-                SystemTTSFallback.speak(text, emotion: emotion)
-                self.isDownloading = false
-                self.processDownloadQueue()
+                SystemTTSFallback.shared.speak(text, emotion: emotion) {
+                    DispatchQueue.main.async {
+                        self.isDownloading = false
+                        if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
+                            self.onSpeakingFinished?()
+                        }
+                        self.processDownloadQueue()
+                    }
+                }
             }
             return
         }
@@ -263,9 +269,15 @@ class AudioManager {
         } catch {
             print("[AudioManager] Failed to serialize Kokoro payload: \(error)")
             DispatchQueue.main.async {
-                SystemTTSFallback.speak(text, emotion: emotion)
-                self.isDownloading = false
-                self.processDownloadQueue()
+                SystemTTSFallback.shared.speak(text, emotion: emotion) {
+                    DispatchQueue.main.async {
+                        self.isDownloading = false
+                        if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
+                            self.onSpeakingFinished?()
+                        }
+                        self.processDownloadQueue()
+                    }
+                }
             }
             return
         }
@@ -277,9 +289,17 @@ class AudioManager {
             if error != nil || data == nil {
                 print("[AudioManager] Kokoro TTS unavailable, using system TTS")
                 DispatchQueue.main.async {
-                    SystemTTSFallback.speak(text, emotion: emotion)
-                    self.isDownloading = false
-                    self.processDownloadQueue()
+                    self.isSpeaking = true
+                    SystemTTSFallback.shared.speak(text, emotion: emotion) {
+                        DispatchQueue.main.async {
+                            self.isSpeaking = false
+                            self.isDownloading = false
+                            if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
+                                self.onSpeakingFinished?()
+                            }
+                            self.processDownloadQueue()
+                        }
+                    }
                 }
                 return
             }

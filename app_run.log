@@ -1,0 +1,40 @@
+*** Terminating app due to uncaught exception 'com.apple.coreaudio.avfaudio', reason: 'player started when in a disconnected state'
+*** First throw call stack:
+(
+	0   CoreFoundation                      0x0000000183e791c0 __exceptionPreprocess + 176
+	1   libobjc.A.dylib                     0x000000018390291c objc_exception_throw + 88
+	2   CoreFoundation                      0x0000000183e790b0 +[NSException exceptionWithName:reason:userInfo:] + 0
+	3   AVFAudio                            0x00000002298808c4 _ZN21AVAudioPlayerNodeImpl9StartImplEP11AVAudioTime + 712
+	4   AVFAudio                            0x00000002297a34d8 _ZN19AVAudioNodeImplBase5StartEP11AVAudioTime + 56
+	5   AVFAudio                            0x000000022987d1b4 -[AVAudioPlayerNode play] + 48
+	6   DesktopPet                          0x00000001023840a0 $s10DesktopPet12AudioManagerC04playC4Data33_40C5590E20C2A5C5C62F34AE0FD20295LLyy10Foundation0F0VF + 1208
+	7   DesktopPet                          0x0000000102383bc4 $s10DesktopPet12AudioManagerC20processPlaybackQueue33_40C5590E20C2A5C5C62F34AE0FD20295LLyyF + 160
+	8   DesktopPet                          0x0000000102383ac4 $s10DesktopPet12AudioManagerC20processDownloadQueue33_40C5590E20C2A5C5C62F34AE0FD20295LLyyFy10Foundation4DataVSg_So13NSURLResponseCSgs5Error_pSgtYbcfU1_yyScMYccfU1_ + 160
+	9   DesktopPet                          0x000000010237fc60 $sIeg_IeyB_TRTm + 28
+	10  libdispatch.dylib                   0x0000000183b92a28 _dispatch_call_block_and_release + 32
+	11  libdispatch.dylib                   0x0000000183bac4b0 _dispatch_client_callout + 16
+	12  libdispatch.dylib                   0x0000000183bca3f0 _dispatch_main_queue_drain.cold.6 + 832
+	13  libdispatch.dylib                   0x0000000183ba19e4 _dispatch_main_queue_drain + 176
+	14  libdispatch.dylib                   0x0000000183ba1924 _dispatch_main_queue_callback_4CF + 44
+	15  CoreFoundation                      0x0000000183e47724 __CFRUNLOOP_IS_SERVICING_THE_MAIN_DISPATCH_QUEUE__ + 16
+	16  CoreFoundation                      0x0000000183e09cb8 __CFRunLoopRun + 1944
+	17  CoreFoundation                      0x0000000183edc1c4 _CFRunLoopRunSpecificWithOptions + 532
+	18  HIToolbox                           0x0000000190bef560 RunCurrentEventLoopInMode + 320
+	19  HIToolbox                           0x0000000190bf28bc ReceiveNextEventCommon + 488
+	20  HIToolbox                           0x0000000190d7c14c _BlockUntilNextEventMatchingListInMode + 48
+	21  AppKit                              0x00000001888e435c _DPSBlockUntilNextEventMatchingListInMode + 228
+	22  AppKit                              0x0000000188238084 _DPSNextEvent + 576
+	23  AppKit                              0x0000000188dcd8b0 -[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:] + 688
+	24  AppKit                              0x0000000188dcd5bc -[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:] + 72
+	25  AppKit                              0x000000018822b13c -[NSApplication run] + 368
+	26  AppKit                              0x00000001882037b0 NSApplicationMain + 880
+	27  SwiftUI                             0x00000001b8b7647c $s7SwiftUI6runAppys5NeverOSo21NSApplicationDelegate_So11NSResponderCXcFTf4e_nAA07TestingdG0C_Tg5Tm + 140
+	28  SwiftUI                             0x00000001b8f2c4a4 $s7SwiftUI6runAppys5NeverOxAA0D0RzlF + 104
+	29  SwiftUI                             0x00000001b91f8344 $s7SwiftUI3AppPAAE4mainyyFZ + 224
+	30  DesktopPet                          0x00000001023759c8 main + 40
+	31  dyld                                0x000000018398fe00 start + 6992
+)
+libc++abi: terminating due to uncaught exception of type NSException
+Loaded 102 memories.
+Notification authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+FeedbackLogger: Logged NEGATIVE feedback for 'User poked Byte to interrupt him while he was doing: sulk'

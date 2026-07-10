@@ -1,6 +1,7 @@
 import Foundation
 import GameplayKit
 import CoreGraphics
+import UserNotifications
 
 // Keep the enums for the scene to map easily to animations/eyes
 enum PetAction: String {
@@ -104,11 +105,11 @@ class PetIdleState: PetBaseState {
                 // Pace autonomy to the user's attention: back off when they're idle/away.
                 switch InteractionDirector.shared.currentAttention() {
                 case .away:
-                    nextActionTime = TimeInterval.random(in: 20.0...40.0)
+                    nextActionTime = TimeInterval.random(in: 120.0...240.0)
                 case .idle:
-                    nextActionTime = TimeInterval.random(in: 10.0...20.0)
+                    nextActionTime = TimeInterval.random(in: 90.0...180.0)
                 default:
-                    nextActionTime = TimeInterval.random(in: 4.0...10.0)
+                    nextActionTime = TimeInterval.random(in: 60.0...120.0)
                 }
                 brain.requestAmbientAction()
             }
@@ -160,12 +161,17 @@ class PetWanderState: PetBaseState {
                 targetX = corner.0 + CGFloat.random(in: -5.0...5.0)
                 targetY = corner.1
             } else {
-                let currentX = CGFloat(brain.agent.position.x)
-                let goRight = currentX <= 0
-                // Play/Auto mode: walk anywhere
-                targetX = goRight ? CGFloat.random(in: 5.0...35.0) : CGFloat.random(in: -35.0...(-5.0))
-                targetY = CGFloat.random(in: -10.0...10.0)
+                let currentState = brain.getCurrentSector()
+                let nextAction = QLearningManager.shared.chooseAction(state: currentState)
+                let (tx, ty) = brain.getCoordinatesForSector(nextAction)
+                targetX = tx
+                targetY = ty
+                brain.lastQState = currentState
+                brain.lastQAction = nextAction
+                brain.didQWander = true
             }
+        } else {
+            brain.didQWander = false
         }
         
         brain.currentAction = .wander
@@ -248,7 +254,13 @@ class PetBrain {
     var isBeingDragged = false
     
     // Routine Phase (Spec §7)
-    var currentRoutinePhase: PetRoutinePhase = .current()
+    var currentRoutinePhase: PetRoutinePhase = .morning
+    
+    // Q-Learning Tracking
+    var lastQState: Int?
+    var lastQAction: Int?
+    var didQWander: Bool = false
+    
     private var lastRoutineCheck: TimeInterval = 0
     
     // Emotion Transition Guard (Spec §8 — no instant extreme flips)
@@ -272,6 +284,7 @@ class PetBrain {
     private var queryGeneration = 0
     var forceUpdate = false
     var isMuted = false
+    var isTrainingMode = false
     
     init() {
         stateMachine.enter(PetIdleState.self) // Start idle — let AI decide what to do first
@@ -465,64 +478,12 @@ class PetBrain {
             effectiveMode = currentMode
         }
         
-        var weights: [PetAction: Double] = [
-            .idle: 30.0,
-            .wander: 25.0,
-            .sleep: 8.0,
-            .jump: 5.0,
-            .sit: 8.0,
-            .spin: 4.0,
-            // New interactive actions
-            .sitOnCorner: 4.0,
-            .sitOnMenuBar: 3.0,
-            .climbWindow: 4.0,
-            .pushWidget: 3.0,
-            .tapWindow: 3.0,
-            .sneeze: 1.0,
-            .backflip: 2.0,
-            .headbang: 2.0,
-            .wave: 3.0,
-            .trip: 0.5
-        ]
+        let state = ReinforcementLearningModel.shared.getCurrentState()
+        let isWorkMode = (effectiveMode == .work)
         
-        if effectiveMode == .work {
-            // Work mode: prefer quiet, stay out of the way
-            weights = [
-                .idle: 45.0,
-                .wander: 8.0,
-                .sleep: 20.0,
-                .sit: 15.0,
-                .jump: 0.0,
-                .spin: 0.0,
-                .sitOnCorner: 8.0,
-                .sitOnMenuBar: 4.0,
-                .wave: 1.0
-            ]
-        } else if effectiveMode == .play {
-            // Play mode: active and wandering
-            weights[.wander] = 40.0
-            weights[.jump] = 15.0
-            weights[.spin] = 8.0
-            weights[.sleep] = 0.0
-            weights[.idle] = 15.0
-            weights[.backflip] = 8.0
-            weights[.headbang] = 6.0
-            weights[.climbWindow] = 8.0
-            weights[.pushWidget] = 6.0
-            weights[.tapWindow] = 6.0
-            weights[.sitOnMenuBar] = 5.0
-            weights[.wave] = 5.0
-            weights[.trip] = 2.0
-        }
+        let bestAction = ReinforcementLearningModel.shared.chooseAction(state: state, isWorkMode: isWorkMode, isMuted: isMuted)
         
-        if isMuted {
-            // When muted, prefer exploring rather than just standing idle
-            weights[.wander] = (weights[.wander] ?? 0) + 40.0
-            weights[.idle] = (weights[.idle] ?? 0) / 2.0
-        }
-        
-        let bestAction = weights.max { a, b in a.value < b.value }?.key ?? .idle
-        
+
         if effectiveMode == .play && bestAction == .wander && exploreCount == 0 {
             // Start an interesting exploration loop chaining 2-4 walks together
             exploreCount = Int.random(in: 2...4)
@@ -615,9 +576,72 @@ class PetBrain {
             stateMachine.enter(PetSleepState.self)
             forceUpdate = true
         } else {
+            if didQWander, let state = lastQState, let action = lastQAction {
+                let nextState = getCurrentSector()
+                triggerFeedbackNotification(state: state, action: action, nextState: nextState)
+                didQWander = false
+            }
+            
             currentAction = .idle
             stateMachine.enter(PetIdleState.self)
         }
+    }
+    
+    private func triggerFeedbackNotification(state: Int, action: Int, nextState: Int) {
+        let content = UNMutableNotificationContent()
+        content.title = "Byte's Walk"
+        content.body = "Byte walked to a new spot! Was this a good path?"
+        content.categoryIdentifier = "WALK_FEEDBACK"
+        
+        content.userInfo = ["state": state, "action": action, "nextState": nextState]
+        
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error adding feedback notification: \\(error)")
+            }
+        }
+    }
+    
+    // MARK: - Q-Learning Sector Helpers
+    
+    func getCurrentSector() -> Int {
+        // Assume scene X bounds are roughly -35 to 35, Y bounds -10 to 10
+        let x = CGFloat(agent.position.x)
+        let y = CGFloat(agent.position.y)
+        
+        let col: Int
+        if x < -11.6 { col = 0 }
+        else if x > 11.6 { col = 2 }
+        else { col = 1 }
+        
+        let row: Int
+        if y < -3.3 { row = 2 }
+        else if y > 3.3 { row = 0 }
+        else { row = 1 }
+        
+        return row * 3 + col
+    }
+    
+    func getCoordinatesForSector(_ sector: Int) -> (CGFloat, CGFloat) {
+        let row = sector / 3
+        let col = sector % 3
+        
+        let tx: CGFloat
+        switch col {
+        case 0: tx = CGFloat.random(in: -35.0...(-11.6))
+        case 1: tx = CGFloat.random(in: -11.6...11.6)
+        default: tx = CGFloat.random(in: 11.6...35.0)
+        }
+        
+        let ty: CGFloat
+        switch row {
+        case 0: ty = CGFloat.random(in: 3.3...10.0)
+        case 1: ty = CGFloat.random(in: -3.3...3.3)
+        default: ty = CGFloat.random(in: -10.0...(-3.3))
+        }
+        
+        return (tx, ty)
     }
     
     // For when the user clicks 'Talk to me'
@@ -1070,6 +1094,108 @@ class PetBrain {
             stateMachine.enter(PetWanderState.self)
         } else {
             applyAction(petAction)
+        }
+    }
+}
+
+// MARK: - QLearningManager
+
+class QLearningManager {
+    static let shared = QLearningManager()
+    
+    // Hyperparameters
+    private let alpha: Double = 0.1   // Learning rate
+    private let gamma: Double = 0.9   // Discount factor
+    private let epsilon: Double = 0.2 // Exploration rate
+    
+    // Q-Table mapping "state_action" -> Q-Value
+    private var qTable: [String: Double] = [:]
+    
+    // We assume 9 sectors (0 to 8) in a 3x3 grid
+    private let numStates = 9
+    private let numActions = 9
+    
+    private let userDefaultsKey = "PetQTable"
+    
+    private init() {
+        loadQTable()
+    }
+    
+    private func getQValue(state: Int, action: Int) -> Double {
+        let key = "\(state)_\(action)"
+        return qTable[key] ?? 0.0
+    }
+    
+    private func setQValue(state: Int, action: Int, value: Double) {
+        let key = "\(state)_\(action)"
+        qTable[key] = value
+    }
+    
+    /// Chooses the next sector to walk to based on epsilon-greedy policy
+    func chooseAction(state: Int) -> Int {
+        if Double.random(in: 0...1) < epsilon {
+            // Explore: Pick a random action
+            return Int.random(in: 0..<numActions)
+        } else {
+            // Exploit: Pick the action with the highest Q-value for the current state
+            var bestAction = 0
+            var maxQValue = -Double.greatestFiniteMagnitude
+            
+            // Collect all actions with the max Q-value to break ties randomly
+            var bestActions: [Int] = []
+            
+            for action in 0..<numActions {
+                let qVal = getQValue(state: state, action: action)
+                if qVal > maxQValue {
+                    maxQValue = qVal
+                    bestActions = [action]
+                } else if abs(qVal - maxQValue) < 0.001 {
+                    bestActions.append(action)
+                }
+            }
+            
+            return bestActions.randomElement() ?? Int.random(in: 0..<numActions)
+        }
+    }
+    
+    /// Updates the Q-Value using the Q-learning formula
+    func updateQValue(state: Int, action: Int, reward: Double, nextState: Int) {
+        let currentQ = getQValue(state: state, action: action)
+        
+        var maxNextQ = -Double.greatestFiniteMagnitude
+        for nextAction in 0..<numActions {
+            let nextQ = getQValue(state: nextState, action: nextAction)
+            if nextQ > maxNextQ {
+                maxNextQ = nextQ
+            }
+        }
+        
+        let newQ = currentQ + alpha * (reward + gamma * maxNextQ - currentQ)
+        setQValue(state: state, action: action, value: newQ)
+        
+        saveQTable()
+    }
+    
+    /// Applies an immediate reward for the most recent state and action
+    func applyReward(_ reward: Double, state: Int?, action: Int?) {
+        guard let s = state, let a = action else { return }
+        
+        let currentQ = getQValue(state: s, action: a)
+        // Simplified Q-learning update for immediate reward without next state maxQ
+        let newQ = currentQ + alpha * (reward - currentQ)
+        setQValue(state: s, action: a, value: newQ)
+        
+        print("QLearningManager: Updated Q-Value for [\(s)] -> \(a): \(newQ)")
+        saveQTable()
+    }
+    
+    private func saveQTable() {
+        UserDefaults.standard.set(qTable, forKey: userDefaultsKey)
+    }
+    
+    private func loadQTable() {
+        if let savedTable = UserDefaults.standard.dictionary(forKey: userDefaultsKey) as? [String: Double] {
+            qTable = savedTable
         }
     }
 }

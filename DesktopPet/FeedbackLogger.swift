@@ -9,6 +9,7 @@ enum FeedbackType {
 struct FeedbackEvent {
     let timestamp: Date
     let context: String
+    let metadata: String
     let type: FeedbackType
 }
 
@@ -22,20 +23,29 @@ class FeedbackLogger {
     
     private init() {}
     
+    private func gatherMetadata() -> String {
+        let currentApp = DesktopEnvironmentManager.shared.activeAppTracker
+        let timeOfDay = PetRoutinePhase.current().rawValue
+        let hasActiveWindows = !DesktopEnvironmentManager.shared.visibleElements.filter({ $0.type == .window }).isEmpty
+        return "Time: \(timeOfDay), Active App: \(currentApp), Windows Open: \(hasActiveWindows)"
+    }
+    
     func logNegative(context: String) {
-        let event = FeedbackEvent(timestamp: Date(), context: context, type: .negative)
+        let event = FeedbackEvent(timestamp: Date(), context: context, metadata: gatherMetadata(), type: .negative)
         addEvent(event)
         print("FeedbackLogger: Logged NEGATIVE feedback for '\(context)'")
+        ReinforcementLearningModel.shared.applyReward(-10.0) // Strong penalty for annoyance
     }
     
     func logPositive(context: String) {
-        let event = FeedbackEvent(timestamp: Date(), context: context, type: .positive)
+        let event = FeedbackEvent(timestamp: Date(), context: context, metadata: gatherMetadata(), type: .positive)
         addEvent(event)
         print("FeedbackLogger: Logged POSITIVE feedback for '\(context)'")
+        ReinforcementLearningModel.shared.applyReward(2.0) // Positive reinforcement
     }
     
     func logExplicit(comment: String, context: String) {
-        let event = FeedbackEvent(timestamp: Date(), context: context, type: .explicit(comment))
+        let event = FeedbackEvent(timestamp: Date(), context: context, metadata: gatherMetadata(), type: .explicit(comment))
         addEvent(event)
         print("FeedbackLogger: Logged EXPLICIT feedback '\(comment)' for '\(context)'")
     }
@@ -55,11 +65,11 @@ class FeedbackLogger {
             let timeStr = DateFormatter.localizedString(from: event.timestamp, dateStyle: .none, timeStyle: .short)
             switch event.type {
             case .positive:
-                summary += "[\(timeStr)] SUCCESS: User reacted positively to '\(event.context)'\n"
+                summary += "[\(timeStr)] SUCCESS: User reacted positively to '\(event.context)'. Environment at the time: (\(event.metadata))\n"
             case .negative:
-                summary += "[\(timeStr)] FAILURE: User reacted negatively (e.g. dragged away or interrupted) to '\(event.context)'\n"
+                summary += "[\(timeStr)] FAILURE: User reacted negatively (e.g. dragged away or interrupted) to '\(event.context)'. Environment at the time: (\(event.metadata))\n"
             case .explicit(let comment):
-                summary += "[\(timeStr)] DIRECT COMMENT: User said '\(comment)' regarding '\(event.context)'\n"
+                summary += "[\(timeStr)] DIRECT COMMENT: User said '\(comment)' regarding '\(event.context)'. Environment at the time: (\(event.metadata))\n"
             }
         }
         return summary

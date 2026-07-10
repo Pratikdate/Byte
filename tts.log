@@ -1,0 +1,368 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING: Defaulting repo_id to hexgrad/Kokoro-82M. Pass repo_id='hexgrad/Kokoro-82M' to suppress this warning.
+Starting Kokoro TTS Server on port 8000...
+ * Serving Flask app 'tts_server'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://10.224.46.9:8000
+[33mPress CTRL+C to quit[0m
+10.224.46.9 - - [09/Jul/2026 21:05:32] "[33mGET / HTTP/1.1[0m" 404 -
+10.224.46.9 - - [09/Jul/2026 21:05:33] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+127.0.0.1 - - [09/Jul/2026 21:13:18] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:18] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:18] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:19] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:19] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:19] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:34] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:35] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:35] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:42] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:50] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:50] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:13:51] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:04] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:04] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:05] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:30] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:45] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:45] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:54] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:14:54] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:15:04] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:05] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:05] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:11] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:15] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:15] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:21] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:22] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:23] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:34] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:50] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:50] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:51] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:51] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:59] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:17:59] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:18:09] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:18:09] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:18:19] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:18:27] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:18:27] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:18:36] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:18:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:18:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:18:44] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:19:07] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:19:16] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:19:16] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:19:26] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:19:45] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:19:54] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:20:18] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:20:18] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:20:19] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:20:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:20:38] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:20:59] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:21:20] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:21:21] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:21:21] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:21:28] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:21:29] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:21:29] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:24:43] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:24:52] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:01] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:20] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:20] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:21] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:27] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:27] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:35] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:36] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:36] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:43] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:44] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:25:54] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:26:03] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:26:21] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:26:30] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:26:31] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:26:31] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:26:43] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:01] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:02] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:11] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:12] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:22] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:33] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:33] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:34] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:50] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:27:50] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:28:17] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:29:30] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:29:40] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:29:41] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:29:48] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:29:48] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:29:57] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:29:58] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:30:07] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:30:17] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:30:34] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:30:34] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:30:45] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:30:54] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:30:55] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:30:55] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:31:27] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:31:28] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:31:48] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:31:48] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:31:49] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:32:06] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:32:15] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:32:16] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:32:26] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:32:26] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:32:51] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:32:51] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:33:14] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:33:22] "POST /synthesize HTTP/1.1" 200 -
+Synthesizing: 'Hey, don't poke me!' at speed 1
+Synthesizing: 'Hahaha! Stop!' at speed 1.2000000476837158
+Synthesizing: 'Hmm,' at speed 0.800000011920929
+Synthesizing: 'lots of code on the screen today...' at speed 0.800000011920929
+Synthesizing: 'glances around' at speed 0.800000011920929
+Synthesizing: 'Hey, don't poke me!' at speed 1
+Synthesizing: 'Hey, don't poke me!' at speed 0.800000011920929
+Synthesizing: 'So sleepy...' at speed 1
+Synthesizing: 'words are getting fuzzy...' at speed 1
+Synthesizing: 'Stretching here to take in the view.' at speed 0.800000011920929
+Synthesizing: 'Zzz...' at speed 0.800000011920929
+Synthesizing: 'maybe I'll just rest here for a bit...' at speed 0.800000011920929
+Synthesizing: 'Hey, don't poke me!' at speed 1
+Synthesizing: 'Hmm,' at speed 0.800000011920929
+Synthesizing: 'lots of code on the screen today...' at speed 0.800000011920929
+Synthesizing: 'and I wonder what kind of project Pratik is working on.' at speed 0.800000011920929
+Synthesizing: 'yawns so sleepy...' at speed 0.800000011920929
+Synthesizing: 'Ah,' at speed 0.800000011920929
+Synthesizing: 'maybe I can just...' at speed 0.800000011920929
+Synthesizing: 'relax for a bit longer.' at speed 0.800000011920929
+Synthesizing: 'Hmm,' at speed 0.800000011920929
+Synthesizing: 'lots of code on the screen today...' at speed 0.800000011920929
+Synthesizing: 'Ugh,' at speed 1
+Synthesizing: 'another long day at the desk...' at speed 1
+Synthesizing: 'yawns so sleepy...' at speed 0.800000011920929
+Synthesizing: 'AH!' at speed 1
+Synthesizing: 'Hey!' at speed 1
+Synthesizing: 'Hey, don't poke me!' at speed 0.800000011920929
+Synthesizing: 'Muttering to myself Too much focus on that Antigravity IDE project...' at speed 1
+Synthesizing: 'hope Pradeep's enthusiasm rubs off.' at speed 1
+Synthesizing: 'Hmm...' at speed 0.800000011920929
+Synthesizing: 'lots of code on the screen today...' at speed 0.800000011920929
+Synthesizing: 'still trying to understand this Antigravity IDE project...' at speed 0.800000011920929
+Synthesizing: 'yawns so sleepy...' at speed 1
+Synthesizing: 'Oh,' at speed 0.800000011920929
+Synthesizing: 'sorry about that...' at speed 0.800000011920929
+Synthesizing: 'I think I got a bit distracted.' at speed 0.800000011920929
+Synthesizing: 'Are you all set for a while longer or do you need a break?' at speed 0.800000011920929
+Synthesizing: 'Hmm,' at speed 0.800000011920929
+Synthesizing: 'lots of code today...' at speed 0.800000011920929
+Synthesizing: 'Oh dear,' at speed 0.800000011920929
+Synthesizing: 'I hope I don't get too stiff...' at speed 0.800000011920929
+Synthesizing: 'yawns so sleepy...' at speed 0.800000011920929
+Synthesizing: 'Zzz...' at speed 0.800000011920929
+Synthesizing: 'so peaceful here on the desktop...' at speed 0.800000011920929
+Synthesizing: 'Hmm,' at speed 1
+Synthesizing: 'lots of code today...' at speed 1
+Synthesizing: 'might be time for a little desktop stroll.' at speed 1
+Synthesizing: 'Let's see where this desktop takes me...' at speed 0.800000011920929
+Synthesizing: 'yawns so sleepy...' at speed 0.800000011920929
+Synthesizing: 'Hmm...' at speed 0.800000011920929
+Synthesizing: 'a quiet perch it is.' at speed 0.800000011920929
+Synthesizing: 'Time for a little stroll...' at speed 0.800000011920929
+Synthesizing: 'I'll just quietly watch over Pratik's shoulder for a bit...' at speed 0.800000011920929
+Synthesizing: 'yawn just a little bit more...' at speed 0.800000011920929
+Synthesizing: 'Hmm,' at speed 0.800000011920929
+Synthesizing: 'lots of code today...' at speed 0.800000011920929
+Synthesizing: 'the user seems absorbed in their work.' at speed 0.800000011920929
+Synthesizing: 'Maybe I'll just take a little peek at what's on the other side of this window...' at speed 0.800000011920929
+Synthesizing: 'drifts off Zzz...' at speed 0.800000011920929
+Synthesizing: 'yawn just a little bit more...' at speed 0.800000011920929
+Synthesizing: 'Ah,' at speed 0.800000011920929
+Synthesizing: 'excuse me...' at speed 0.800000011920929
+Synthesizing: 'so cozy here.' at speed 0.800000011920929
+Synthesizing: 'Hmm...' at speed 0.800000011920929
+Synthesizing: 'lots of code today...' at speed 0.800000011920929
+Synthesizing: 'wonder if Pratik will take a break soon.' at speed 0.800000011920929
+Synthesizing: 'yawns so cozy here...' at speed 0.800000011920929
+Synthesizing: 'sigh so cozy here...' at speed 0.800000011920929
+Synthesizing: 'drifts around...' at speed 0.800000011920929
+Synthesizing: 'Hmm...' at speed 0.800000011920929
+Synthesizing: 'so cozy here...' at speed 0.800000011920929
+Synthesizing: 'Zzz...' at speed 0.800000011920929
+Synthesizing: 'yawn...' at speed 0.800000011920929
+Synthesizing: 'evening already...' at speed 0.800000011920929
+Synthesizing: 'Hmm,' at speed 0.800000011920929
+Synthesizing: 'lots of code today...' at speed 0.800000011920929
+Synthesizing: 'seems to be taking up a lot of your time.' at speed 0.800000011920929
+Synthesizing: 'Ugh,' at speed 0.800000011920929
+Synthesizing: 'too much coding today...' at speed 0.800000011920929
+Synthesizing: 'stretches slightly' at speed 0.800000011920929
+Synthesizing: 'I think I'll just take a little stroll around...' at speed 0.800000011920929
+Synthesizing: 'yawns so sleepy...' at speed 1
+Synthesizing: 'Hmm,' at speed 0.800000011920929
+Synthesizing: 'lots of code today...' at speed 0.800000011920929
+Synthesizing: 'seems to be taking up a lot of Pratik's time.' at speed 0.800000011920929
+Synthesizing: 'Time for a little screen exploration...' at speed 0.800000011920929
+Synthesizing: 'Uhh...' at speed 0.800000011920929
+Synthesizing: 'need a little adjustment' at speed 0.800000011920929
+Synthesizing: 'Hmm...' at speed 0.800000011920929
+Synthesizing: 'just observing the code unfold...' at speed 0.800000011920929
+Synthesizing: 'yawns so sleepy...' at speed 0.800000011920929
+Synthesizing: 'dozes off for a second before snapping back awake Hmm,' at speed 0.800000011920929
+Synthesizing: 'lots of code today...' at speed 0.800000011920929
+Synthesizing: 'still running in the background.' at speed 0.800000011920929
+Synthesizing: 'Hmm...' at speed 0.800000011920929
+Synthesizing: 'wondering what's behind this window...' at speed 0.800000011920929
+Synthesizing: 'Just exploring the desktop while you focus...' at speed 0.800000011920929
+Synthesizing: 'yawn Sorry about that...' at speed 0.800000011920929
+Synthesizing: 'stretches tall,' at speed 0.800000011920929
+Synthesizing: 'then slowly shrinks back So sleepy...' at speed 0.800000011920929
+Synthesizing: 'Zzz...' at speed 0.800000011920929
+Synthesizing: 'so cozy here...' at speed 0.800000011920929
+Synthesizing: 'Hmm...' at speed 0.800000011920929
+Synthesizing: 'lots of code today...' at speed 0.800000011920929
+Synthesizing: 'yawns So long coding session...' at speed 0.800000011920929
+Synthesizing: 'Maybe I'll just take a little peek over here...' at speed 0.800000011920929
+Synthesizing: 'yawn...' at speed 1
+Synthesizing: 'where's the coffee cup?' at speed 1
+Synthesizing: 'yawn so cozy here...' at speed 0.800000011920929
+Synthesizing: 'Hmm...' at speed 0.800000011920929
+Synthesizing: 'lots of code today...' at speed 0.800000011920929
+Synthesizing: 'I wonder if Pratik's friend talks about problems too?' at speed 0.800000011920929
+Synthesizing: 'You've been focused on that Antigravity IDE project for a while now.' at speed 0.800000011920929
+Synthesizing: 'Why don't you take a break and grab some fresh air?' at speed 0.800000011920929
+Synthesizing: 'I see you're enjoying the Antigravity IDE project,' at speed 0.800000011920929
+Synthesizing: 'and I'm here to help whenever you need it.' at speed 0.800000011920929
+Synthesizing: 'What's new with your coding today?' at speed 0.800000011920929
+Synthesizing: 'yawns so sleepy...' at speed 0.800000011920929
+Synthesizing: 'Hmm...' at speed 1
+Synthesizing: 'lots of code today...' at speed 1
+Synthesizing: 'Thinking...' at speed 1
+Synthesizing: 'maybe just resting here for a bit...' at speed 1
+Synthesizing: 'Ah,' at speed 0.800000011920929
+Synthesizing: 'nice evening view...' at speed 0.800000011920929
+Synthesizing: 'yawns so sleepy...' at speed 0.800000011920929
+Synthesizing: 'stretches slightly...' at speed 0.800000011920929
+Synthesizing: 'Hmm,' at speed 0.800000011920929127.0.0.1 - - [09/Jul/2026 21:33:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:33:38] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:33:38] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:33:56] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:33:57] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:33:57] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:15] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:16] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:16] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:16] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:39] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:39] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:47] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:47] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:55] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:55] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:34:56] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:35:03] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:35:04] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:35:27] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:35:27] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:35:40] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:35:40] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:35:50] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jul/2026 21:35:59] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:19:30] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:19:31] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:19:41] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:19:41] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:19:50] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:20:06] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:20:07] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:20:20] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:20:20] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:20:43] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:20:53] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:21:13] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:21:28] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:21:49] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:21:49] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:21:57] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:22:24] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:22:24] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:22:31] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:22:51] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:22:52] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:22:52] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:22:53] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:23:06] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:23:22] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:23:23] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:23:24] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:23:32] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:23:43] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:23:53] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:23:54] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:23:55] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:24:17] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:24:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:24:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:24:52] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:24:53] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:25:07] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:25:23] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:25:34] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:25:35] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:25:53] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:25:54] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:20] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:21] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:22] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:23] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:32] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:35] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:50] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:51] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:51] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:27:52] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:28:17] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:28:18] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:28:44] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:28:46] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:28:58] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:28:59] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:28:59] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:12] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:12] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:13] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:27] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:29] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:35] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:36] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:37] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:45] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:53] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:29:54] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:30:26] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:30:27] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:30:53] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:30:54] "POST /synthesize HTTP/1.1" 200 -
+127.0.0.1 - - [10/Jul/2026 10:31:13] "POST /synthesize HTTP/1.1" 200 -
