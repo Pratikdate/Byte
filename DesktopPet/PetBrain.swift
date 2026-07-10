@@ -284,6 +284,7 @@ class PetBrain {
     private var queryGeneration = 0
     var forceUpdate = false
     var isMuted = false
+    var isTrainingMode = false
     
     init() {
         stateMachine.enter(PetIdleState.self) // Start idle — let AI decide what to do first
@@ -1172,6 +1173,19 @@ class QLearningManager {
         let newQ = currentQ + alpha * (reward + gamma * maxNextQ - currentQ)
         setQValue(state: state, action: action, value: newQ)
         
+        saveQTable()
+    }
+    
+    /// Applies an immediate reward for the most recent state and action
+    func applyReward(_ reward: Double, state: Int?, action: Int?) {
+        guard let s = state, let a = action else { return }
+        
+        let currentQ = getQValue(state: s, action: a)
+        // Simplified Q-learning update for immediate reward without next state maxQ
+        let newQ = currentQ + alpha * (reward - currentQ)
+        setQValue(state: s, action: a, value: newQ)
+        
+        print("QLearningManager: Updated Q-Value for [\(s)] -> \(a): \(newQ)")
         saveQTable()
     }
     

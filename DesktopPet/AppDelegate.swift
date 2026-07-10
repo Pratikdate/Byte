@@ -78,6 +78,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     var updateTimer: Timer?
     var statusItem: NSStatusItem?
     var emotionUpdateTimer: Timer?
+    var trainingWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let screenRect = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
@@ -306,6 +307,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         
         menu.addItem(NSMenuItem.separator())
         
+        let trainingItem = NSMenuItem(title: "🎓 Training Mode", action: #selector(toggleTrainingMode(_:)), keyEquivalent: "")
+        trainingItem.state = .off
+        menu.addItem(trainingItem)
+        
+        menu.addItem(NSMenuItem.separator())
+        
         // Test Animations Sub-Menu
         let animationsMenu = NSMenu()
         let animations: [(String, Int)] = [
@@ -379,6 +386,34 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         } else {
             AIEngine.shared.provider = GeminiAPIProvider(apiKey: "AQ.Ab8RN6JquuZTkTTYuwK4u8G1zZeUG6NXcKmWbqVohVFvSbyawA")
             sender.state = .on
+        }
+    }
+    
+    @objc private func toggleTrainingMode(_ sender: NSMenuItem) {
+        guard let scene = scnView.scene as? PetScene else { return }
+        scene.brain.isTrainingMode.toggle()
+        let isTraining = scene.brain.isTrainingMode
+        sender.state = isTraining ? .on : .off
+        
+        if isTraining {
+            if trainingWindow == nil {
+                let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+                let view = NSHostingView(rootView: TrainingFeedbackView(getBrain: { [weak scene] in return scene?.brain }))
+                view.frame = NSRect(x: 0, y: 0, width: 200, height: 120)
+                
+                let win = NSWindow(contentRect: NSRect(x: screenRect.maxX - 220, y: screenRect.maxY - 140, width: 200, height: 120),
+                                   styleMask: [.borderless],
+                                   backing: .buffered,
+                                   defer: false)
+                win.isOpaque = false
+                win.backgroundColor = .clear
+                win.level = .floating
+                win.contentView = view
+                trainingWindow = win
+            }
+            trainingWindow?.makeKeyAndOrderFront(nil)
+        } else {
+            trainingWindow?.orderOut(nil)
         }
     }
     

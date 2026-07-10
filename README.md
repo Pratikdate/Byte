@@ -19,9 +19,10 @@
 ## 🌟 Key Features
 
 ### 🧠 True Machine Learning & Autonomous Brain
-- **Q-Learning Action Model**: Byte's autonomous actions (wandering, sleeping, sitting) are entirely data-driven. He evaluates your current environment state (time of day, active apps, attention state) and uses a native Swift Reinforcement Learning model (`ReinforcementLearningModel`) to pick the mathematically best action.
-- **Reflection Engine & Memory Graph**: Byte learns from your feedback! When he goes to sleep, he triggers a self-reflection loop (`ReflectionEngine`) that analyzes recent interactions and deduces permanent behavioral rules (saved in a `MemoryGraph`).
-- **Context-Aware Intent Deduction**: Powered by a local LLM (`AIEngine`), Byte doesn't just parse rigid commands; he infers your intent from long, complex, or even broken sentences.
+Byte relies on a robust hybrid Machine Learning stack running entirely offline on your Mac. For a complete technical deep-dive into the AI architecture, training loops, and memory consolidation, please read our [Machine Learning Architecture](ML_ARCHITECTURE.md) document.
+- **Q-Learning Action Model**: Byte's autonomous actions (wandering, sleeping, sitting) are entirely data-driven. He evaluates your current environment state (time of day, active apps, attention state) and uses a native Swift Reinforcement Learning model (`ReinforcementLearningModel`) to pick the mathematically best action based on the Bellman equation.
+- **Reflection Engine & Memory Graph**: Byte learns from your feedback! When he goes to sleep, he triggers a self-reflection loop (`ReflectionEngine`). A local LLM acts as an offline trainer, analyzing recent interactions and deducing permanent behavioral rules (saved in a `MemoryGraph`).
+- **Context-Aware Intent Deduction**: Powered by a local LLM (`AIEngine`), Byte doesn't just parse rigid commands; he infers your intent from long, complex, or even broken sentences using zero-shot inference.
 
 ### 🗣️ Local Voice & AI Capabilities
 - **On-Device Voice I/O**: Completely private and offline voice parsing using `faster-whisper` for Speech-to-Text and `Kokoro` for hyper-realistic Text-to-Speech (`VoiceInputManager`).

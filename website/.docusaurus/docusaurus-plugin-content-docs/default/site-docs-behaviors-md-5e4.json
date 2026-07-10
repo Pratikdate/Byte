@@ -1,0 +1,28 @@
+{
+  "id": "behaviors",
+  "title": "Behavior Repertoire",
+  "description": "This document details the concrete list of actions Byte can perform. Each of these is a candidate action that the Utility AI (detailed in the State Engine) can select.",
+  "source": "@site/docs/behaviors.md",
+  "sourceDirName": ".",
+  "slug": "/behaviors",
+  "permalink": "/Byte/docs/behaviors",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "id": "behaviors",
+    "title": "Behavior Repertoire",
+    "sidebar_position": 3
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "State Engine & Emotions",
+    "permalink": "/Byte/docs/state-engine"
+  },
+  "next": {
+    "title": "Sensors & OS Integration",
+    "permalink": "/Byte/docs/sensors-and-os"
+  }
+}

@@ -2,16 +2,24 @@ import AVFoundation
 
 /// Fallback TTS using macOS native speech synthesis
 /// Used when Kokoro server is not available
-class SystemTTSFallback {
+class SystemTTSFallback: NSObject, AVSpeechSynthesizerDelegate {
 
-    private static let synthesizer = AVSpeechSynthesizer()
+    static let shared = SystemTTSFallback()
+    private let synthesizer = AVSpeechSynthesizer()
+    private var completion: (() -> Void)?
 
-    static func speak(_ text: String, emotion: String = "neutral") {
+    private override init() {
+        super.init()
+        synthesizer.delegate = self
+    }
+
+    func speak(_ text: String, emotion: String = "neutral", completion: (() -> Void)? = nil) {
+        self.completion = completion
         let utterance = AVSpeechUtterance(string: text)
 
         // Map emotion to speech characteristics
-        utterance.rate = speechRateForEmotion(emotion)
-        utterance.pitchMultiplier = pitchForEmotion(emotion)
+        utterance.rate = SystemTTSFallback.speechRateForEmotion(emotion)
+        utterance.pitchMultiplier = SystemTTSFallback.pitchForEmotion(emotion)
         utterance.volume = 0.9
 
         // Use system voice
@@ -23,10 +31,17 @@ class SystemTTSFallback {
     }
 
     /// Immediately stop any in-progress speech (barge-in).
-    static func stop() {
+    func stop() {
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }
+        completion?()
+        completion = nil
+    }
+
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        completion?()
+        completion = nil
     }
 
     private static func speechRateForEmotion(_ emotion: String) -> Float {

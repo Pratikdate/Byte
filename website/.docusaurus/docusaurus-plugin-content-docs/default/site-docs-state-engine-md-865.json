@@ -1,0 +1,28 @@
+{
+  "id": "state-engine",
+  "title": "State Engine & Emotions",
+  "description": "At the core of Byte's personality is the State Engine (implemented in plain Swift), operating at a ~10Hz tick. Unlike traditional game characters that rely on rigid dispatch tables (event → animation), Byte's behavior and emotions emerge dynamically from continuously evaluating internal variables.",
+  "source": "@site/docs/state-engine.md",
+  "sourceDirName": ".",
+  "slug": "/state-engine",
+  "permalink": "/Byte/docs/state-engine",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "id": "state-engine",
+    "title": "State Engine & Emotions",
+    "sidebar_position": 2
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Core Architecture",
+    "permalink": "/Byte/docs/architecture"
+  },
+  "next": {
+    "title": "Behavior Repertoire",
+    "permalink": "/Byte/docs/behaviors"
+  }
+}

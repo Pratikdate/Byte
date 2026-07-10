@@ -1,0 +1,24 @@
+{
+  "id": "sensors-and-os",
+  "title": "Sensors & OS Integration",
+  "description": "Byte uses native macOS APIs to passively monitor the system and environment without polling. All sensor data is passed to the State Engine to gently nudge internal variables. Sensors never call rendering or emotion resolution directly.",
+  "source": "@site/docs/sensors-and-os.md",
+  "sourceDirName": ".",
+  "slug": "/sensors-and-os",
+  "permalink": "/Byte/docs/sensors-and-os",
+  "draft": false,
+  "unlisted": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "id": "sensors-and-os",
+    "title": "Sensors & OS Integration",
+    "sidebar_position": 4
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Behavior Repertoire",
+    "permalink": "/Byte/docs/behaviors"
+  }
+}
