@@ -10,8 +10,13 @@ class AudioManager {
     private let kokoroEndpoint = "http://localhost:8000/synthesize"
 
     private let audioEngine = AVAudioEngine()
-    private var audioPlayer: AVAudioPlayerNode?
+    private let audioPlayer = AVAudioPlayerNode()
     private let audioQueue = DispatchQueue(label: "com.byte.audio.queue")
+    
+    init() {
+        audioEngine.attach(audioPlayer)
+        audioEngine.connect(audioPlayer, to: audioEngine.mainMixerNode, format: nil)
+    }
 
     var onTranscriptionUpdate: ((String) -> Void)?
     var onTranscriptionFinished: ((String) -> Void)?
@@ -34,7 +39,7 @@ class AudioManager {
         }
     }
 
-    func stopListening() {
+    func stopListening(completion: ((String) -> Void)? = nil) {
         audioQueue.async {
             self.isListening = false
             if self.audioEngine.isRunning {
@@ -45,29 +50,40 @@ class AudioManager {
 
             // Flush the final accumulated buffer if we have one
             if !self.accumulatedAudio.isEmpty {
-                self.forceSendAudioToWhisper()
+                self.forceSendAudioToWhisper(completion: completion)
+            } else {
+                DispatchQueue.main.async { completion?("") }
             }
         }
     }
 
-    private func forceSendAudioToWhisper() {
+    private func forceSendAudioToWhisper(completion: ((String) -> Void)? = nil) {
         let dataToSend = self.accumulatedAudio
-        guard let url = URL(string: self.whisperEndpoint) else { return }
+        guard let url = URL(string: self.whisperEndpoint) else {
+            DispatchQueue.main.async { completion?("") }
+            return
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         request.httpBody = dataToSend
-        request.timeoutInterval = 2.0
+        request.timeoutInterval = 10.0 // Allow time for Whisper to process the final chunk
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
+            var finalString = ""
             if let json = try? JSONSerialization.jsonObject(with: data ?? Data()) as? [String: Any],
                let text = json["text"] as? String, !text.isEmpty {
-                DispatchQueue.main.async {
-                    self.onTranscriptionUpdate?(text)
-                    self.onTranscriptionFinished?(text)
+                finalString = text
+            }
+            
+            DispatchQueue.main.async {
+                if !finalString.isEmpty {
+                    self.onTranscriptionUpdate?(finalString)
+                    self.onTranscriptionFinished?(finalString)
                 }
+                completion?(finalString)
             }
         }.resume()
     }
@@ -206,7 +222,7 @@ class AudioManager {
         downloadQueue.removeAll()
         readyAudioQueue.removeAll()
         audioQueue.async {
-            self.audioPlayer?.stop()
+            self.audioPlayer.stop()
         }
         SystemTTSFallback.shared.stop()
         isSpeaking = false
@@ -345,38 +361,29 @@ class AudioManager {
             try audioData.write(to: tempURL)
 
             let audioFile = try AVAudioFile(forReading: tempURL)
-            let playerNode = AVAudioPlayerNode()
 
-            // Detach any existing player nodes to prevent resource leaks
-            if let existingPlayer = audioPlayer {
-                audioEngine.detach(existingPlayer)
+            if !audioEngine.isRunning {
+                try audioEngine.start()
             }
 
-            audioEngine.attach(playerNode)
-            audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: audioFile.processingFormat)
+            audioPlayer.scheduleFile(audioFile, at: nil) {
+                // Re-calculate actual duration in case of delays
+                let sampleRate = Double(audioFile.processingFormat.sampleRate)
+                let duration = sampleRate > 0 ? Double(audioFile.length) / sampleRate : 1.0
 
-            try audioEngine.start()
-            playerNode.play()
-            try playerNode.scheduleFile(audioFile, at: nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.1) {
+                    self.isSpeaking = false
+                    if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
+                        self.onSpeakingFinished?()
+                    }
 
-            audioPlayer = playerNode
-
-            // Calculate duration with precision
-            let sampleRate = Double(audioFile.processingFormat.sampleRate)
-            let duration = sampleRate > 0 ? Double(audioFile.length) / sampleRate : 1.0
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-                self.isSpeaking = false
-                if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
-                    self.onSpeakingFinished?()
+                    // Clean up
+                    try? FileManager.default.removeItem(at: tempURL)
+                    self.processPlaybackQueue()
                 }
-
-                // Clean up
-                playerNode.stop()
-                try? FileManager.default.removeItem(at: tempURL)
-                
-                self.processPlaybackQueue()
             }
+            audioPlayer.play()
+
         } catch {
             print("[AudioManager] Audio playback error: \(error)")
             isSpeaking = false

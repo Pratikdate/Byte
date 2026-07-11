@@ -45,9 +45,11 @@ class VoiceInputManager {
     }
 
     func finishListeningWithResult(completion: @escaping (String) -> Void) {
-        audioManager.stopListening()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            completion(self.currentTranscript)
+        audioManager.stopListening { finalTranscript in
+            DispatchQueue.main.async {
+                let textToReturn = finalTranscript.isEmpty ? self.currentTranscript : finalTranscript
+                completion(textToReturn)
+            }
         }
     }
 

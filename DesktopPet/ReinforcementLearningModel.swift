@@ -87,6 +87,27 @@ class ReinforcementLearningModel {
         return .idle
     }
     
+    func getTopActions(for state: RLState, count: Int) -> [PetAction] {
+        guard let stateActions = qTable[state], !stateActions.isEmpty else {
+            // Return random actions if we don't have enough data
+            return Array(availableActions.shuffled().prefix(count))
+        }
+        
+        let sorted = stateActions.sorted { $0.value > $1.value }
+        let topNames = sorted.prefix(count).map { $0.key }
+        
+        let topActions = topNames.compactMap { PetAction(rawValue: $0) }
+        if topActions.isEmpty {
+            return Array(availableActions.shuffled().prefix(count))
+        }
+        return topActions
+    }
+    
+    func recordLLMAction(state: RLState, action: PetAction) {
+        self.lastState = state
+        self.lastAction = action
+    }
+    
     private func isNoisy(_ action: PetAction) -> Bool {
         return [.jump, .spin, .dance, .backflip, .headbang, .sneeze, .tapWindow, .pushWidget].contains(action)
     }

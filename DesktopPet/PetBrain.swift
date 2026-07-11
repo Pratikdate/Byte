@@ -80,8 +80,21 @@ class PetIdleState: PetBaseState {
             brain.currentAction = .idle
         }
         actionTimer = 0
-        // Make the idle time shorter so he decides to do things faster
-        nextActionTime = TimeInterval.random(in: 1.0...4.0)
+        
+        // Let's set a realistic delay based on user attention so he sits for a while!
+        if brain.exploreCount > 0 {
+            nextActionTime = TimeInterval.random(in: 1.0...2.0)
+        } else {
+            switch InteractionDirector.shared.currentAttention() {
+            case .away:
+                nextActionTime = TimeInterval.random(in: 120.0...240.0)
+            case .idle:
+                nextActionTime = TimeInterval.random(in: 90.0...180.0)
+            default:
+                nextActionTime = TimeInterval.random(in: 30.0...60.0) // Sit for 30s-1m at least!
+            }
+        }
+        
         brain.agent.behavior = nil // Stop moving
     }
     
@@ -97,21 +110,20 @@ class PetIdleState: PetBaseState {
                 let nextActions: [PetAction] = [.wander, .jump, .spin, .investigate, .backflip, .wave]
                 let action = nextActions.randomElement()!
                 
-                // If it picked an animation, wait and then we will hit idle again and continue exploring.
-                // If it picked wander, he walks immediately!
                 brain.applyAction(action)
                 nextActionTime = TimeInterval.random(in: 1.0...2.0)
             } else {
-                // Pace autonomy to the user's attention: back off when they're idle/away.
+                brain.requestAmbientAction()
+                
+                // Calculate next delay for when we re-enter idle (or stay here)
                 switch InteractionDirector.shared.currentAttention() {
                 case .away:
                     nextActionTime = TimeInterval.random(in: 120.0...240.0)
                 case .idle:
                     nextActionTime = TimeInterval.random(in: 90.0...180.0)
                 default:
-                    nextActionTime = TimeInterval.random(in: 60.0...120.0)
+                    nextActionTime = TimeInterval.random(in: 30.0...60.0)
                 }
-                brain.requestAmbientAction()
             }
         }
     }
@@ -414,6 +426,10 @@ class PetBrain {
         let emotionStr = String(describing: currentEmotion)
         let actions = ["idle", "wander", "sleep", "jump", "sit", "spin", "dance", "stretch", "roll", "sitOnCorner", "sitOnMenuBar", "climbWindow", "pushWidget", "tapWindow", "sneeze", "backflip", "headbang", "wave"]
         
+        let currentState = ReinforcementLearningModel.shared.getCurrentState()
+        let topActions = ReinforcementLearningModel.shared.getTopActions(for: currentState, count: 3)
+        let recommendedActionNames = topActions.map { $0.rawValue }
+        
         // Show thinking while waiting
         currentEmotion = .thinking
         forceUpdate = true
@@ -421,7 +437,8 @@ class PetBrain {
         AIEngine.shared.generateAgentDecisionStreaming(
             context: context, 
             currentEmotion: emotionStr, 
-            availableActions: actions, 
+            availableActions: actions,
+            recommendedActions: recommendedActionNames,
             userMessage: userMessage,
             onAction: { [weak self] decision in
                 guard let self = self else { return }
@@ -430,8 +447,12 @@ class PetBrain {
                 if decision.target_x != nil || decision.target_y != nil {
                     let tx = decision.target_x.map { CGFloat($0) }
                     let ty = decision.target_y.map { CGFloat($0) }
+                    if let action = PetAction(rawValue: decision.action) {
+                        ReinforcementLearningModel.shared.recordLLMAction(state: currentState, action: action)
+                    }
                     self.handleSpatialCommand(action: decision.action, targetX: tx, targetY: ty)
                 } else if let action = PetAction(rawValue: decision.action) {
+                    ReinforcementLearningModel.shared.recordLLMAction(state: currentState, action: action)
                     self.applyAction(action)
                 } else {
                     self.evaluateNextAction()

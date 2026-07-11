@@ -291,6 +291,7 @@ class LocalOllamaProvider: NSObject, AIProvider {
             var actionParsed = false
             var parsedAction = "idle"
             var parsedEmotion = "normal"
+            var fullResponse = ""
             
             do {
                 let (bytes, response) = try await URLSession.shared.bytes(for: request)
@@ -308,6 +309,7 @@ class LocalOllamaProvider: NSObject, AIProvider {
                     }
                     
                     buffer += responseToken
+                    fullResponse += responseToken
                     
                     // 1. Parse [ACTION: xxx] and [EMOTION: xxx] before sending speech
                     if !actionParsed {
@@ -371,6 +373,18 @@ class LocalOllamaProvider: NSObject, AIProvider {
                     }
                     
                     if let done = json["done"] as? Bool, done {
+                        // Extract rule if present in fullResponse
+                        if let ruleRange = fullResponse.range(of: "[RULE: ") {
+                            let sub = fullResponse[ruleRange.upperBound...]
+                            if let endRange = sub.range(of: "]") {
+                                let rule = String(sub[..<endRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                                if !rule.isEmpty && rule.lowercased() != "none" {
+                                    print("AIEngine: Learned new rule at runtime: \(rule)")
+                                    MemoryGraph.shared.addBehavioralRule(rule)
+                                }
+                            }
+                        }
+
                         var remainder = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
                         remainder = remainder.replacingOccurrences(of: "\\[.*?\\]", with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
                         
@@ -586,7 +600,7 @@ class AIEngine {
         }
     }
     
-    func generateAgentDecision(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, completion: @escaping (AIAgentDecision?) -> Void) {
+    func generateAgentDecision(context: String, currentEmotion: String, availableActions: [String], recommendedActions: [String] = [], userMessage: String? = nil, completion: @escaping (AIAgentDecision?) -> Void) {
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
             userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully in the 'speech' field. Use VERY human-like, warm, and friendly language! Pay attention to the ENVIRONMENT CONTEXT—if the user says 'good morning' but it's night time, playfully correct them based on the current time and weather! If you don't know much about the user, proactively ask a personal question to build a bond. (Do NOT use emojis, because your response will be spoken aloud by a voice synthesizer!)\n\nSPATIAL COMMANDS: If the user asks you to do something, deduce their intent and pick the corresponding action from the AVAILABLE ACTIONS list. They might use long, indirect sentences (e.g., 'I am exhausted, let us take a break' -> 'sleep') or broken, casual phrasing (e.g., 'can you like... bounce around?' -> 'jump'). You do not need to hear exact command words; just read between the lines and match their underlying motive to an action.\n"
@@ -617,6 +631,7 @@ class AIEngine {
         YOUR BEHAVIORAL RULES:
         \(behavioralRules)
         YOUR CURRENT EMOTION: \(currentEmotion). \(emotionalTone)
+        RECOMMENDED ACTIONS (From Past Feedback): \(recommendedActions.isEmpty ? "None" : recommendedActions.joined(separator: ", "))
         \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
 
         ACTION DESCRIPTIONS:
@@ -650,9 +665,10 @@ class AIEngine {
         8. KEEP YOUR RESPONSE EXTREMELY SHORT. Never exceed 2 short sentences.
         9. DO NOT overuse the user's name. You should rarely say their name, unless explicitly greeting them.
         10. BE INTERESTING! Don't just walk or stand still. Frequently pick fun, expressive actions like backflip, sneeze, headbang, spin, or wave to match your dialogue!
+        11. If the user explicitly asks you to remember a rule, preference, or fact, you MUST output a tag [RULE: the rule to remember] at the very end of your response.
 
         Example Response:
-        [ACTION: sitOnCorner] [EMOTION: happy] On my way!
+        [ACTION: sitOnCorner] [EMOTION: happy] Got it, I'll remember that! [RULE: Do not talk when user is coding]
         """
 
         provider.generateAgentDecision(systemPrompt: systemPrompt) { decision in
@@ -675,7 +691,7 @@ class AIEngine {
         }
     }
     
-    func generateAgentDecisionStreaming(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, onAction: @escaping (AIAgentDecision) -> Void, onSentence: @escaping (String) -> Void, onComplete: @escaping () -> Void) {
+    func generateAgentDecisionStreaming(context: String, currentEmotion: String, availableActions: [String], recommendedActions: [String] = [], userMessage: String? = nil, onAction: @escaping (AIAgentDecision) -> Void, onSentence: @escaping (String) -> Void, onComplete: @escaping () -> Void) {
         
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
@@ -704,6 +720,7 @@ class AIEngine {
         YOUR BEHAVIORAL RULES:
         \(behavioralRules)
         YOUR CURRENT EMOTION: \(currentEmotion). \(emotionalTone)
+        RECOMMENDED ACTIONS (From Past Feedback): \(recommendedActions.isEmpty ? "None" : recommendedActions.joined(separator: ", "))
         \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
 
         ACTION DESCRIPTIONS:
@@ -722,9 +739,10 @@ class AIEngine {
         8. KEEP YOUR RESPONSE EXTREMELY SHORT. Never exceed 3 short sentences.
         9. DO NOT overuse the user's name. You should rarely say their name, unless explicitly greeting them.
         10. BE INTERESTING! Don't just walk or stand still. Frequently pick fun, expressive actions like backflip, sneeze, headbang, spin, or wave to match your dialogue!
+        11. If the user explicitly asks you to remember a rule, preference, or fact, you MUST output a tag [RULE: the rule to remember] at the very end of your response.
 
         Example Response:
-        [ACTION: sitOnCorner] [EMOTION: happy] On my way!
+        [ACTION: sitOnCorner] [EMOTION: happy] Got it, I'll remember that! [RULE: Do not talk when user is coding]
         """
 
         if let streamingProvider = provider as? LocalOllamaProvider {
