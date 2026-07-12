@@ -1189,13 +1189,34 @@ class QLearningManager {
         saveQTable()
     }
     
+    private var fileURL: URL {
+        let sourceFileURL = URL(fileURLWithPath: #file)
+        let projectDir = sourceFileURL.deletingLastPathComponent().deletingLastPathComponent()
+        return projectDir.appendingPathComponent("spatial_qtable.json")
+    }
+
     private func saveQTable() {
-        UserDefaults.standard.set(qTable, forKey: userDefaultsKey)
+        do {
+            let data = try JSONEncoder().encode(qTable)
+            try data.write(to: fileURL)
+            UserDefaults.standard.set(qTable, forKey: userDefaultsKey)
+        } catch {
+            print("Failed to save Spatial Q-Table: \(error)")
+        }
     }
     
     private func loadQTable() {
-        if let savedTable = UserDefaults.standard.dictionary(forKey: userDefaultsKey) as? [String: Double] {
-            qTable = savedTable
+        do {
+            if FileManager.default.fileExists(atPath: fileURL.path) {
+                let data = try Data(contentsOf: fileURL)
+                qTable = try JSONDecoder().decode([String: Double].self, from: data)
+                print("QLearningManager: Loaded from JSON.")
+            } else if let savedTable = UserDefaults.standard.dictionary(forKey: userDefaultsKey) as? [String: Double] {
+                qTable = savedTable
+                print("QLearningManager: Loaded from UserDefaults backup.")
+            }
+        } catch {
+            print("Failed to load Spatial Q-Table: \(error)")
         }
     }
 }

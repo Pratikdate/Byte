@@ -51,11 +51,11 @@ class ReflectionEngine {
                 return
             }
             
-            if let ruleRange = response.range(of: "[RULE: ") {
-                let sub = response[ruleRange.upperBound...]
-                if let endRange = sub.range(of: "]") {
-                    let rule = String(sub[..<endRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    
+            let pattern = "\\[(?i)RULE:\\s*(.*?)\\]"
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []),
+               let match = regex.firstMatch(in: response, options: [], range: NSRange(location: 0, length: response.utf16.count)) {
+                if let range = Range(match.range(at: 1), in: response) {
+                    let rule = String(response[range]).trimmingCharacters(in: .whitespacesAndNewlines)
                     if rule.lowercased() != "none" && !rule.isEmpty {
                         print("ReflectionEngine: Learned new rule: \(rule)")
                         MemoryGraph.shared.addBehavioralRule(rule)

@@ -20,3 +20,4 @@ DerivedData
 .venv/
 Kokoro/
 
+*.json

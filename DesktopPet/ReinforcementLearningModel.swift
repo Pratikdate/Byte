@@ -101,9 +101,12 @@ class ReinforcementLearningModel {
         
         let currentQ = qTable[state]?[actionStr] ?? 0.0
         
-        // Standard Q-learning formula (simplified for single-step immediate rewards)
-        // Q(s,a) = Q(s,a) + alpha * (reward - Q(s,a))
-        let newQ = currentQ + learningRate * (reward - currentQ)
+        let nextState = getCurrentState()
+        let nextStateActions = qTable[nextState] ?? [:]
+        let maxNextQ = nextStateActions.values.max() ?? 0.0
+        
+        // Full Bellman Equation considering future rewards
+        let newQ = currentQ + learningRate * (reward + discountFactor * maxNextQ - currentQ)
         
         qTable[state]?[actionStr] = newQ
         print("ReinforcementLearningModel: Updated Q-Value for [\(state.timeOfDay), \(state.attentionState)] -> \(actionStr): \(newQ)")
@@ -113,9 +116,17 @@ class ReinforcementLearningModel {
     
     // MARK: - Persistence
     
+    private var fileURL: URL {
+        let sourceFileURL = URL(fileURLWithPath: #file)
+        let projectDir = sourceFileURL.deletingLastPathComponent().deletingLastPathComponent()
+        return projectDir.appendingPathComponent("rl_qtable.json")
+    }
+    
     private func saveModel() {
         do {
             let data = try JSONEncoder().encode(qTable)
+            try data.write(to: fileURL)
+            // Still save to UserDefaults as a backup
             UserDefaults.standard.set(data, forKey: saveKey)
         } catch {
             print("Failed to save Q-Table: \(error)")
@@ -123,10 +134,15 @@ class ReinforcementLearningModel {
     }
     
     private func loadModel() {
-        guard let data = UserDefaults.standard.data(forKey: saveKey) else { return }
         do {
-            qTable = try JSONDecoder().decode([RLState: [String: Double]].self, from: data)
-            print("ReinforcementLearningModel: Loaded Q-Table successfully.")
+            if FileManager.default.fileExists(atPath: fileURL.path) {
+                let data = try Data(contentsOf: fileURL)
+                qTable = try JSONDecoder().decode([RLState: [String: Double]].self, from: data)
+                print("ReinforcementLearningModel: Loaded Q-Table from JSON.")
+            } else if let data = UserDefaults.standard.data(forKey: saveKey) {
+                qTable = try JSONDecoder().decode([RLState: [String: Double]].self, from: data)
+                print("ReinforcementLearningModel: Loaded Q-Table from UserDefaults backup.")
+            }
         } catch {
             print("Failed to load Q-Table: \(error)")
         }

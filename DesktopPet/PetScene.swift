@@ -252,44 +252,44 @@ class PetScene: SCNScene {
         headNode.addChildNode(backpackNode)
         
         // LEGS — built as pivot node (hip) + geometry child below it
-        let legGeo = SCNBox(width: 0.55, height: 0.9, length: 0.55, chamferRadius: 0.10)
+        let legGeo = SCNBox(width: 0.2, height: 0.9, length: 0.2, chamferRadius: 0.1) // Minimalistic sleek leg
         legGeo.materials = [darkMaterial]
         
-        let jointGeo = SCNSphere(radius: 0.35)
+        let jointGeo = SCNSphere(radius: 0.25) // Smaller hip joint
         jointGeo.materials = [shellMaterial]
         
         leftLeg = SCNNode() // HIP pivot
-        leftLeg.position = SCNVector3(-0.6, -1.6, 0)
+        leftLeg.position = SCNVector3(-1.0, -1.6, 0) // Wider stance
         petContainer.addChildNode(leftLeg)
         
-        let leftJoint = SCNNode(geometry: jointGeo)
+        let leftJoint = SCNNode()
         leftLeg.addChildNode(leftJoint)
         
-        let leftLegGeom = SCNNode(geometry: legGeo)
-        leftLegGeom.position = SCNVector3(0, -0.45, 0) // Hang down from hip pivot
+        let leftLegGeom = SCNNode()
+        leftLegGeom.position = SCNVector3(0, -0.1, 0) // Closer to body
         leftLeg.addChildNode(leftLegGeom)
         
         rightLeg = SCNNode() // HIP pivot
-        rightLeg.position = SCNVector3(0.6, -1.6, 0)
+        rightLeg.position = SCNVector3(1.0, -1.6, 0) // Wider stance
         petContainer.addChildNode(rightLeg)
         
-        let rightJoint = SCNNode(geometry: jointGeo)
+        let rightJoint = SCNNode()
         rightLeg.addChildNode(rightJoint)
         
-        let rightLegGeom = SCNNode(geometry: legGeo)
-        rightLegGeom.position = SCNVector3(0, -0.45, 0)
+        let rightLegGeom = SCNNode()
+        rightLegGeom.position = SCNVector3(0, -0.1, 0) // Closer to body
         rightLeg.addChildNode(rightLegGeom)
         
         // SHOES — small and compact, attached to bottom of leg geometry
-        let shoeGeo = SCNBox(width: 1.0, height: 0.3, length: 1.5, chamferRadius: 0.1)
+        let shoeGeo = SCNBox(width: 0.8, height: 0.25, length: 1.2, chamferRadius: 0.125) // Sleeker minimalist shoe
         shoeGeo.materials = [shellMaterial]
         
         let leftShoe = SCNNode(geometry: shoeGeo)
-        leftShoe.position = SCNVector3(0, -0.5, 0.35) // Bottom of leg, slight forward poke
+        leftShoe.position = SCNVector3(0, -0.1, 0.35) // Closer to body
         leftLegGeom.addChildNode(leftShoe)
         
         let rightShoe = SCNNode(geometry: shoeGeo)
-        rightShoe.position = SCNVector3(0, -0.5, 0.35)
+        rightShoe.position = SCNVector3(0, -0.1, 0.35) // Closer to body
         rightLegGeom.addChildNode(rightShoe)
         
         // ACCESSORIES
@@ -315,7 +315,7 @@ class PetScene: SCNScene {
         headphoneBandNode.addChildNode(leftBand)
         headphoneBandNode.addChildNode(rightBand)
         
-        headphoneBandNode.isHidden = true
+        headphoneBandNode.isHidden = false
         headNode.addChildNode(headphoneBandNode)
         // SCREEN & GLOWING EYES (2D SKScene wrapped onto 3D)
         setupScreen()
@@ -329,7 +329,7 @@ class PetScene: SCNScene {
         screenScene.backgroundColor = NSColor.black
         
         // GLOWING EYES
-        let eyeColor = NSColor(red: 0.0, green: 0.8, blue: 1.0, alpha: 1.0)
+        let eyeColor = NSColor(red: 0.2, green: 0.9, blue: 0.2, alpha: 1.0) // Bright Vector Green
         eyeContainer = SKEffectNode()
         let blur = CIFilter(name: "CIGaussianBlur")
         blur?.setValue(3.0, forKey: kCIInputRadiusKey)
@@ -815,7 +815,7 @@ class PetScene: SCNScene {
             leftHeadphone.geometry?.materials = [neonMat]
             rightHeadphone.geometry?.materials = [neonMat]
         } else {
-            headphoneBandNode.isHidden = true
+            headphoneBandNode.isHidden = false
             
             let darkMaterial = SCNMaterial()
             darkMaterial.diffuse.contents = NSColor(white: 0.05, alpha: 1.0)
@@ -1096,7 +1096,7 @@ class PetScene: SCNScene {
     private func getEyePath(for emotion: PetEmotion, isLeft: Bool) -> CGPath {
         let w: CGFloat = 36
         let h: CGFloat = 80
-        let r: CGFloat = 14 // Rounded rectangle (EMO style), not a perfect pill, to prevent tangent overlap
+        let r: CGFloat = 16 // Anki Vector style rounded pills
         
         var topLeft = CGPoint(x: -w/2, y: h/2)
         var topRight = CGPoint(x: w/2, y: h/2)
