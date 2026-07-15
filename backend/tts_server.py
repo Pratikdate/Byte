@@ -9,8 +9,12 @@ app = Flask(__name__)
 # Initialize the Kokoro pipeline for American English
 pipeline = KPipeline(lang_code='a')
 
-# Optionally map emotions to different voices if you want, but for now we use a default
-default_voice = 'am_onyx'
+# Bot-like voice options:
+# 'am_puck' - High-energy, boyish, cute mascot (Best for a pet!)
+# 'af_alloy' - Friendly, androgynous/female AI assistant
+# 'af_sky' - Classic clear female AI
+# 'af_bella' - Very sweet, soft human female
+default_voice = 'am_puck'
 
 @app.route('/synthesize', methods=['POST'])
 def synthesize():

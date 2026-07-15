@@ -3,6 +3,7 @@
 # Configuration
 OLLAMA_PORT=11434
 WHISPER_PORT=9000
+TTS_PORT=8000
 
 # Color codes
 GREEN='\033[0;32m'
@@ -15,6 +16,7 @@ echo -e "${GREEN}🐾 Desktop Pet Launcher 🐾${NC}\n"
 # Variables to track what we started so we can kill them later
 STARTED_OLLAMA=0
 STARTED_WHISPER=0
+STARTED_TTS=0
 
 # Clean up function
 cleanup() {
@@ -22,6 +24,10 @@ cleanup() {
     if [ $STARTED_WHISPER -eq 1 ]; then
         echo "Killing Whisper server..."
         kill $WHISPER_PID 2>/dev/null
+    fi
+    if [ $STARTED_TTS -eq 1 ]; then
+        echo "Killing TTS server..."
+        kill $TTS_PID 2>/dev/null
     fi
     if [ $STARTED_OLLAMA -eq 1 ]; then
         echo "Killing Ollama server..."
@@ -33,6 +39,12 @@ cleanup() {
 
 # Trap signals for graceful shutdown
 trap cleanup SIGINT SIGTERM
+
+# Determine python executable
+PYTHON_EXE="python3"
+if [ -f ".venv/bin/python" ]; then
+    PYTHON_EXE=".venv/bin/python"
+fi
 
 # 1. Start Ollama if needed
 if lsof -Pi :$OLLAMA_PORT -sTCP:LISTEN -t >/dev/null ; then
@@ -50,9 +62,20 @@ if lsof -Pi :$WHISPER_PORT -sTCP:LISTEN -t >/dev/null ; then
     echo -e "${GREEN}✓ Whisper server is already running.${NC}"
 else
     echo -e "${YELLOW}Starting Whisper server...${NC}"
-    python3 backend/whisper_server.py >/dev/null 2>&1 &
+    $PYTHON_EXE backend/whisper_server.py >/dev/null 2>&1 &
     WHISPER_PID=$!
     STARTED_WHISPER=1
+    sleep 2 # wait for it to bind
+fi
+
+# 3. Start TTS Server if needed
+if lsof -Pi :$TTS_PORT -sTCP:LISTEN -t >/dev/null ; then
+    echo -e "${GREEN}✓ TTS server is already running.${NC}"
+else
+    echo -e "${YELLOW}Starting TTS server...${NC}"
+    $PYTHON_EXE backend/tts_server.py >/dev/null 2>&1 &
+    TTS_PID=$!
+    STARTED_TTS=1
     sleep 2 # wait for it to bind
 fi
 
