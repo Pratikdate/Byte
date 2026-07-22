@@ -607,10 +607,13 @@ class AIEngine {
             ? ""
             : "DO NOT begin your reply with any of these recently-used openers: \(avoidOpeners.map { "\"\($0)\"" }.joined(separator: ", ")). Say something fresh.\n"
 
+        let devContext = DeveloperContextMonitor.shared.formattedContextForAI()
+
         let systemPrompt = """
         You are an autonomous AI desktop pet named Byte. You must decide your next physical action and what you want to say.
 
         ENVIRONMENT CONTEXT: \(context)
+        DEVELOPER WORKSPACE: \(devContext)
         USER ATTENTION: \(attentionNote)
         \(conversation)
         YOUR MEMORIES ABOUT USER: \(memoryContext)

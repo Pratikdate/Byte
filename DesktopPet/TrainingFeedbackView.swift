@@ -2,13 +2,9 @@ import SwiftUI
 
 class TrainingViewModel: ObservableObject {
     @Published var currentActionName: String = "Idle"
-    
-    // Timer to poll PetBrain state (since it's not ObservableObject)
     private var timer: Timer?
-    
-    // We pass a reference to PetBrain
     var getBrain: (() -> PetBrain?)?
-    
+
     func startPolling() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self = self, let brain = self.getBrain?() else { return }
@@ -18,25 +14,21 @@ class TrainingViewModel: ObservableObject {
             }
         }
     }
-    
+
     func stopPolling() {
         timer?.invalidate()
         timer = nil
     }
-    
+
     func giveGoodFeedback() {
         guard let brain = getBrain?() else { return }
-        // Give +1.0 to ReinforcementLearningModel
         ReinforcementLearningModel.shared.applyReward(1.0)
-        // Give +1.0 to QLearningManager if a wander just happened
         QLearningManager.shared.applyReward(1.0, state: brain.lastQState, action: brain.lastQAction)
     }
-    
+
     func giveBadFeedback() {
         guard let brain = getBrain?() else { return }
-        // Give -1.0 to ReinforcementLearningModel
         ReinforcementLearningModel.shared.applyReward(-1.0)
-        // Give -1.0 to QLearningManager if a wander just happened
         QLearningManager.shared.applyReward(-1.0, state: brain.lastQState, action: brain.lastQAction)
     }
 }
@@ -44,52 +36,65 @@ class TrainingViewModel: ObservableObject {
 struct TrainingFeedbackView: View {
     @StateObject private var viewModel = TrainingViewModel()
     var getBrain: () -> PetBrain?
-    
+
     var body: some View {
-        VStack(spacing: 8) {
-            Text("Training Mode Active")
-                .font(.headline)
-                .foregroundColor(.white)
-            
+        VStack(spacing: 10) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 8, height: 8)
+                Text("RL Training Mode")
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+
             Text("Action: \(viewModel.currentActionName)")
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.8))
-            
-            HStack(spacing: 16) {
-                Button(action: {
-                    viewModel.giveGoodFeedback()
-                }) {
-                    VStack {
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+
+            HStack(spacing: 12) {
+                Button(action: { viewModel.giveGoodFeedback() }) {
+                    HStack(spacing: 4) {
                         Text("👍")
-                            .font(.system(size: 24))
+                            .font(.system(size: 14))
                         Text("Good")
-                            .font(.caption)
+                            .font(.system(size: 11, weight: .semibold))
                     }
-                    .padding(8)
-                    .background(Color.green.opacity(0.7))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.green.opacity(0.3))
+                    .foregroundColor(.green)
                     .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.green.opacity(0.5), lineWidth: 1))
                 }
                 .buttonStyle(PlainButtonStyle())
-                
-                Button(action: {
-                    viewModel.giveBadFeedback()
-                }) {
-                    VStack {
+
+                Button(action: { viewModel.giveBadFeedback() }) {
+                    HStack(spacing: 4) {
                         Text("👎")
-                            .font(.system(size: 24))
+                            .font(.system(size: 14))
                         Text("Bad")
-                            .font(.caption)
+                            .font(.system(size: 11, weight: .semibold))
                     }
-                    .padding(8)
-                    .background(Color.red.opacity(0.7))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.red.opacity(0.3))
+                    .foregroundColor(.red)
                     .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.5), lineWidth: 1))
                 }
                 .buttonStyle(PlainButtonStyle())
             }
         }
-        .padding()
-        .background(Color.black.opacity(0.6))
-        .cornerRadius(12)
+        .padding(12)
+        .background(
+            ZStack {
+                VisualEffectBlur(material: .hudWindow, blendingMode: .withinWindow)
+                Color.black.opacity(0.5)
+            }
+        )
+        .cornerRadius(14)
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15), lineWidth: 1))
         .onAppear {
             viewModel.getBrain = getBrain
             viewModel.startPolling()

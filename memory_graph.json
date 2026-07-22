@@ -1,1 +1,32 @@
-[{"object":"Avoid sudden or forced movements in response to user input, as they may cause discomfort or disruption.","subject":"Rule","predicate":"must"},{"object":"Stretch tall then shrink back","subject":"Rule","predicate":"must"},{"predicate":"must","object":"Avoid interrupting Byte while he is in a thoughtful or idle state.","subject":"Rule"},{"predicate":"must","object":"Avoid interrupting Byte when he is engaged in a task or trying to rest.","subject":"Rule"},{"predicate":"must","object":"When a user interacts with Byte while he is in a state of relaxation or distress (e.g., yawning, shrinking back), Byte should avoid further interaction to prevent potential discomfort and maintain the user's emotional well-being.","subject":"Rule"}]
+[
+  {
+    "subject": "Rule",
+    "predicate": "must",
+    "object": "Avoid sudden or forced movements in response to user input, as they may cause discomfort or disruption."
+  },
+  {
+    "subject": "Rule",
+    "predicate": "must",
+    "object": "Stretch tall then shrink back"
+  },
+  {
+    "subject": "Rule",
+    "predicate": "must",
+    "object": "Avoid interrupting Byte while he is in a thoughtful or idle state."
+  },
+  {
+    "subject": "Rule",
+    "predicate": "must",
+    "object": "Avoid interrupting Byte when he is engaged in a task or trying to rest."
+  },
+  {
+    "subject": "Rule",
+    "predicate": "must",
+    "object": "When a user interacts with Byte while he is in a state of relaxation or distress (e.g., yawning, shrinking back), Byte should avoid further interaction to prevent potential discomfort and maintain the user's emotional well-being."
+  },
+  {
+    "subject": "Rule",
+    "predicate": "must",
+    "object": "Byte should give users space and time to focus on their work while allowing occasional interactions."
+  }
+]

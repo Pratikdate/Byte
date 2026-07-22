@@ -225,126 +225,95 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     }
     
     // MARK: - Menu Bar Settings
+    var settingsWindow: NSWindow?
+
     private func setupMenuBar() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem?.button {
-            button.image = NSImage(systemSymbolName: "pawprint.fill", accessibilityDescription: "Desktop Pet")
-            // Fallback if symbol not available
+            button.image = NSImage(systemSymbolName: "pawprint.fill", accessibilityDescription: "Byte Companion")
             if button.image == nil {
                 button.title = "🐾"
             }
         }
         
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "🤖 Desktop Pet Settings", action: nil, keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "🐾 Byte Companion", action: nil, keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         
-        // Feature list
-        let features = [
-            ("🎤 Talk to Pet", "Hold D, speak, release to send"),
-            ("📝 Voice Dictation", "Long press ⌘ (0.6s), speak, release to type"),
-            ("🖱️ Drag Pet", "Click and drag the pet anywhere"),
-            ("👆 Pet / Tickle", "Click on the pet"),
-            ("👀 Pet Awareness", "Pet watches your mouse and active apps"),
-        ]
-        
-        for (title, shortcut) in features {
-            let item = NSMenuItem()
-            item.title = "\(title)  —  \(shortcut)"
-            item.isEnabled = false
-            menu.addItem(item)
-        }
+        let controlCenterItem = NSMenuItem(title: "⚙️ Control Center & Preferences...", action: #selector(openControlCenter(_:)), keyEquivalent: ",")
+        menu.addItem(controlCenterItem)
         
         menu.addItem(NSMenuItem.separator())
-        
-        let dropTreatItem = NSMenuItem(title: "🍬 Drop Treat", action: #selector(dropTreat(_:)), keyEquivalent: "t")
-        menu.addItem(dropTreatItem)
-        
-        // Commands Sub-Menu (Spatial Commands)
-        let commandsMenu = NSMenu()
-        let commands: [(String, String)] = [
-            ("📐 Sit in Corner", "sitOnCorner"),
-            ("📊 Sit on Menu Bar", "sitOnMenuBar"),
-            ("🪟 Climb Window", "climbWindow"),
-            ("💪 Push Window", "pushWidget"),
-            ("👆 Tap Window", "tapWindow"),
-            ("🤸 Do a Backflip", "backflip"),
-            ("👋 Wave Hello", "wave"),
-            ("🎸 Headbang", "headbang"),
-            ("🤧 Sneeze", "sneeze"),
-            ("🫣 Trip", "trip")
-        ]
-        
-        for (index, (name, _)) in commands.enumerated() {
-            let item = NSMenuItem(title: name, action: #selector(commandClicked(_:)), keyEquivalent: "")
-            item.tag = index
-            commandsMenu.addItem(item)
-        }
-        
-        let commandsMenuItem = NSMenuItem(title: "📍 Commands", action: nil, keyEquivalent: "")
-        commandsMenuItem.submenu = commandsMenu
-        menu.addItem(commandsMenuItem)
         
         // Pet Modes Sub-Menu
         let modesMenu = NSMenu()
-        modesMenu.addItem(NSMenuItem(title: "Auto (Smart)", action: #selector(setModeAuto(_:)), keyEquivalent: ""))
-        modesMenu.addItem(NSMenuItem(title: "Work Mode (Quiet/Corner)", action: #selector(setModeWork(_:)), keyEquivalent: ""))
-        modesMenu.addItem(NSMenuItem(title: "Play Mode (Active/Wander)", action: #selector(setModePlay(_:)), keyEquivalent: ""))
+        modesMenu.addItem(NSMenuItem(title: "Auto (Smart Focus)", action: #selector(setModeAuto(_:)), keyEquivalent: ""))
+        modesMenu.addItem(NSMenuItem(title: "Work Mode (Quiet)", action: #selector(setModeWork(_:)), keyEquivalent: ""))
+        modesMenu.addItem(NSMenuItem(title: "Play Mode (Active)", action: #selector(setModePlay(_:)), keyEquivalent: ""))
         modesMenu.addItem(NSMenuItem(title: "Sleep Mode", action: #selector(setModeSleep(_:)), keyEquivalent: ""))
         
-        let modesMenuItem = NSMenuItem(title: "⚙️ Pet Mode", action: nil, keyEquivalent: "")
+        let modesMenuItem = NSMenuItem(title: "🎯 Companion Mode", action: nil, keyEquivalent: "")
         modesMenuItem.submenu = modesMenu
         menu.addItem(modesMenuItem)
         
+        let dropTreatItem = NSMenuItem(title: "🍬 Give Treat", action: #selector(dropTreat(_:)), keyEquivalent: "t")
+        menu.addItem(dropTreatItem)
+        
         menu.addItem(NSMenuItem.separator())
         
-        let muteItem = NSMenuItem(title: "🔇 Mute Pet", action: #selector(toggleMute(_:)), keyEquivalent: "m")
+        let muteItem = NSMenuItem(title: "🔇 Mute Voice", action: #selector(toggleMute(_:)), keyEquivalent: "m")
         menu.addItem(muteItem)
         
-        let cloudAIItem = NSMenuItem(title: "☁️ Use Cloud AI (Gemini API)", action: #selector(toggleCloudAI(_:)), keyEquivalent: "")
-        cloudAIItem.state = .off
-        menu.addItem(cloudAIItem)
-        
-        menu.addItem(NSMenuItem.separator())
-        
-        let trainingItem = NSMenuItem(title: "🎓 Training Mode", action: #selector(toggleTrainingMode(_:)), keyEquivalent: "")
+        let trainingItem = NSMenuItem(title: "🎓 Training HUD Mode", action: #selector(toggleTrainingMode(_:)), keyEquivalent: "")
         trainingItem.state = .off
         menu.addItem(trainingItem)
         
+        #if DEBUG
         menu.addItem(NSMenuItem.separator())
-        
-        // Test Animations Sub-Menu
         let animationsMenu = NSMenu()
         let animations: [(String, Int)] = [
             ("Idle", 0), ("Wander / Walk", 1), ("Sleep", 3), ("Jump", 4),
-            ("Sit", 5), ("Spin", 6), ("Sulk", 7), ("Dizzy", 8), ("Tickled", 9),
-            ("Peek Window", 10), ("Sit on Taskbar", 11), ("Investigate", 12),
-            ("Step Back", 13), ("Dance", 14), ("Bow", 15), ("Stretch", 16),
-            ("Roll", 17), ("Hide", 18),
-            ("---", -1),
-            ("Sit on Corner", 19), ("Sit on Menu Bar", 20), ("Climb Window", 21),
-            ("Push Widget", 22), ("Tap Window", 23),
-            ("Sneeze", 24), ("Backflip", 25), ("Headbang", 26), ("Trip", 27), ("Wave", 28)
+            ("Sit", 5), ("Spin", 6), ("Sit on Corner", 19), ("Sit on Menu Bar", 20),
+            ("Climb Window", 21), ("Push Widget", 22), ("Tap Window", 23),
+            ("Sneeze", 24), ("Backflip", 25), ("Headbang", 26), ("Wave", 28)
         ]
-        
         for (name, tag) in animations {
-            if tag == -1 {
-                animationsMenu.addItem(NSMenuItem.separator())
-                continue
-            }
             let item = NSMenuItem(title: name, action: #selector(testAnimationClicked(_:)), keyEquivalent: "")
             item.tag = tag
             animationsMenu.addItem(item)
         }
-        
-        let animationsMenuItem = NSMenuItem(title: "🎬 Test Animations", action: nil, keyEquivalent: "")
+        let animationsMenuItem = NSMenuItem(title: "🎬 Debug Animations", action: nil, keyEquivalent: "")
         animationsMenuItem.submenu = animationsMenu
         menu.addItem(animationsMenuItem)
+        #endif
         
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit Desktop Pet", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit Byte", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         
         statusItem?.menu = menu
+        
+        // Start Focus & Developer Context monitors
+        _ = FocusEngine.shared
+        _ = DeveloperContextMonitor.shared
+    }
+    
+    @objc private func openControlCenter(_ sender: NSMenuItem) {
+        if settingsWindow == nil {
+            let view = NSHostingView(rootView: ByteSettingsView())
+            let win = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
+                styleMask: [.titled, .closable, .miniaturizable],
+                backing: .buffered,
+                defer: false
+            )
+            win.title = "Byte Control Center"
+            win.center()
+            win.isReleasedWhenClosed = false
+            win.contentView = view
+            settingsWindow = win
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
     
     @objc private func testAnimationClicked(_ sender: NSMenuItem) {

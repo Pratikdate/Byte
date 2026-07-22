@@ -18,6 +18,10 @@
 		554FFA9636D67A6307C64C58 /* MemoryGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68D48B1782C1DFB38BC1410 /* MemoryGraph.swift */; };
 		6A19667BE12D5AE1C06810CF /* PetScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B652D45E6976F47D462A1D3 /* PetScene.swift */; };
 		7C7256ACF3896AA33EE22901 /* TrainingFeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB967A9AF0A826AD7E8E1624 /* TrainingFeedbackView.swift */; };
+		8A1100012C00000100000001 /* FocusEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100012C00000100000002 /* FocusEngine.swift */; };
+		8A1100022C00000100000001 /* DeveloperContextMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100022C00000100000002 /* DeveloperContextMonitor.swift */; };
+		8A1100032C00000100000001 /* ByteSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100032C00000100000002 /* ByteSettingsView.swift */; };
+		8A1100042C00000100000001 /* ThoughtBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100042C00000100000002 /* ThoughtBubbleView.swift */; };
 		8BBC624546742EB40AA8AEA3 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B461484513570AF74412C8EB /* Cocoa.framework */; };
 		9B9B7540D6EF7A11219CF14F /* DialogueContextTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B8E272C8B41BE58DA231488 /* DialogueContextTracker.swift */; };
 		A8754F87A01B647B4D340B23 /* AIEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFDA1043DDD16863AF1DB24 /* AIEngine.swift */; };
@@ -48,6 +52,10 @@
 		CB967A9AF0A826AD7E8E1624 /* TrainingFeedbackView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrainingFeedbackView.swift; sourceTree = "<group>"; };
 		CF328C5B701ACF61020B398C /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		DAD7A0876ADBF9BAB6CF7203 /* ReinforcementLearningModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReinforcementLearningModel.swift; sourceTree = "<group>"; };
+		8A1100012C00000100000002 /* FocusEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FocusEngine.swift; path = DesktopPet/FocusEngine.swift; sourceTree = SOURCE_ROOT; };
+		8A1100022C00000100000002 /* DeveloperContextMonitor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DeveloperContextMonitor.swift; path = DesktopPet/DeveloperContextMonitor.swift; sourceTree = SOURCE_ROOT; };
+		8A1100032C00000100000002 /* ByteSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ByteSettingsView.swift; path = DesktopPet/ByteSettingsView.swift; sourceTree = SOURCE_ROOT; };
+		8A1100042C00000100000002 /* ThoughtBubbleView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ThoughtBubbleView.swift; path = DesktopPet/ThoughtBubbleView.swift; sourceTree = SOURCE_ROOT; };
 		EDBA8D8FF50BCB5FCDA0C749 /* DesktopPetApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopPetApp.swift; sourceTree = "<group>"; };
 		F485D4100FAA4DD1AD458559 /* DialogueNaturalness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DialogueNaturalness.swift; path = DesktopPet/DialogueNaturalness.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -119,6 +127,10 @@
 				9B8E272C8B41BE58DA231488 /* DialogueContextTracker.swift */,
 				DAD7A0876ADBF9BAB6CF7203 /* ReinforcementLearningModel.swift */,
 				CB967A9AF0A826AD7E8E1624 /* TrainingFeedbackView.swift */,
+				8A1100012C00000100000002 /* FocusEngine.swift */,
+				8A1100022C00000100000002 /* DeveloperContextMonitor.swift */,
+				8A1100032C00000100000002 /* ByteSettingsView.swift */,
+				8A1100042C00000100000002 /* ThoughtBubbleView.swift */,
 			);
 			name = DesktopPet;
 			path = DesktopPet;
@@ -206,6 +218,10 @@
 				9B9B7540D6EF7A11219CF14F /* DialogueContextTracker.swift in Sources */,
 				0C00AEA0CF89F976176AEFAC /* ReinforcementLearningModel.swift in Sources */,
 				7C7256ACF3896AA33EE22901 /* TrainingFeedbackView.swift in Sources */,
+				8A1100012C00000100000001 /* FocusEngine.swift in Sources */,
+				8A1100022C00000100000001 /* DeveloperContextMonitor.swift in Sources */,
+				8A1100032C00000100000001 /* ByteSettingsView.swift in Sources */,
+				8A1100042C00000100000001 /* ThoughtBubbleView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
