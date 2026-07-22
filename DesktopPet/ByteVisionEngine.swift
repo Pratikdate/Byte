@@ -81,8 +81,7 @@ class ByteVisionEngine {
             if !detectedContexts.isEmpty {
                 self.currentVisualContext = detectedContexts.prefix(2).joined(separator: " | ")
             } else {
-                let sampleText = lines.prefix(3).joined(separator: " ")
-                self.currentVisualContext = "Reading text: '\(sampleText.prefix(60))...'"
+                self.currentVisualContext = "Developer is focused in editor."
             }
         }
     }

@@ -344,21 +344,14 @@ class PetBrain {
     }
     
     func resolveEmotion() -> PetEmotion {
-        // Routine phase biases
-        let phase = currentRoutinePhase
-        let isNightTime = (phase == .night || phase == .lateNight)
-        let isEarlyMorning = (phase == .earlyMorning)
-        
-        // Priority order from spec: Startled > Annoyed > Sleepy/Asleep > Curious > Excited > Lonely > Bored > Content
+        // Priority order: Annoyed > Energy depletion > High Curiosity > Proud/Happy > Low Mood > Normal
         if annoyance > 80 { return .angry }
-        if energy < 15 || (isNightTime && energy < 40) { return .sleepy }
-        if isEarlyMorning && energy < 50 { return .sleepy }
+        if energy < 15 { return .sleepy }
         if curiosity > 80 { return .curious }
         if mood > 85 && energy > 70 { return .proud }
-        if mood > 70 && curiosity > 60 { return .happy }
+        if mood > 60 { return .happy }
         if mood < 30 { return .sad }
-        if curiosity < 20 && !isNightTime { return .bored }
-        if isNightTime { return .sleepy }
+        if curiosity < 20 { return .bored }
         return .normal
     }
     var isListeningToUser: Bool = false

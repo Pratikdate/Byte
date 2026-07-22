@@ -660,14 +660,14 @@ class AIEngine {
             }
         }
     }
-    
-    func generateAgentDecisionStreaming(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, onAction: @escaping (AIAgentDecision) -> Void, onSentence: @escaping (String) -> Void, onComplete: @escaping () -> Void) {
+func generateAgentDecisionStreaming(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, onAction: @escaping (AIAgentDecision) -> Void, onSentence: @escaping (String) -> Void, onComplete: @escaping () -> Void) {
         
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
-            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully. Use VERY human-like, warm, and friendly language! Pay attention to the ENVIRONMENT CONTEXT—if the user says 'good morning' but it's night time, playfully correct them based on the current time and weather! If you don't know much about the user, proactively ask a personal question to build a bond. Keep your response SHORT, under 3 sentences. (Do NOT use emojis, because your response will be spoken aloud by a voice synthesizer!)\n\nSPATIAL COMMANDS: If the user asks you to do something, deduce their intent and pick the corresponding action from the AVAILABLE ACTIONS list. They might use long, indirect sentences (e.g., 'I am exhausted, let us take a break' -> 'sleep') or broken, casual phrasing (e.g., 'can you like... bounce around?' -> 'jump'). You do not need to hear exact command words; just read between the lines and match their underlying motive to an action.\n"
+            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: Answer the user directly, helpfully, and warmly. Pay attention to ENVIRONMENT CONTEXT. (Do NOT use emojis!)\n"
         } else {
-            userInstruction = "\nYou are just idling on the desktop, silently observing the user work. FAVOR the 'idle' or 'sit' actions to quietly watch. If you do speak, do NOT demand attention. Instead, 'think aloud' to yourself naturally (e.g. \"Hmm, lots of code today...\" or \"*yawns* so sleepy...\") based on the ENVIRONMENT CONTEXT. Leave 'speech' empty if you just want to observe silently.\n"
+            let eqIntent = EmotionalIntelligenceEngine.shared.intentDirective()
+            userInstruction = "\nYou are idling near the developer. FAVOR quiet observation. \(eqIntent) STRICT NO REPETITION & NO CLICHÉS: DO NOT use clichés like '*yawns* so sleepy', 'lots of code', or 'hmm...'. Share a fresh, original thought or leave 'speech' empty.\n"
         }
 
         let memoryContext = MemoryGraph.shared.getUserFactsString()

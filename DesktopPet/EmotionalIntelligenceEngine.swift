@@ -26,7 +26,11 @@ class EmotionalIntelligenceEngine {
         "good night",
         "how can i help",
         "is there something i can help",
-        "what are we doing today"
+        "what are we doing today",
+        "reading text",
+        "reading",
+        "focused in editor",
+        "busy working"
     ]
 
     private init() {}
@@ -50,11 +54,11 @@ class EmotionalIntelligenceEngine {
             }
         }
 
-        // 2. Check exact or high similarity with last 40 utterances
+        // 2. Check exact, n-gram overlap, or high similarity with last 40 utterances
         for prev in recentUtterances {
             let prevLower = prev.lowercased()
-            if lower == prevLower || similarityScore(lower, prevLower) > 0.35 {
-                print("[EQEngine] Suppressed repetitive speech (similarity > 35%): '\(cleaned)' vs '\(prev)'")
+            if lower == prevLower || similarityScore(lower, prevLower) > 0.25 || hasNGramOverlap(lower, prevLower) {
+                print("[EQEngine] Suppressed repetitive speech (overlap detected): '\(cleaned)' vs '\(prev)'")
                 return nil
             }
         }
@@ -66,6 +70,21 @@ class EmotionalIntelligenceEngine {
         }
 
         return cleaned
+    }
+
+    /// Checks if two sentences share 3 or more consecutive words
+    private func hasNGramOverlap(_ s1: String, _ s2: String) -> Bool {
+        let words1 = s1.split(separator: " ").map { String($0) }
+        let words2 = s2.split(separator: " ").map { String($0) }
+        guard words1.count >= 3 && words2.count >= 3 else { return false }
+
+        for i in 0...(words1.count - 3) {
+            let trigram = "\(words1[i]) \(words1[i+1]) \(words1[i+2])"
+            if s2.contains(trigram) {
+                return true
+            }
+        }
+        return false
     }
 
     /// Calculates Jaccard word similarity between two sentences

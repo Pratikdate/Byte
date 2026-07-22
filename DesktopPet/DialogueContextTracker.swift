@@ -42,11 +42,11 @@ class DialogueContextTracker {
                 "So curious..."
             ],
             "sleepy": [
-                "Yawn...",
-                "So tired...",
-                "Maybe sleep soon?",
-                "Eyes closing...",
-                "Zzzzz..."
+                "Quiet night workspace.",
+                "Late session.",
+                "Pacing your work nicely.",
+                "Steady progress.",
+                "Quiet focus time."
             ],
             "sad": [
                 "Things aren't great...",

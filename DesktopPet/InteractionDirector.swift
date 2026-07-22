@@ -35,8 +35,8 @@ class InteractionDirector {
     private var pendingReturnGreeting = false
 
     // Minimum silence between utterances, per trigger class (seconds)
-    private let ambientMinGap: TimeInterval = 28
-    private let reactiveMinGap: TimeInterval = 8
+    private let ambientMinGap: TimeInterval = 60
+    private let reactiveMinGap: TimeInterval = 12
 
     // MARK: - Conversation thread (fed to the LLM so it remembers what it just said)
 
@@ -108,8 +108,8 @@ class InteractionDirector {
             switch attention {
             case .engaged, .active:
                 guard sinceLastSpoke >= ambientMinGap else { return false }
-                // Even when allowed, keep ambient chatter occasional, not constant.
-                return Double.random(in: 0...1) < 0.35
+                // Keep ambient chatter quiet & occasional (15% chance after 60s silence gap)
+                return Double.random(in: 0...1) < 0.15
             case .returning:
                 return true   // a greeting is welcome
             case .idle, .away:
