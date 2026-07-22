@@ -130,6 +130,15 @@ struct ByteSettingsView: View {
                             .fontWeight(.bold)
                             .foregroundColor(.green)
                     }
+                    HStack {
+                        Text("Screen Vision OCR:")
+                            .foregroundColor(.white.opacity(0.7))
+                        Spacer()
+                        Text(ByteVisionEngine.shared.formattedVisionContextForAI())
+                            .fontWeight(.semibold)
+                            .foregroundColor(.blue)
+                            .lineLimit(1)
+                    }
                 }
             }
         }
