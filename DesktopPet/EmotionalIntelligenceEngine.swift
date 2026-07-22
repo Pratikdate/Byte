@@ -112,19 +112,61 @@ class EmotionalIntelligenceEngine {
     /// Formats intent guidance for the LLM prompt
     func intentDirective() -> String {
         let intent = selectFreshIntent()
+        let personality = SettingsManager.shared.activePersonality
+        
         switch intent {
         case .observation:
-            return "CONVERSATIONAL INTENT: Make a fresh, unique observation about the active IDE file or programming language."
+            return "CONVERSATIONAL INTENT: Make a fresh, unique observation about the active IDE file or programming language. (Reflect your \(personality.rawValue) personality)."
         case .empatheticSupport:
-            return "CONVERSATIONAL INTENT: Offer brief, warm empathy for the developer working hard."
+            return "CONVERSATIONAL INTENT: Offer brief empathy for the developer. (Reflect your \(personality.rawValue) personality)."
         case .playfulTeasing:
-            return "CONVERSATIONAL INTENT: Make a witty, lighthearted remark about coding."
+            return "CONVERSATIONAL INTENT: Make a witty remark about coding. (Reflect your \(personality.rawValue) personality)."
         case .sharedMilestone:
-            return "CONVERSATIONAL INTENT: Celebrate steady progress quietly."
+            return "CONVERSATIONAL INTENT: Celebrate steady progress quietly. (Reflect your \(personality.rawValue) personality)."
         case .quietReflection:
-            return "CONVERSATIONAL INTENT: Speak a soft 4-word passing thought."
+            return "CONVERSATIONAL INTENT: Speak a soft passing thought. (Reflect your \(personality.rawValue) personality)."
         case .silentCompanion:
             return "CONVERSATIONAL INTENT: Do NOT speak. Leave 'speech' empty."
+        }
+    }
+}
+
+// MARK: - Personality & Settings
+
+enum PersonalityProfile: String, CaseIterable, Codable {
+    case curious = "Curious & Playful"
+    case tsundere = "Tsundere (Grumpy)"
+    case zen = "Zen & Calm"
+    case anxious = "Anxious & Clingy"
+
+    var promptModifier: String {
+        switch self {
+        case .curious:
+            return "You are highly curious, playful, and energetic. You love asking questions and exploring."
+        case .tsundere:
+            return "You are grumpy, sarcastic, and easily annoyed, but deep down you care about the user. You often complain but still help."
+        case .zen:
+            return "You are calm, observant, and poetic. You speak softly and offer wise, peaceful observations."
+        case .anxious:
+            return "You are highly anxious, clingy, and worry about bugs and errors constantly. You are very apologetic and seek reassurance."
+        }
+    }
+}
+
+class SettingsManager {
+    static let shared = SettingsManager()
+    
+    private let personalityKey = "ByteActivePersonality"
+    
+    var activePersonality: PersonalityProfile {
+        get {
+            if let saved = UserDefaults.standard.string(forKey: personalityKey), let profile = PersonalityProfile(rawValue: saved) {
+                return profile
+            }
+            return .curious
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: personalityKey)
         }
     }
 }

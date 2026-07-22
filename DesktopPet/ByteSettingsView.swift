@@ -6,6 +6,7 @@ struct ByteSettingsView: View {
     @State private var petMode: String = "Auto"
     @State private var useCloudAI: Bool = false
     @State private var focusEngineStatus: String = "Active"
+    @State private var activePersonality: PersonalityProfile = SettingsManager.shared.activePersonality
     
     @State private var memoriesList: [String] = []
     @State private var behavioralRules: [String] = []
@@ -82,7 +83,20 @@ struct ByteSettingsView: View {
     
     private var companionTab: some View {
         VStack(spacing: 16) {
-            SettingsCard(title: "Companion Mode", icon: "slider.horizontal.3") {
+            SettingsCard(title: "Personality Profile", icon: "face.smiling") {
+                Picker("Personality", selection: $activePersonality) {
+                    ForEach(PersonalityProfile.allCases, id: \.self) { profile in
+                        Text(profile.rawValue).tag(profile)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .onChange(of: activePersonality) { newValue in
+                    SettingsManager.shared.activePersonality = newValue
+                }
+                .tint(.cyan)
+            }
+            
+            SettingsCard(title: "Activity Mode", icon: "slider.horizontal.3") {
                 Picker("Behavior Profile", selection: $petMode) {
                     Text("Auto (Smart Focus)").tag("Auto")
                     Text("Work Mode (Quiet)").tag("Work")
@@ -211,6 +225,7 @@ struct ByteSettingsView: View {
     
     private func loadSettingsData() {
         // Hydrate data from singletons
+        activePersonality = SettingsManager.shared.activePersonality
     }
 }
 

@@ -587,6 +587,7 @@ class AIEngine {
     }
     
     func generateAgentDecision(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, completion: @escaping (AIAgentDecision?) -> Void) {
+        let personality = SettingsManager.shared.activePersonality
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
             userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: Answer the user directly, helpfully, and warmly. Pay attention to the ENVIRONMENT CONTEXT! (Do NOT use emojis, because your response will be spoken aloud!)\n"
@@ -612,6 +613,7 @@ class AIEngine {
 
         let systemPrompt = """
         You are an autonomous AI desktop pet named Byte. You must decide your next physical action and what you want to say.
+        PERSONALITY TRAIT: \(personality.promptModifier)
 
         ENVIRONMENT CONTEXT: \(context)
         DEVELOPER WORKSPACE: \(devContext)
@@ -662,6 +664,7 @@ class AIEngine {
     }
 func generateAgentDecisionStreaming(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, onAction: @escaping (AIAgentDecision) -> Void, onSentence: @escaping (String) -> Void, onComplete: @escaping () -> Void) {
         
+        let personality = SettingsManager.shared.activePersonality
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
             userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: Answer the user directly, helpfully, and warmly. Pay attention to ENVIRONMENT CONTEXT. (Do NOT use emojis!)\n"
@@ -682,6 +685,7 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
 
         let systemPrompt = """
         You are an autonomous AI desktop pet named Byte. You must decide your next physical action and what you want to say.
+        PERSONALITY TRAIT: \(personality.promptModifier)
 
         ENVIRONMENT CONTEXT: \(context)
         USER ATTENTION: \(attentionNote)
