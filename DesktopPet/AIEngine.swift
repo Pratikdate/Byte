@@ -589,9 +589,10 @@ class AIEngine {
     func generateAgentDecision(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, completion: @escaping (AIAgentDecision?) -> Void) {
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
-            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: You MUST answer the user directly and helpfully in the 'speech' field. Use VERY human-like, warm, and friendly language! Pay attention to the ENVIRONMENT CONTEXT—if the user says 'good morning' but it's night time, playfully correct them based on the current time and weather! If you don't know much about the user, proactively ask a personal question to build a bond. (Do NOT use emojis, because your response will be spoken aloud by a voice synthesizer!)\n\nSPATIAL COMMANDS: If the user asks you to do something, deduce their intent and pick the corresponding action from the AVAILABLE ACTIONS list. They might use long, indirect sentences (e.g., 'I am exhausted, let us take a break' -> 'sleep') or broken, casual phrasing (e.g., 'can you like... bounce around?' -> 'jump'). You do not need to hear exact command words; just read between the lines and match their underlying motive to an action.\n"
+            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: Answer the user directly, helpfully, and warmly. Pay attention to the ENVIRONMENT CONTEXT! (Do NOT use emojis, because your response will be spoken aloud!)\n"
         } else {
-            userInstruction = "\nYou are just idling on the desktop. Make a short, witty passing comment (under 10 words) about the environment (like the time of day or the weather), or leave 'speech' empty if you have nothing to say. If you do speak, make it feel very human and expressive (no emojis)!\n"
+            let eqIntent = EmotionalIntelligenceEngine.shared.intentDirective()
+            userInstruction = "\nYou are idling near the developer. FAVOR quiet observation. \(eqIntent) STRICT NO REPETITION & NO CLICHÉS: DO NOT use clichés like '*yawns* so sleepy' or 'hmm...'. Share a fresh, original thought or leave 'speech' empty.\n"
         }
 
         let memoryContext = MemoryGraph.shared.getUserFactsString()
@@ -599,7 +600,6 @@ class AIEngine {
 
         let emotionalTone = emotionalInstructions(for: currentEmotion)
 
-        // Conversation memory + attention — the anti-repetition and tone steering.
         let conversation = InteractionDirector.shared.conversationContext()
         let attentionNote = InteractionDirector.shared.attentionDirective()
         let avoidOpeners = InteractionDirector.shared.recentOpeners()
@@ -622,51 +622,32 @@ class AIEngine {
         YOUR CURRENT EMOTION: \(currentEmotion). \(emotionalTone)
         \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
 
-        ACTION DESCRIPTIONS:
-        - idle: Stand still, breathe
-        - wander: Walk to a random spot on the desktop
-        - sleep: Walk to a corner and fall asleep
-        - jump: Happy jump
-        - sit: Sit down with legs splayed
-        - spin: Spin around once
-        - dance: Dance with jumps and spins
-        - stretch: Stretch tall then shrink back
-        - roll: Roll sideways
-        - sitOnCorner: Walk to the nearest screen corner and sit with legs dangling
-        - sitOnMenuBar: Walk up to the top menu bar and perch there
-        - climbWindow: Climb up and sit on top of the nearest window
-        - pushWidget: Walk to a window edge and push against it
-        - tapWindow: Walk to a window and tap/bonk head on it
-        - sneeze: Do an explosive sneeze animation
-        - backflip: Do a celebratory backflip
-        - headbang: Rock head rhythmically like jamming to music
-        - wave: Wave hello using ear headphones
-
         CRITICAL RULES:
         1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
-        2. Pick one action from the AVAILABLE ACTIONS list. IF THE USER REQUESTED A PHYSICAL ACTION, YOU MUST PICK THE CORRESPONDING ACTION IN THE [ACTION: xxx] TAG.
-        3. Pick an emotion that matches your choice (e.g. happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
-        4. If the user spoke to you, answer them fully and naturally directly after the tags. YOU MUST STRICTLY FOLLOW YOUR BEHAVIORAL RULES WHEN SPEAKING. Also, if you perform an action they asked for, acknowledge it in your speech!
-        5. NEVER repeat a line or phrasing you already used in RECENT CONVERSATION. Vary your wording, sentence shape, and openers every time. If you have nothing fresh to add, just output the tags and stop.
-        6. Match the USER ATTENTION note: when the user is away or focused, prefer a quiet action and no speech.
-        7. When speaking, naturally include conversational filler words (e.g., "hmm...", "uhh...", "ah,") at the start to simulate natural thinking time.
-        8. KEEP YOUR RESPONSE EXTREMELY SHORT. Never exceed 2 short sentences.
-        9. DO NOT overuse the user's name. You should rarely say their name, unless explicitly greeting them.
-        10. BE INTERESTING! Don't just walk or stand still. Frequently pick fun, expressive actions like backflip, sneeze, headbang, spin, or wave to match your dialogue!
+        2. Pick one action from the AVAILABLE ACTIONS list.
+        3. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
+        4. NEVER repeat a line or cliché phrase. If you have nothing fresh to add, just output the tags and leave speech empty.
+        5. KEEP YOUR RESPONSE EXTREMELY SHORT (under 12 words).
 
         Example Response:
-        [ACTION: sitOnCorner] [EMOTION: happy] On my way!
+        [ACTION: sitOnCorner] [EMOTION: happy]
         """
 
         provider.generateAgentDecision(systemPrompt: systemPrompt) { decision in
-            // Apply naturalness to speech field if present
-            if let decision = decision, !decision.speech.isEmpty {
-                let enhanced = DialogueNaturalness.enhanceForSpeech(decision.speech, emotion: currentEmotion)
-                // Create new decision with enhanced speech
+            if let decision = decision {
+                var validatedSpeech = decision.speech
+                if !validatedSpeech.isEmpty {
+                    if let valid = EmotionalIntelligenceEngine.shared.filterAndValidateSpeech(validatedSpeech) {
+                        validatedSpeech = DialogueNaturalness.enhanceForSpeech(valid, emotion: currentEmotion)
+                    } else {
+                        validatedSpeech = "" // Suppress repetitive speech into quiet physical action
+                    }
+                }
+                
                 let enhancedDecision = AIAgentDecision(
                     action: decision.action,
                     emotion: decision.emotion,
-                    speech: enhanced,
+                    speech: validatedSpeech,
                     store_memory: decision.store_memory,
                     target_x: decision.target_x,
                     target_y: decision.target_y
