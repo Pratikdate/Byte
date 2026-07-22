@@ -16,6 +16,7 @@ enum PetAction: String {
 enum PetEmotion: String {
     case happy, sad, angry, curious, sleepy, bored, thinking, normal, dizzy, shock, love, excited, embarrassed
     case proud
+    case singing, working, cold, hot, tictactoe, fishing, dj, batteryLow, dreaming, coffee, rainy
 }
 
 enum PetMode: String {
