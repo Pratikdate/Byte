@@ -1172,35 +1172,6 @@ class PetScene: SCNScene {
                 topRight.y -= 20
                 botLeft.y += 20
             }
-        case .tictactoe:
-            let path = CGMutablePath()
-            if isLeft {
-                path.move(to: CGPoint(x: -18, y: 18))
-                path.addLine(to: CGPoint(x: 18, y: -18))
-                path.move(to: CGPoint(x: 18, y: 18))
-                path.addLine(to: CGPoint(x: -18, y: -18))
-            } else {
-                return CGPath(ellipseIn: CGRect(x: -20, y: -20, width: 40, height: 40), transform: nil)
-            }
-            return path
-        case .singing, .dreaming, .dj:
-            let path = CGMutablePath()
-            path.move(to: CGPoint(x: -22, y: 5))
-            path.addQuadCurve(to: CGPoint(x: 22, y: 5), control: CGPoint(x: 0, y: 25))
-            return path
-        case .coffee:
-            return CGPath(ellipseIn: CGRect(x: -22, y: -28, width: 44, height: 56), transform: nil)
-        case .cold, .rainy, .fishing:
-            topLeft.y -= 18
-            topRight.y -= 18
-            botLeft.y += 10
-            botRight.y += 10
-        case .working:
-            topLeft.y -= 15
-            topRight.y -= 15
-        case .hot, .batteryLow:
-            topLeft.y -= 30
-            topRight.y -= 30
         default:
             break
         }

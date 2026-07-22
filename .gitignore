@@ -21,3 +21,6 @@ DerivedData
 Kokoro/
 
 *.json
+*.safetensors
+training/byte_fused_model/
+

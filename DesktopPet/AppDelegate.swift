@@ -221,17 +221,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         case .excited:      return "🤩"
         case .embarrassed:  return "😳"
         case .proud:        return "😎"
-        case .singing:      return "🎤"
-        case .working:      return "💻"
-        case .cold:         return "🥶"
-        case .hot:          return "🥵"
-        case .tictactoe:    return "❌"
-        case .fishing:      return "🎣"
-        case .dj:           return "🎧"
-        case .batteryLow:   return "🪫"
-        case .dreaming:     return "☁️"
-        case .coffee:       return "☕"
-        case .rainy:        return "🌧"
         }
     }
     

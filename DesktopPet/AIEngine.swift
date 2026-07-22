@@ -149,7 +149,7 @@ class GeminiAPIProvider: AIProvider {
 // MARK: - Local Ollama Provider (Streaming)
 class LocalOllamaProvider: NSObject, AIProvider {
     private let endpoint = "http://localhost:11434/api/generate"
-    private let modelName = "llama3.2"
+    private let modelName = "byte-llm"
 
     func generateComment(systemPrompt: String, completion: @escaping (String?) -> Void) {
         guard let url = URL(string: endpoint) else {
@@ -629,7 +629,7 @@ class AIEngine {
         CRITICAL RULES:
         1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
         2. Pick one action from the AVAILABLE ACTIONS list.
-        3. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed, singing, working, cold, hot, tictactoe, fishing, dj, batteryLow, dreaming, coffee, rainy).
+        3. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
         4. NEVER repeat a line or cliché phrase. If you have nothing fresh to add, just output the tags and leave speech empty.
         5. KEEP YOUR RESPONSE EXTREMELY SHORT (under 12 words).
 
@@ -704,7 +704,7 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
         CRITICAL RULES:
         1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
         2. Pick one action from the AVAILABLE ACTIONS list. IF THE USER REQUESTED A PHYSICAL ACTION, YOU MUST PICK THE CORRESPONDING ACTION IN THE [ACTION: xxx] TAG.
-        3. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed, singing, working, cold, hot, tictactoe, fishing, dj, batteryLow, dreaming, coffee, rainy).
+        3. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
         4. If the user spoke to you, answer them fully directly after the tags. YOU MUST STRICTLY FOLLOW YOUR BEHAVIORAL RULES WHEN SPEAKING. Also, if you perform an action they asked for, acknowledge it in your speech!
         5. NEVER repeat a line or phrasing you already used in RECENT CONVERSATION. Vary your wording, sentence shape, and openers every time.
         6. Match the USER ATTENTION note: when the user is away or focused, prefer a quiet action and no speech.
