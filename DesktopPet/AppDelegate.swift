@@ -292,9 +292,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         
         statusItem?.menu = menu
         
-        // Start Focus & Developer Context monitors
+        // Start Focus, Developer Context & Vision monitors
         _ = FocusEngine.shared
         _ = DeveloperContextMonitor.shared
+        _ = ByteVisionEngine.shared
     }
     
     @objc private func openControlCenter(_ sender: NSMenuItem) {

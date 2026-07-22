@@ -23,6 +23,7 @@
 		8A1100032C00000100000001 /* ByteSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100032C00000100000002 /* ByteSettingsView.swift */; };
 		8A1100042C00000100000001 /* ThoughtBubbleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100042C00000100000002 /* ThoughtBubbleView.swift */; };
 		8A1100052C00000100000001 /* EmotionalIntelligenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100052C00000100000002 /* EmotionalIntelligenceEngine.swift */; };
+		8A1100062C00000100000001 /* ByteVisionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100062C00000100000002 /* ByteVisionEngine.swift */; };
 		8BBC624546742EB40AA8AEA3 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B461484513570AF74412C8EB /* Cocoa.framework */; };
 		9B9B7540D6EF7A11219CF14F /* DialogueContextTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B8E272C8B41BE58DA231488 /* DialogueContextTracker.swift */; };
 		A8754F87A01B647B4D340B23 /* AIEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFDA1043DDD16863AF1DB24 /* AIEngine.swift */; };
@@ -58,6 +59,7 @@
 		8A1100032C00000100000002 /* ByteSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ByteSettingsView.swift; path = DesktopPet/ByteSettingsView.swift; sourceTree = SOURCE_ROOT; };
 		8A1100042C00000100000002 /* ThoughtBubbleView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ThoughtBubbleView.swift; path = DesktopPet/ThoughtBubbleView.swift; sourceTree = SOURCE_ROOT; };
 		8A1100052C00000100000002 /* EmotionalIntelligenceEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmotionalIntelligenceEngine.swift; path = DesktopPet/EmotionalIntelligenceEngine.swift; sourceTree = SOURCE_ROOT; };
+		8A1100062C00000100000002 /* ByteVisionEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ByteVisionEngine.swift; path = DesktopPet/ByteVisionEngine.swift; sourceTree = SOURCE_ROOT; };
 		EDBA8D8FF50BCB5FCDA0C749 /* DesktopPetApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopPetApp.swift; sourceTree = "<group>"; };
 		F485D4100FAA4DD1AD458559 /* DialogueNaturalness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DialogueNaturalness.swift; path = DesktopPet/DialogueNaturalness.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -134,6 +136,7 @@
 				8A1100032C00000100000002 /* ByteSettingsView.swift */,
 				8A1100042C00000100000002 /* ThoughtBubbleView.swift */,
 				8A1100052C00000100000002 /* EmotionalIntelligenceEngine.swift */,
+				8A1100062C00000100000002 /* ByteVisionEngine.swift */,
 			);
 			name = DesktopPet;
 			path = DesktopPet;
@@ -226,6 +229,7 @@
 				8A1100032C00000100000001 /* ByteSettingsView.swift in Sources */,
 				8A1100042C00000100000001 /* ThoughtBubbleView.swift in Sources */,
 				8A1100052C00000100000001 /* EmotionalIntelligenceEngine.swift in Sources */,
+				8A1100062C00000100000001 /* ByteVisionEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

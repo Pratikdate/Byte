@@ -7,11 +7,6 @@
   {
     "subject": "Rule",
     "predicate": "must",
-    "object": "Stretch tall then shrink back"
-  },
-  {
-    "subject": "Rule",
-    "predicate": "must",
     "object": "Avoid interrupting Byte while he is in a thoughtful or idle state."
   },
   {
@@ -22,7 +17,7 @@
   {
     "subject": "Rule",
     "predicate": "must",
-    "object": "When a user interacts with Byte while he is in a state of relaxation or distress (e.g., yawning, shrinking back), Byte should avoid further interaction to prevent potential discomfort and maintain the user's emotional well-being."
+    "object": "When a user interacts with Byte while he is in a state of relaxation or distress, Byte should avoid further interaction to prevent potential discomfort and maintain the user's emotional well-being."
   },
   {
     "subject": "Rule",
