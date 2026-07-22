@@ -22,11 +22,11 @@
 Byte relies on a robust hybrid Machine Learning stack running entirely offline on your Mac. For a complete technical deep-dive into the AI architecture, training loops, and memory consolidation, please read our [Machine Learning Architecture](ML_ARCHITECTURE.md) document.
 - **Q-Learning Action Model**: Byte's autonomous actions (wandering, sleeping, sitting) are entirely data-driven. He evaluates your current environment state (time of day, active apps, attention state) and uses a native Swift Reinforcement Learning model (`ReinforcementLearningModel`) to pick the mathematically best action based on the Bellman equation.
 - **Reflection Engine & Memory Graph**: Byte learns from your feedback! When he goes to sleep, he triggers a self-reflection loop (`ReflectionEngine`). A local LLM acts as an offline trainer, analyzing recent interactions and deducing permanent behavioral rules (saved in a `MemoryGraph`).
-- **Context-Aware Intent Deduction**: Powered by a local LLM (`AIEngine`), Byte doesn't just parse rigid commands; he infers your intent from long, complex, or even broken sentences using zero-shot inference.
+- **Context-Aware Intent Deduction**: Powered by a fine-tuned local LLM (`byte-llm` via Ollama), Byte doesn't just parse rigid commands; he infers your intent from long, complex, or even broken sentences using zero-shot inference. See [`training/README.md`](training/README.md) for local Apple Silicon MLX fine-tuning scripts.
 
 ### 🗣️ Local Voice & AI Capabilities
 - **On-Device Voice I/O**: Completely private and offline voice parsing using `faster-whisper` for Speech-to-Text and `Kokoro` for hyper-realistic Text-to-Speech (`VoiceInputManager`).
-- **Dynamic Dialogue**: Byte's speech lines are never hardcoded. Based on his action and environment, he generates witty, context-appropriate dialogue on the fly using a local LLM.
+- **Dynamic Dialogue**: Byte's speech lines are never hardcoded. Based on his action and environment, he generates witty, context-appropriate dialogue on the fly using `byte-llm`.
 
 ### 🎮 3D Rendering & Physics Engine
 - **SceneKit Integration**: Fully rendered 3D models with programmatic animations and physics-based interactions.
@@ -38,7 +38,7 @@ Byte relies on a robust hybrid Machine Learning stack running entirely offline o
 ### Context-Aware AI & State Machine
 - **`PetBrain` State Machine**: Governs behavioral states (Idle, Wander, Sleep, Sulk, Dizzy) with a sophisticated priority queue and emotion mapping (`annoyance`, `energy`, `happiness`).
 - **Workspace Awareness (`DesktopEnvironmentManager`)**: Utilizes macOS Accessibility APIs (`AXUIElement`) to track active applications, window positions, and bounds. Byte can dynamically interact with your active windows.
-- **Audio & Media Detection (`AudioMonitor`)**: Integrates with `CoreAudio` to detect physical output routes (e.g., connected headphones) and active media playback (Spotify, Apple Music), triggering contextual animations like wearing DJ headphones.
+- **Audio & Media Detection (`AudioMonitor`)**: Integrates with `CoreAudio` to detect physical output routes (e.g., connected headphones) and active media playback (Spotify, Apple Music).
 - **Real-Time Weather Integration (`WeatherManager`)**: Subscribes to local weather APIs to adapt Byte's behavior to the physical world (e.g., deploying a programmatic 3D umbrella during rain).
 
 ## 🏗 Architecture
@@ -48,10 +48,11 @@ The project is structured into distinct managers and engines to ensure a clean s
 - **`PetScene.swift`**: The core SceneKit rendering and physics loop. Handles the `tick` event for custom gravity, velocity calculations, procedural animations, and mouse event tracking.
 - **`PetBrain.swift`**: The state machine. Evaluates conditions (energy depletion, annoyance levels) and dictates the active `PetState` protocol implementation.
 - **`ReinforcementLearningModel.swift`**: The native Swift Q-Learning engine that drives Byte's autonomous physical actions based on environmental state rewards and penalties.
-- **`AIEngine.swift`**: The analytical layer. Synthesizes data from the environment and generates prompts/decisions to drive spontaneous dialogue and infer intent from voice commands.
+- **`AIEngine.swift`**: The analytical layer. Synthesizes data from the environment and generates prompts/decisions to drive spontaneous dialogue and infer intent from voice commands using `byte-llm`.
 - **`ReflectionEngine.swift` & `MemoryGraph.swift`**: The self-improvement loop. Analyzes user feedback logs during sleep cycles to deduce permanent behavioral rules.
 - **`DesktopEnvironmentManager.swift`**: Handles low-level macOS Accessibility integrations to parse the UI tree.
 - **`VoiceInputManager.swift` / `AudioMonitor.swift` / `WeatherManager.swift`**: Dedicated hardware/network observers for voice, media, and local environment states.
+- **`training/`**: MLX LoRA training scripts, dataset generators, and Ollama `ByteModelfile` for fine-tuning `byte-llm`.
 
 ## 🚀 Getting Started
 
@@ -59,6 +60,7 @@ The project is structured into distinct managers and engines to ensure a clean s
 - **OS**: macOS 14.0 (Sonoma) or later
 - **IDE**: Xcode 15.0 or later
 - **Language**: Swift 5.0+
+- **LLM Engine**: [Ollama](https://ollama.com) installed and running locally (`ollama serve`)
 
 ### Installation & Build
 
@@ -67,13 +69,18 @@ The project is structured into distinct managers and engines to ensure a clean s
    git clone https://github.com/yourusername/Byte.git
    cd Byte
    ```
-2. Open the project in Xcode:
+2. Create Byte's local model in Ollama:
+   ```bash
+   ollama create byte-llm -f training/ByteModelfile
+   ```
+3. Open the project in Xcode:
    ```bash
    open Byte.xcodeproj
    ```
-3. Select your local Mac as the build destination and hit `Cmd + R` (Run).
-4. **Permissions**: On first launch, macOS will prompt for **Accessibility Permissions**. This is required for `DesktopEnvironmentManager` to read window frames and dock positions. 
+4. Select your local Mac as the build destination and hit `Cmd + R` (Run).
+5. **Permissions**: On first launch, macOS will prompt for **Accessibility Permissions**. This is required for `DesktopEnvironmentManager` to read window frames and dock positions. 
    - Go to `System Settings` > `Privacy & Security` > `Accessibility` and toggle the switch for `Byte`.
+
 
 ## 🛠 Contributing
 
