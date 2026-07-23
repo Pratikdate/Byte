@@ -28,6 +28,9 @@ class PetScene: SCNScene {
     private var eyeContainer: SKEffectNode!
     private var leftEye: SKShapeNode!
     private var rightEye: SKShapeNode!
+    private var leftEyebrow: SKShapeNode!
+    private var rightEyebrow: SKShapeNode!
+    private var mouthNode: SKShapeNode!
     
     // Emotion specific nodes
     private var leftTear: SKShapeNode!
@@ -378,8 +381,37 @@ class PetScene: SCNScene {
         rightBlush.alpha = 0
         rightBlush.position = CGPoint(x: 60, y: 20)
         
+        leftEyebrow = SKShapeNode(path: getEyebrowPath(for: .normal, isLeft: true))
+        leftEyebrow.strokeColor = eyeColor
+        leftEyebrow.fillColor = .clear
+        leftEyebrow.lineWidth = 3.5
+        leftEyebrow.lineCap = .round
+        leftEyebrow.blendMode = .add
+        leftEyebrow.position = CGPoint(x: -40, y: 45)
+        leftEyebrow.alpha = 0
+        
+        rightEyebrow = SKShapeNode(path: getEyebrowPath(for: .normal, isLeft: false))
+        rightEyebrow.strokeColor = eyeColor
+        rightEyebrow.fillColor = .clear
+        rightEyebrow.lineWidth = 3.5
+        rightEyebrow.lineCap = .round
+        rightEyebrow.blendMode = .add
+        rightEyebrow.position = CGPoint(x: 40, y: 45)
+        rightEyebrow.alpha = 0
+        
+        mouthNode = SKShapeNode(path: getMouthPath(for: .normal))
+        mouthNode.strokeColor = eyeColor
+        mouthNode.fillColor = .clear
+        mouthNode.lineWidth = 3.5
+        mouthNode.lineCap = .round
+        mouthNode.blendMode = .add
+        mouthNode.position = CGPoint(x: 0, y: -35)
+        
         eyeContainer.addChild(leftEye)
         eyeContainer.addChild(rightEye)
+        eyeContainer.addChild(leftEyebrow)
+        eyeContainer.addChild(rightEyebrow)
+        eyeContainer.addChild(mouthNode)
         eyeContainer.addChild(leftTear)
         eyeContainer.addChild(rightTear)
         eyeContainer.addChild(leftBlush)
@@ -941,31 +973,78 @@ class PetScene: SCNScene {
     private func applyEmotion(_ emotion: PetEmotion) {
         let duration: TimeInterval = 0.3
         
-        // Morph the path immediately but hide the abrupt change behind the movement
+        // Morph the paths for eyes, eyebrows, and mouth
         leftEye.path = getEyePath(for: emotion, isLeft: true)
         rightEye.path = getEyePath(for: emotion, isLeft: false)
+        leftEyebrow.path = getEyebrowPath(for: emotion, isLeft: true)
+        rightEyebrow.path = getEyebrowPath(for: emotion, isLeft: false)
+        mouthNode.path = getMouthPath(for: emotion)
+        
+        if emotion == .excited || emotion == .angry || emotion == .shock {
+            mouthNode.fillColor = leftEye.fillColor
+        } else {
+            mouthNode.fillColor = .clear
+        }
         
         var leftRot: CGFloat = 0
         var rightRot: CGFloat = 0
+        var leftEyebrowRot: CGFloat = 0
+        var rightEyebrowRot: CGFloat = 0
         var scaleY: CGFloat = 1.0
         var scaleX: CGFloat = 1.0
         
-        // Emojis natively handle their shapes, so keep transformations neutral
         switch emotion {
         case .sad:
-            scaleY = 0.9
+            // Vulnerable, inner-tilted puppy eyes (Inspired by Image 2)
+            leftRot = 0.18
+            rightRot = -0.18
+            leftEyebrowRot = 0.20
+            rightEyebrowRot = -0.20
+            scaleY = 0.92
+        case .embarrassed:
+            leftRot = 0.10
+            rightRot = -0.10
+            scaleY = 0.88
         case .sleepy, .bored:
-            scaleY = 0.9
-        case .happy, .love, .excited:
-            // Slight bounce/scale for positive emotions
-            scaleX = 1.1
-            scaleY = 1.1
+            // Relaxed half-lidded eyes (Inspired by Image 4)
+            scaleY = 0.80
+            scaleX = 1.05
+        case .happy:
+            // Warm Duchenne smile (Inspired by Image 1)
+            scaleX = 1.10
+            scaleY = 1.05
+        case .love:
+            // Deep, warm eye connection (Inspired by Images 1 & 2)
+            leftRot = 0.05
+            rightRot = -0.05
+            leftEyebrowRot = 0.08
+            rightEyebrowRot = -0.08
+            scaleX = 1.15
+            scaleY = 1.10
+        case .excited:
+            scaleX = 1.18
+            scaleY = 1.18
+        case .curious:
+            // Asymmetric inquisitive glance (Inspired by Image 3)
+            leftRot = 0.10
+            rightRot = -0.05
+            leftEyebrowRot = 0.15
+            rightEyebrowRot = -0.05
+            scaleX = 1.08
+        case .angry:
+            // Intense inner-slanted eyes (Inspired by Image 5)
+            leftRot = -0.14
+            rightRot = 0.14
+            leftEyebrowRot = -0.20
+            rightEyebrowRot = 0.20
+            scaleY = 0.85
         case .proud:
-            // Confident squint + slight upward tilt
+            // Smug cat eye tilt
+            leftRot = -0.08
+            rightRot = 0.08
             scaleX = 1.15
             scaleY = 0.85
         case .dizzy:
-            // Spin the X X around!
             leftRot = .pi
             rightRot = .pi
         default:
@@ -982,10 +1061,33 @@ class PetScene: SCNScene {
             SKAction.scaleX(to: scaleX, y: scaleY, duration: duration)
         ]))
         
+        leftEyebrow.run(SKAction.group([
+            SKAction.rotate(toAngle: leftEyebrowRot, duration: duration, shortestUnitArc: true),
+            SKAction.scaleX(to: scaleX, y: scaleY, duration: duration)
+        ]))
+        
+        rightEyebrow.run(SKAction.group([
+            SKAction.rotate(toAngle: rightEyebrowRot, duration: duration, shortestUnitArc: true),
+            SKAction.scaleX(to: scaleX, y: scaleY, duration: duration)
+        ]))
+        
+        // Eyebrows are only shown when the emotion explicitly needs eyebrow expression
+        let showEyebrows: Bool
+        switch emotion {
+        case .angry, .sad, .curious, .thinking, .shock, .proud:
+            showEyebrows = true
+        default:
+            showEyebrows = false
+        }
+        
+        let targetBrowAlpha: CGFloat = showEyebrows ? 1.0 : 0.0
+        leftEyebrow.run(SKAction.fadeAlpha(to: targetBrowAlpha, duration: duration))
+        rightEyebrow.run(SKAction.fadeAlpha(to: targetBrowAlpha, duration: duration))
+        
         // Handle Tears
         if emotion == .sad {
             let cry = SKAction.sequence([
-                SKAction.moveBy(x: 0, y: 10, duration: 0.5), // Positive Y is down
+                SKAction.moveBy(x: 0, y: 10, duration: 0.5),
                 SKAction.fadeAlpha(to: 0, duration: 0.2),
                 SKAction.moveBy(x: 0, y: -10, duration: 0),
                 SKAction.fadeAlpha(to: 1.0, duration: 0.2)
@@ -1011,29 +1113,13 @@ class PetScene: SCNScene {
         }
         
         if emotion == .thinking {
-            leftEye.run(SKAction.repeatForever(SKAction.sequence([SKAction.fadeAlpha(to: 0.2, duration: 0.5), SKAction.fadeAlpha(to: 1.0, duration: 0.5)])))
-            rightEye.run(SKAction.repeatForever(SKAction.sequence([SKAction.fadeAlpha(to: 1.0, duration: 0.5), SKAction.fadeAlpha(to: 0.2, duration: 0.5)])))
+            leftEye.run(SKAction.repeatForever(SKAction.sequence([SKAction.fadeAlpha(to: 0.3, duration: 0.4), SKAction.fadeAlpha(to: 1.0, duration: 0.4)])))
+            rightEye.run(SKAction.repeatForever(SKAction.sequence([SKAction.fadeAlpha(to: 1.0, duration: 0.4), SKAction.fadeAlpha(to: 0.3, duration: 0.4)])))
         } else {
             leftEye.removeAllActions()
             rightEye.removeAllActions()
             leftEye.alpha = 1.0
             rightEye.alpha = 1.0
-        }
-        
-        // Trigger particles on emotion change
-        switch emotion {
-        case .love:
-            showParticle(.heart)
-        case .happy, .excited:
-            if Double.random(in: 0...1) < 0.4 { showParticle(.sparkle) }
-        case .proud:
-            showConfettiParticles()
-        case .sleepy:
-            showParticle(.zzz)
-        case .angry:
-            showParticle(.angryCloud)
-        default:
-            break
         }
     }
     
@@ -1053,9 +1139,15 @@ class PetScene: SCNScene {
         rightEye.position.x += (trx - rightEye.position.x) * 0.2
         rightEye.position.y += (try_ - rightEye.position.y) * 0.2
         
-        // Eye glow intensity: brighter when cursor is closer
-        // Use alpha scaling instead of CIFilter mutation to avoid race condition
-        // with SpriteKit's render thread on the rasterized effect node
+        // In 3D texture space, Negative Y is ABOVE the eyes, Positive Y is BELOW the eyes!
+        leftEyebrow.position.x = leftEye.position.x
+        leftEyebrow.position.y = leftEye.position.y - 45
+        rightEyebrow.position.x = rightEye.position.x
+        rightEyebrow.position.y = rightEye.position.y - 45
+        
+        mouthNode.position.x = (leftEye.position.x + rightEye.position.x) / 2.0
+        mouthNode.position.y = (leftEye.position.y + rightEye.position.y) / 2.0 + 40
+        
         let dist = sqrt(dx * dx + dy * dy)
         let glowAlpha = CGFloat(max(0.6, min(1.0, 1.2 - dist * 0.002)))
         eyeContainer.alpha += (glowAlpha - eyeContainer.alpha) * 0.15
@@ -1064,39 +1156,152 @@ class PetScene: SCNScene {
     private func blink() {
         var targetScaleY: CGFloat = 1.0
         switch brain.currentEmotion {
-        case .angry, .sad: targetScaleY = 0.95
-        case .sleepy: targetScaleY = 0.9
+        case .angry, .sad: targetScaleY = 0.92
+        case .sleepy: targetScaleY = 0.80
         case .happy: targetScaleY = 0.95
-        case .love: targetScaleY = 1.2
-        case .dizzy: targetScaleY = 1.2
-        case .bored: targetScaleY = 0.9
-        case .embarrassed: targetScaleY = 0.9
+        case .love: targetScaleY = 1.10
+        case .dizzy: targetScaleY = 1.10
+        case .bored: targetScaleY = 0.80
+        case .embarrassed: targetScaleY = 0.88
         default: targetScaleY = 1.0
         }
         
-        let action = SKAction.sequence([SKAction.scaleY(to: 0.1, duration: 0.05), SKAction.scaleY(to: targetScaleY, duration: 0.1)])
+        let action = SKAction.sequence([SKAction.scaleY(to: 0.08, duration: 0.05), SKAction.scaleY(to: targetScaleY, duration: 0.1)])
         leftEye.run(action)
         rightEye.run(action)
     }
     
-    /// Returns an emotion-dependent blink chance per tick.
-    /// Higher value = more frequent blinking.
     private func blinkChance() -> Int {
         switch brain.currentEmotion {
-        case .excited, .happy, .love:  return 150  // Blink more often
+        case .excited, .happy, .love:  return 150
         case .curious:                 return 180
-        case .sleepy, .bored:          return 60   // Blink very slowly (long gaps)
+        case .sleepy, .bored:          return 60
         case .angry:                   return 120
         case .normal:                  return 200
         default:                       return 200
         }
     }
     
-    // MARK: - Paths for Eyes (EMO Robot Style)
+    // MARK: - Dynamic Eyebrows (Floating ABOVE Eye Blocks in 3D Space)
+    private func getEyebrowPath(for emotion: PetEmotion, isLeft: Bool) -> CGPath {
+        let path = CGMutablePath()
+        let w: CGFloat = 30.0
+        let w2 = w / 2.0
+        
+        switch emotion {
+        case .angry:
+            // V-shape angle slanting down toward nose
+            if isLeft {
+                path.move(to: CGPoint(x: -w2, y: -10))
+                path.addLine(to: CGPoint(x: w2, y: 8))
+            } else {
+                path.move(to: CGPoint(x: -w2, y: 8))
+                path.addLine(to: CGPoint(x: w2, y: -10))
+            }
+        case .sad, .embarrassed:
+            // Puppy-eyes slant (inner corner raised high)
+            if isLeft {
+                path.move(to: CGPoint(x: -w2, y: 8))
+                path.addLine(to: CGPoint(x: w2, y: -8))
+            } else {
+                path.move(to: CGPoint(x: -w2, y: -8))
+                path.addLine(to: CGPoint(x: w2, y: 8))
+            }
+        case .curious, .thinking:
+            // Asymmetric cocked brow
+            if isLeft {
+                path.move(to: CGPoint(x: -w2, y: 0))
+                path.addQuadCurve(to: CGPoint(x: w2, y: -4), control: CGPoint(x: 0, y: -16))
+            } else {
+                path.move(to: CGPoint(x: -w2, y: -2))
+                path.addLine(to: CGPoint(x: w2, y: 4))
+            }
+        case .happy, .love, .excited:
+            // Soft high rounded arch
+            path.move(to: CGPoint(x: -w2, y: 0))
+            path.addQuadCurve(to: CGPoint(x: w2, y: 0), control: CGPoint(x: 0, y: -12))
+        case .proud:
+            if isLeft {
+                path.move(to: CGPoint(x: -w2, y: -6))
+                path.addLine(to: CGPoint(x: w2, y: -2))
+            } else {
+                path.move(to: CGPoint(x: -w2, y: 0))
+                path.addQuadCurve(to: CGPoint(x: w2, y: 0), control: CGPoint(x: 0, y: -12))
+            }
+        case .shock:
+            path.move(to: CGPoint(x: -w2, y: -8))
+            path.addQuadCurve(to: CGPoint(x: w2, y: -8), control: CGPoint(x: 0, y: -18))
+        case .sleepy, .bored:
+            path.move(to: CGPoint(x: -w2, y: 4))
+            path.addLine(to: CGPoint(x: w2, y: 4))
+        default:
+            path.move(to: CGPoint(x: -w2, y: 0))
+            path.addQuadCurve(to: CGPoint(x: w2, y: 0), control: CGPoint(x: 0, y: -6))
+        }
+        return path
+    }
+    
+    // MARK: - Dynamic Mouth Line (Corrected for 3D Material Y-Flipped Space)
+    private func getMouthPath(for emotion: PetEmotion) -> CGPath {
+        let path = CGMutablePath()
+        switch emotion {
+        case .happy, .love:
+            // Cute cat mouth curve \( ^\omega^ \) (Image 1 Inspired)
+            path.move(to: CGPoint(x: -12, y: -2))
+            path.addQuadCurve(to: CGPoint(x: 0, y: 4), control: CGPoint(x: -6, y: 8))
+            path.addQuadCurve(to: CGPoint(x: 12, y: -2), control: CGPoint(x: 6, y: 8))
+            return path
+            
+        case .excited:
+            // Happy open smiling mouth (Image 3 Inspired)
+            path.move(to: CGPoint(x: -12, y: -2))
+            path.addQuadCurve(to: CGPoint(x: 12, y: -2), control: CGPoint(x: 0, y: 14))
+            path.closeSubpath()
+            return path
+            
+        case .sad, .embarrassed:
+            // Soft sad pout curve (Image 2 Inspired)
+            path.move(to: CGPoint(x: -10, y: 6))
+            path.addQuadCurve(to: CGPoint(x: 10, y: 6), control: CGPoint(x: 0, y: -2))
+            return path
+            
+        case .sleepy, .bored:
+            // Tiny relaxed horizontal dash (Image 4 Inspired)
+            path.move(to: CGPoint(x: -6, y: 0))
+            path.addLine(to: CGPoint(x: 6, y: 0))
+            return path
+            
+        case .angry:
+            // Rectangular angry mouth bar (Image 5 Inspired)
+            path.addRect(CGRect(x: -10, y: -2, width: 20, height: 7))
+            return path
+            
+        case .shock:
+            return CGPath(ellipseIn: CGRect(x: -7, y: -7, width: 14, height: 14), transform: nil)
+            
+        case .proud:
+            path.move(to: CGPoint(x: -10, y: 2))
+            path.addQuadCurve(to: CGPoint(x: 10, y: -3), control: CGPoint(x: 0, y: 6))
+            return path
+            
+        case .curious, .thinking:
+            path.move(to: CGPoint(x: -8, y: 2))
+            path.addQuadCurve(to: CGPoint(x: 6, y: -2), control: CGPoint(x: -1, y: -4))
+            return path
+            
+        default:
+            // Gentle default smile
+            path.move(to: CGPoint(x: -8, y: 0))
+            path.addQuadCurve(to: CGPoint(x: 8, y: 0), control: CGPoint(x: 0, y: 5))
+            return path
+        }
+    }
+    
+    // MARK: - Paths for Eyes (SOLID FILLED VECTOR BLOCKS!)
     private func getEyePath(for emotion: PetEmotion, isLeft: Bool) -> CGPath {
-        let w: CGFloat = 36
-        let h: CGFloat = 80
-        let r: CGFloat = 16 // Anki Vector style rounded pills
+        let w: CGFloat = 38
+        let h: CGFloat = 66
+        let r: CGFloat = 16 // Soft rounded squircle base
         
         var topLeft = CGPoint(x: -w/2, y: h/2)
         var topRight = CGPoint(x: w/2, y: h/2)
@@ -1104,66 +1309,69 @@ class PetScene: SCNScene {
         var botLeft = CGPoint(x: -w/2, y: -h/2)
         
         switch emotion {
-        case .angry, .embarrassed:
-            if isLeft {
-                topRight.y -= 25
-                topLeft.y += 5
-            } else {
-                topLeft.y -= 25
-                topRight.y += 5
-            }
-        case .sad:
-            if isLeft {
-                topLeft.y -= 25
-                topRight.y += 5
-                botRight.y += 5
-            } else {
-                topRight.y -= 25
-                topLeft.y += 5
-                botLeft.y += 5
-            }
-        case .bored, .sleepy:
-            topLeft.y -= 20
-            topRight.y -= 20
-            botLeft.y += 5
-            botRight.y += 5
-        case .happy, .excited:
+        case .happy, .love:
+            // Solid filled capsule with slightly rounded top & smiling bottom (Image 1 Inspired)
+            topRight.y -= 4
+            topLeft.y -= 4
+            botRight.y += 6
+            botLeft.y += 6
+            
+        case .sleepy, .bored:
+            // Solid filled thick horizontal capsule at bottom (Image 4 Inspired)
             let path = CGMutablePath()
-            path.move(to: CGPoint(x: -25, y: -10))
-            path.addQuadCurve(to: CGPoint(x: 25, y: -10), control: CGPoint(x: 0, y: 30))
-            path.addQuadCurve(to: CGPoint(x: -25, y: -10), control: CGPoint(x: 0, y: 10))
-            path.closeSubpath()
+            let pillRect = CGRect(x: -w/2 - 2, y: -h/2 + 2, width: w + 4, height: 26)
+            path.addRoundedRect(in: pillRect, cornerWidth: 12, cornerHeight: 12)
             return path
-        case .proud:
-            // Confident narrow arc eyes — like a smug cat
-            let path = CGMutablePath()
-            path.move(to: CGPoint(x: -22, y: 0))
-            path.addQuadCurve(to: CGPoint(x: 22, y: 0), control: CGPoint(x: 0, y: 20))
-            path.addQuadCurve(to: CGPoint(x: -22, y: 0), control: CGPoint(x: 0, y: 8))
-            path.closeSubpath()
-            return path
+            
+        case .angry:
+            // Solid filled slanted top lid (Image 5 Inspired)
+            if isLeft {
+                topRight.y -= 26
+                topLeft.y += 4
+            } else {
+                topLeft.y -= 26
+                topRight.y += 4
+            }
+            
+        case .sad, .embarrassed:
+            // Solid filled inner-slanted squircle (Image 2 Inspired)
+            if isLeft {
+                topLeft.y -= 20
+                topRight.y += 6
+                botRight.y += 4
+            } else {
+                topRight.y -= 20
+                topLeft.y += 6
+                botLeft.y += 4
+            }
+            
         case .curious:
+            // Solid filled asymmetrical eyes (Image 3 Inspired)
             if isLeft {
                 topLeft.y += 8
                 topRight.y += 8
-                botLeft.y -= 8
-                botRight.y -= 8
+                botLeft.y -= 4
+                botRight.y -= 4
             } else {
-                topLeft.y -= 10
-                topRight.y -= 10
+                topLeft.y -= 12
+                topRight.y -= 12
             }
-        case .shock:
-            return CGPath(ellipseIn: CGRect(x: -30, y: -30, width: 60, height: 60), transform: nil)
-        case .thinking:
-            return CGPath(ellipseIn: CGRect(x: -12, y: -12, width: 24, height: 24), transform: nil)
-        case .love:
+            
+        case .proud:
+            // Solid filled sleek cat-eye capsule
             let path = CGMutablePath()
-            path.move(to: CGPoint(x: 0, y: -20))
-            path.addCurve(to: CGPoint(x: 25, y: 10), control1: CGPoint(x: 12, y: -10), control2: CGPoint(x: 25, y: 0))
-            path.addCurve(to: CGPoint(x: 0, y: 10), control1: CGPoint(x: 25, y: 25), control2: CGPoint(x: 0, y: 25))
-            path.addCurve(to: CGPoint(x: -25, y: 10), control1: CGPoint(x: 0, y: 25), control2: CGPoint(x: -25, y: 25))
-            path.addCurve(to: CGPoint(x: 0, y: -20), control1: CGPoint(x: -25, y: 0), control2: CGPoint(x: -12, y: -10))
+            let pillRect = CGRect(x: -w/2 - 2, y: -16, width: w + 4, height: 32)
+            path.addRoundedRect(in: pillRect, cornerWidth: 14, cornerHeight: 14)
             return path
+            
+        case .shock:
+            // Solid filled large open circle
+            return CGPath(ellipseIn: CGRect(x: -25, y: -25, width: 50, height: 50), transform: nil)
+            
+        case .thinking:
+            // Solid filled focused oval
+            return CGPath(ellipseIn: CGRect(x: -14, y: -18, width: 28, height: 36), transform: nil)
+            
         case .dizzy:
             if isLeft {
                 topLeft.y -= 20
@@ -1172,6 +1380,7 @@ class PetScene: SCNScene {
                 topRight.y -= 20
                 botLeft.y += 20
             }
+            
         default:
             break
         }
