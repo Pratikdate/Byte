@@ -7,7 +7,6 @@
 <br/>
 
 <p align="center">
-  <img src="./assets/motion_walking.png" width="19%" title="Walking & Listening" />
   <img src="./assets/motion_walk_curious.png" width="19%" title="Walk Curious" />
   <img src="./assets/motion_sleeping.png" width="19%" title="Sleeping" />
   <img src="./assets/motion_looking.png" width="19%" title="Looking Forward" />
