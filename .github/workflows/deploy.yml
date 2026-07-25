@@ -40,6 +40,9 @@ jobs:
         run: npm run build
         working-directory: ./website
 
+      - name: Ensure .nojekyll exists
+        run: touch website/build/.nojekyll
+
       - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
