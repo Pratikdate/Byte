@@ -20,7 +20,7 @@ This document provides an exhaustive, step-by-step breakdown of **Byte**—an in
 
 Byte operates as a native macOS overlay application that interacts seamlessly with your desktop environment, active applications, audio subsystem, and voice input.
 
-![Byte System Architecture Sketch Diagram](/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/byte_architecture_sketch_1785001284709.png)
+![Byte System Architecture Sketch Diagram](../assets/byte_architecture_sketch.png)
 
 ### Core Components & Subsystems:
 
@@ -39,7 +39,7 @@ Byte operates as a native macOS overlay application that interacts seamlessly wi
 
 To make Byte feel truly empathetic, supportive, and emotionally responsive, we engineered a dedicated end-to-end Machine Learning pipeline using Apple Silicon MLX GPU acceleration.
 
-![Byte Machine Learning Pipeline Sketch Diagram](/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/byte_ml_pipeline_sketch_1785001298280.png)
+![Byte Machine Learning Pipeline Sketch Diagram](../assets/byte_ml_pipeline_sketch.png)
 
 ---
 

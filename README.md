@@ -1,7 +1,7 @@
 # 🐾 Byte: Intelligent 3D Desktop Pet Companion for macOS
 
 <div align="center">
-  <img src="/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/cat_paw_emoji_logo_1785001552302.png" width="160" alt="Byte Cat Paw Logo" />
+  <img src="./assets/byte_logo.png" width="160" alt="Byte Cat Paw Logo" />
   
   ### *Empathetic, Autonomous, and Offline AI Desktop Companion*
 
@@ -60,7 +60,7 @@ Unlike static desktop widgets, Byte runs a **hybrid machine learning architectur
 
 ## 📐 System Architecture
 
-![Byte System Architecture Sketch Diagram](/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/byte_architecture_sketch_1785001284709.png)
+![Byte System Architecture Sketch Diagram](./assets/byte_architecture_sketch.png)
 
 ```mermaid
 sequenceDiagram
@@ -90,7 +90,7 @@ For full technical specifications, read our **[Empathy AI & ML Architecture Guid
 
 ## 🔬 Machine Learning & Empathy Training Pipeline
 
-![Byte Machine Learning Pipeline Sketch Diagram](/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/byte_ml_pipeline_sketch_1785001298280.png)
+![Byte Machine Learning Pipeline Sketch Diagram](./assets/byte_ml_pipeline_sketch.png)
 
 ### Training Highlights:
 - **Dataset Size:** 45,328 total items (`train.jsonl`: 38,528 | `valid.jsonl`: 6,800).
