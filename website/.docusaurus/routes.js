@@ -3,55 +3,55 @@ import ComponentCreator from '@docusaurus/ComponentCreator';
 
 export default [
   {
-    path: '/Byte/__docusaurus/debug',
-    component: ComponentCreator('/Byte/__docusaurus/debug', '612'),
-    exact: true
-  },
-  {
-    path: '/Byte/__docusaurus/debug/config',
-    component: ComponentCreator('/Byte/__docusaurus/debug/config', 'e41'),
-    exact: true
-  },
-  {
-    path: '/Byte/__docusaurus/debug/content',
-    component: ComponentCreator('/Byte/__docusaurus/debug/content', 'b73'),
-    exact: true
-  },
-  {
-    path: '/Byte/__docusaurus/debug/globalData',
-    component: ComponentCreator('/Byte/__docusaurus/debug/globalData', 'a35'),
-    exact: true
-  },
-  {
-    path: '/Byte/__docusaurus/debug/metadata',
-    component: ComponentCreator('/Byte/__docusaurus/debug/metadata', '038'),
-    exact: true
-  },
-  {
-    path: '/Byte/__docusaurus/debug/registry',
-    component: ComponentCreator('/Byte/__docusaurus/debug/registry', '43c'),
-    exact: true
-  },
-  {
-    path: '/Byte/__docusaurus/debug/routes',
-    component: ComponentCreator('/Byte/__docusaurus/debug/routes', '9d6'),
+    path: '/Byte/markdown-page',
+    component: ComponentCreator('/Byte/markdown-page', 'fb2'),
     exact: true
   },
   {
     path: '/Byte/docs',
-    component: ComponentCreator('/Byte/docs', '87c'),
+    component: ComponentCreator('/Byte/docs', '72e'),
     routes: [
       {
         path: '/Byte/docs',
-        component: ComponentCreator('/Byte/docs', 'c70'),
+        component: ComponentCreator('/Byte/docs', '7be'),
         routes: [
           {
             path: '/Byte/docs',
-            component: ComponentCreator('/Byte/docs', '06d'),
+            component: ComponentCreator('/Byte/docs', '8ef'),
             routes: [
               {
                 path: '/Byte/docs/architecture',
                 component: ComponentCreator('/Byte/docs/architecture', '24f'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/Byte/docs/behaviors',
+                component: ComponentCreator('/Byte/docs/behaviors', '824'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/Byte/docs/empathy-ml-pipeline',
+                component: ComponentCreator('/Byte/docs/empathy-ml-pipeline', 'f6d'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/Byte/docs/installation-guide',
+                component: ComponentCreator('/Byte/docs/installation-guide', '75a'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/Byte/docs/sensors-and-os',
+                component: ComponentCreator('/Byte/docs/sensors-and-os', '082'),
+                exact: true,
+                sidebar: "tutorialSidebar"
+              },
+              {
+                path: '/Byte/docs/state-engine',
+                component: ComponentCreator('/Byte/docs/state-engine', '743'),
                 exact: true,
                 sidebar: "tutorialSidebar"
               }
@@ -60,6 +60,11 @@ export default [
         ]
       }
     ]
+  },
+  {
+    path: '/Byte/',
+    component: ComponentCreator('/Byte/', '716'),
+    exact: true
   },
   {
     path: '*',

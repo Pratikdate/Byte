@@ -14,6 +14,31 @@
               "id": "architecture",
               "path": "/Byte/docs/architecture",
               "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "behaviors",
+              "path": "/Byte/docs/behaviors",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "empathy-ml-pipeline",
+              "path": "/Byte/docs/empathy-ml-pipeline",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "installation-guide",
+              "path": "/Byte/docs/installation-guide",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "sensors-and-os",
+              "path": "/Byte/docs/sensors-and-os",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "state-engine",
+              "path": "/Byte/docs/state-engine",
+              "sidebar": "tutorialSidebar"
             }
           ],
           "draftIds": [],

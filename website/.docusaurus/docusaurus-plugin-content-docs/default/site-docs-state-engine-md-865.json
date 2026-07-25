@@ -18,8 +18,8 @@
   },
   "sidebar": "tutorialSidebar",
   "previous": {
-    "title": "Core Architecture",
-    "permalink": "/Byte/docs/architecture"
+    "title": "Empathy AI & ML Fine-Tuning Pipeline",
+    "permalink": "/Byte/docs/empathy-ml-pipeline"
   },
   "next": {
     "title": "Behavior Repertoire",

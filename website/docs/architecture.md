@@ -1,32 +1,56 @@
 ---
 id: architecture
-title: Core Architecture
+title: System Architecture & Subsystems
 sidebar_position: 1
 ---
 
-# Core Architecture
+# System Architecture & Subsystems
 
-The Byte project is structured into a clean four-layer system architecture to ensure a clear separation of concerns, operating primarily offline for maximum privacy and performance. Data flows in one direction only: **Sensors → State → Behavior/Emotion → Rendering**. No layer calls a non-adjacent layer directly.
+Byte is built on a four-layer hybrid Machine Learning architecture operating natively and 100% offline on macOS.
 
-## 1. OS Sensor Layer
-**Role:** Subscribes to system events continuously and ambiently.
-**Implementation:**
-- Watches the Downloads folder via `FSEvents`
-- Checks battery and CPU status via `IOKit`
-- Listens to active app switching via `NSWorkspace`
-- Captures idle state and mouse clicks/drags globally via `NSEvent`
+![Byte System Architecture Sketch Diagram](/img/byte_architecture_sketch.png)
 
-## 2. State Engine (`PetBrain.swift`)
-**Role:** A plain Swift tick-based engine (~10Hz) that manages internal state variables (energy, mood, curiosity, annoyance, routine_phase, attention_target) completely independent of UI or rendering.
-**Implementation:** OS events *nudge* these variables, which decay or rise over time. The engine uses Utility AI to score candidate actions rather than relying on a rigid dispatch table.
+## Core Subsystems Breakdown
 
-## 3. Emotion + Behavior Layer (`AIEngine.swift`)
-**Role:** Collapses continuous state numbers into discrete, readable emotions and behavior selections.
-**Implementation:** 
-- Translates state scores into specific emotion labels (e.g., Content, Excited, Sleepy, Annoyed).
-- Selects dialogue using Apple's on-device `FoundationModels` framework for fast, offline flavor text.
-- Optionally uses the Anthropic API (Claude) only when explicit talk-mode is invoked by the user.
+### 1. User Voice Input & Speech-to-Text (`VoiceInputManager`)
+- **Speech Recognition:** Integrates `faster-whisper` running locally on port `9000`.
+- **Low Latency:** Processes continuous streaming audio from macOS microphone with offline privacy.
 
-## 4. Rendering & OS Integration
-**Role:** Draws the character and manages window presence.
-**Implementation:** Uses a transparent, click-through, always-on-top `NSWindow` built with `AppKit`. Rendering relies entirely on `SpriteKit` for animation loops, posture changes, and particle emitters (like hearts or sweat), requiring no bulky external engines.
+### 2. Ollama Local LLM Brain (`byte-llm`)
+- **Endpoint:** Ollama service listening on port `11434`.
+- **Model:** Fine-tuned `byte-llm` (based on `Llama-3.2-1B-Instruct-4bit`).
+- **Structured Prediction:** Predicts dual-tag outputs:
+  - `[ACTION: sitOnCorner]`
+  - `[EMOTION: cozy]`
+  - Short natural dialogue (under 20 words).
+
+### 3. Swift SceneKit 3D Render & Physics Loop (`PetScene.swift`)
+- **Rendering:** SceneKit 3D transparent desktop overlay.
+- **Surface Physics:** Custom surface collision detection for window top frames, menu bars, and macOS Dock floor.
+- **Interactive Throwing:** Free-form drag and toss physics with drag coefficient and gravity vector calculations.
+
+### 4. Kokoro Text-to-Speech Synthesizer (`tts_server.py`)
+- **Endpoint:** Kokoro TTS HTTP server listening on port `8000`.
+- **Audio Output:** Converts text into humanlike voice synthesis streamed directly to macOS speakers.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant App as macOS DesktopPet App (Swift)
+    participant STT as Whisper Server (Port 9000)
+    participant LLM as Ollama byte-llm (Port 11434)
+    participant TTS as Kokoro TTS Server (Port 8000)
+
+    User->>App: Voice or Text Interaction
+    alt Voice Input
+        App->>STT: Stream Audio Data
+        STT-->>App: Return Text Transcript
+    end
+    App->>LLM: Send CONTEXT + USER SAID
+    LLM-->>App: Return "[ACTION: sitOnCorner] [EMOTION: love] I'm right here with you."
+    App->>App: Trigger 3D Sprite Animation & State Transition
+    App->>TTS: Synthesize Text to Audio
+    TTS-->>App: Return Audio Buffer
+    App->>User: Play Voice Output & Perform 3D Animation
+```

@@ -1,62 +1,53 @@
 {
-  "/Byte/__docusaurus/debug-612": {
-    "__comp": "__comp---theme-debug-config-23-a-2ff",
+  "/Byte/markdown-page-fb2": {
+    "__comp": "1f391b9e",
     "__context": {
-      "plugin": "plugin---desktop-pet-docusaurus-debugb-38-8e1"
-    }
-  },
-  "/Byte/__docusaurus/debug/config-e41": {
-    "__comp": "__comp---theme-debug-config-23-a-2ff",
-    "__context": {
-      "plugin": "plugin---desktop-pet-docusaurus-debugb-38-8e1"
-    }
-  },
-  "/Byte/__docusaurus/debug/content-b73": {
-    "__comp": "__comp---theme-debug-contentba-8-ce7",
-    "__context": {
-      "plugin": "plugin---desktop-pet-docusaurus-debugb-38-8e1"
+      "plugin": "a7456010"
     },
-    "__props": "__props---byte-docusaurus-debug-content-801-6b8"
+    "content": "4c678320"
   },
-  "/Byte/__docusaurus/debug/globalData-a35": {
-    "__comp": "__comp---theme-debug-global-dataede-0fa",
+  "/Byte/docs-72e": {
+    "__comp": "5e95c892",
     "__context": {
-      "plugin": "plugin---desktop-pet-docusaurus-debugb-38-8e1"
+      "plugin": "aba21aa0"
     }
   },
-  "/Byte/__docusaurus/debug/metadata-038": {
-    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
-    "__context": {
-      "plugin": "plugin---desktop-pet-docusaurus-debugb-38-8e1"
-    }
+  "/Byte/docs-7be": {
+    "__comp": "a7bd4aaa",
+    "__props": "900573a7"
   },
-  "/Byte/__docusaurus/debug/registry-43c": {
-    "__comp": "__comp---theme-debug-registry-679-501",
-    "__context": {
-      "plugin": "plugin---desktop-pet-docusaurus-debugb-38-8e1"
-    }
-  },
-  "/Byte/__docusaurus/debug/routes-9d6": {
-    "__comp": "__comp---theme-debug-routes-946-699",
-    "__context": {
-      "plugin": "plugin---desktop-pet-docusaurus-debugb-38-8e1"
-    }
-  },
-  "/Byte/docs-87c": {
-    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
-    "__context": {
-      "plugin": "plugin---desktop-pet-docsaba-883"
-    }
-  },
-  "/Byte/docs-c70": {
-    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
-    "__props": "__props---byte-docs-900-812"
-  },
-  "/Byte/docs-06d": {
-    "__comp": "__comp---theme-doc-roota-94-67a"
+  "/Byte/docs-8ef": {
+    "__comp": "a94703ab"
   },
   "/Byte/docs/architecture-24f": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---desktop-pet-docs-architecture-528-872"
+    "__comp": "17896441",
+    "content": "5281b7a2"
+  },
+  "/Byte/docs/behaviors-824": {
+    "__comp": "17896441",
+    "content": "5e452a2f"
+  },
+  "/Byte/docs/empathy-ml-pipeline-f6d": {
+    "__comp": "17896441",
+    "content": "1a48cd6a"
+  },
+  "/Byte/docs/installation-guide-75a": {
+    "__comp": "17896441",
+    "content": "a9f4919c"
+  },
+  "/Byte/docs/sensors-and-os-082": {
+    "__comp": "17896441",
+    "content": "689d67be"
+  },
+  "/Byte/docs/state-engine-743": {
+    "__comp": "17896441",
+    "content": "865f1f48"
+  },
+  "/Byte/-716": {
+    "__comp": "1df93b7f",
+    "__context": {
+      "plugin": "a7456010"
+    },
+    "config": "5e9f5e1a"
   }
 }
