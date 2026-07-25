@@ -1,7 +1,7 @@
 # 🐾 Byte: Intelligent 3D Desktop Pet Companion for macOS
 
 <div align="center">
-  <img src="/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/wild_cat_paw_logo_1785001347305.png" width="180" alt="Byte Wild Cat Paw Logo" />
+  <img src="/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/cat_paw_emoji_logo_1785001552302.png" width="160" alt="Byte Cat Paw Logo" />
   
   ### *Empathetic, Autonomous, and Offline AI Desktop Companion*
 
