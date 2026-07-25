@@ -1,7 +1,15 @@
-# Byte: Intelligent 3D Desktop Pet for macOS
+# 🐾 Byte: Intelligent 3D Desktop Pet Companion for macOS
 
 <div align="center">
-  <img src="./assets/byte_preview.png" alt="Byte Desktop Pet" />
+  <img src="/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/wild_cat_paw_logo_1785001347305.png" width="180" alt="Byte Wild Cat Paw Logo" />
+  
+  ### *Empathetic, Autonomous, and Offline AI Desktop Companion*
+
+  [![macOS 14.0+](https://img.shields.io/badge/macOS-14.0%2B-blue.svg?logo=apple)](https://developer.apple.com/macos/)
+  [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-orange.svg?logo=swift)](https://swift.org)
+  [![Apple Silicon MLX](https://img.shields.io/badge/MLX-Metal%20GPU-black.svg?logo=apple)](https://github.com/ml-explore/mlx)
+  [![Ollama](https://img.shields.io/badge/Ollama-Local%20LLM-purple.svg)](https://ollama.ai)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 </div>
 
 <br/>
@@ -13,84 +21,168 @@
   <img src="./assets/motion_sideways.png" width="19%" title="Turned Sideways" />
 </p>
 
-**Byte** is an open-source, context-aware 3D desktop companion built natively for macOS using Swift and SceneKit. Operating as an overlay on the macOS desktop, Byte interacts with your workspace, responds to system events, and exhibits dynamic AI-driven behaviors based on environmental context.
+---
+
+## 📖 Overview
+
+**Byte** is an open-source, context-aware 3D desktop pet companion built natively for macOS using **Swift** and **SceneKit**. Operating as a transparent, interactive overlay above the macOS desktop, Byte interacts with your active windows, responds to physical gestures, listens to your voice offline, and exhibits dynamic emotional behaviors fine-tuned using local machine learning.
+
+Unlike static desktop widgets, Byte runs a **hybrid machine learning architecture**:
+- **Q-Learning Action Brain (`ReinforcementLearningModel`):** Autonomous wandering, sleeping, perching, and idle state selections calculated via Bellman equation state-reward policies.
+- **Local Empathy LLM (`byte-llm`):** Fine-tuned on **45,000+ open-source empathetic dialogue pairs** (Meta AI's EmpatheticDialogues) using Apple Silicon MLX GPU acceleration.
+- **On-Device Voice Subsystem:** Offline speech recognition via **Whisper STT** and hyper-realistic speech synthesis via **Kokoro TTS**.
+
+---
 
 ## 🌟 Key Features
 
-### 🧠 True Machine Learning & Autonomous Brain
-Byte relies on a robust hybrid Machine Learning stack running entirely offline on your Mac. For a complete technical deep-dive into the AI architecture, training loops, and memory consolidation, please read our [Machine Learning Architecture](ML_ARCHITECTURE.md) document.
-- **Q-Learning Action Model**: Byte's autonomous actions (wandering, sleeping, sitting) are entirely data-driven. He evaluates your current environment state (time of day, active apps, attention state) and uses a native Swift Reinforcement Learning model (`ReinforcementLearningModel`) to pick the mathematically best action based on the Bellman equation.
-- **Reflection Engine & Memory Graph**: Byte learns from your feedback! When he goes to sleep, he triggers a self-reflection loop (`ReflectionEngine`). A local LLM acts as an offline trainer, analyzing recent interactions and deducing permanent behavioral rules (saved in a `MemoryGraph`).
-- **Context-Aware Intent Deduction & Empathy Pipeline**: Powered by a fine-tuned local LLM (`byte-llm` via Ollama), Byte infers your emotional context and workplace state using zero-shot inference and fine-tuned open-source empathetic datasets. See [`training/README.md`](training/README.md) and [`docs/EMPATHY_TRAINING_AND_ML_ARCHITECTURE.md`](docs/EMPATHY_TRAINING_AND_ML_ARCHITECTURE.md) for full training scripts and architecture documentation.
+### 🧠 1. Empathy AI & Context Deduction
+- **Open-Source Fine-Tuning:** Trained on 45,328 conversation pairs using Apple MLX Metal GPU LoRA fine-tuning.
+- **Dual Tag Output:** Generates structured action-emotion predictions (`[ACTION: sitOnCorner] [EMOTION: cozy]`) to seamlessly animate the 3D pet sprite alongside text dialogue.
+- **Workplace Pacing:** Detects deep coding sessions, long IDE typing, compiler errors, or evening hours to gently suggest hydration, stretch breaks, or posture checks.
 
-### 🗣️ Local Voice & AI Capabilities
-- **On-Device Voice I/O**: Completely private and offline voice parsing using `faster-whisper` for Speech-to-Text and `Kokoro` for hyper-realistic Text-to-Speech (`VoiceInputManager`).
-- **Dynamic Dialogue**: Byte's speech lines are never hardcoded. Based on his action and environment, he generates witty, context-appropriate dialogue on the fly using `byte-llm`.
+### 🗣️ 2. 100% Offline Voice & Dialogue Loop
+- **Speech-to-Text (STT):** Local low-latency audio transcription using `faster-whisper` (Port 9000).
+- **Text-to-Speech (TTS):** Natural speech output powered by Kokoro TTS (Port 8000).
+- **Privacy First:** Zero cloud API dependencies; your voice audio and workspace state never leave your Mac.
 
-### 🎮 3D Rendering & Physics Engine
-- **SceneKit Integration**: Fully rendered 3D models with programmatic animations and physics-based interactions.
-- **Custom Physics Simulation**: Features custom gravity, velocity, and friction models applied outside of standard SceneKit physics bodies, allowing Byte to interact with macOS UI elements (such as treating the Dock as a physical floor).
-- **Interactive Manipulation**: 
-  - Free-form drag and drop with calculated trajectory/throw physics.
-  - Trackpad and scroll-wheel support for persistent 3D rotation (`manualRotationY`).
+### 🎮 3. 3D SceneKit Render & Physics Engine
+- **Custom Surface & Window Gravity:** Byte walks along window frames, perches on the menu bar, and walks across the macOS Dock floor.
+- **Interactive Drag & Throw Physics:** Click and toss Byte across your desktop with velocity, drag, friction, and bounce trajectory calculations.
+- **Camera Orbiting & Touch Controls:** Rotate Byte 360° on the Y-axis using mouse trackpad scrolling or drag interactions.
 
-### Context-Aware AI & State Machine
-- **`PetBrain` State Machine**: Governs behavioral states (Idle, Wander, Sleep, Sulk, Dizzy) with a sophisticated priority queue and emotion mapping (`annoyance`, `energy`, `happiness`).
-- **Workspace Awareness (`DesktopEnvironmentManager`)**: Utilizes macOS Accessibility APIs (`AXUIElement`) to track active applications, window positions, and bounds. Byte can dynamically interact with your active windows.
-- **Audio & Media Detection (`AudioMonitor`)**: Integrates with `CoreAudio` to detect physical output routes (e.g., connected headphones) and active media playback (Spotify, Apple Music).
-- **Real-Time Weather Integration (`WeatherManager`)**: Subscribes to local weather APIs to adapt Byte's behavior to the physical world (e.g., deploying a programmatic 3D umbrella during rain).
+### 💻 4. macOS Workspace Awareness
+- **Accessibility API Integration (`AXUIElement`):** Reads active application names and window frame coordinates.
+- **Media & Headphone Detection:** Subscribes to `CoreAudio` to detect output device changes and media playback (Apple Music, Spotify).
+- **Real-Time Environment Adaptability:** Synchronizes behavior with local weather and time of day (e.g. cozy night rest mode, rainy day umbrella state).
 
-## 🏗 Architecture
+---
 
-The project is structured into distinct managers and engines to ensure a clean separation of concerns:
+## 📐 System Architecture
 
-- **`PetScene.swift`**: The core SceneKit rendering and physics loop. Handles the `tick` event for custom gravity, velocity calculations, procedural animations, and mouse event tracking.
-- **`PetBrain.swift`**: The state machine. Evaluates conditions (energy depletion, annoyance levels) and dictates the active `PetState` protocol implementation.
-- **`ReinforcementLearningModel.swift`**: The native Swift Q-Learning engine that drives Byte's autonomous physical actions based on environmental state rewards and penalties.
-- **`AIEngine.swift`**: The analytical layer. Synthesizes data from the environment and generates prompts/decisions to drive spontaneous dialogue and infer intent from voice commands using `byte-llm`.
-- **`ReflectionEngine.swift` & `MemoryGraph.swift`**: The self-improvement loop. Analyzes user feedback logs during sleep cycles to deduce permanent behavioral rules.
-- **`DesktopEnvironmentManager.swift`**: Handles low-level macOS Accessibility integrations to parse the UI tree.
-- **`VoiceInputManager.swift` / `AudioMonitor.swift` / `WeatherManager.swift`**: Dedicated hardware/network observers for voice, media, and local environment states.
-- **`training/`**: MLX LoRA training scripts, dataset generators, and Ollama `ByteModelfile` for fine-tuning `byte-llm`.
+![Byte System Architecture Sketch Diagram](/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/byte_architecture_sketch_1785001284709.png)
 
-## 🚀 Getting Started
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant App as macOS DesktopPet App (Swift)
+    participant STT as Whisper Server (Port 9000)
+    participant LLM as Ollama byte-llm (Port 11434)
+    participant TTS as Kokoro TTS Server (Port 8000)
+
+    User->>App: Voice command or text interaction
+    alt Voice Input
+        App->>STT: Stream Audio Bytes
+        STT-->>App: Return Transcribed Text
+    end
+    App->>LLM: Send CONTEXT + USER SAID
+    LLM-->>App: Return "[ACTION: sitOnCorner] [EMOTION: love] I'm right here with you."
+    App->>App: Trigger 3D Sprite Animation & State Transition
+    App->>TTS: Synthesize Text to Audio
+    TTS-->>App: Return Audio Buffer
+    App->>User: Play Voice Output & Perform 3D Animation
+```
+
+For full technical specifications, read our **[Empathy AI & ML Architecture Guide](docs/EMPATHY_TRAINING_AND_ML_ARCHITECTURE.md)**.
+
+---
+
+## 🔬 Machine Learning & Empathy Training Pipeline
+
+![Byte Machine Learning Pipeline Sketch Diagram](/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/byte_ml_pipeline_sketch_1785001298280.png)
+
+### Training Highlights:
+- **Dataset Size:** 45,328 total items (`train.jsonl`: 38,528 | `valid.jsonl`: 6,800).
+- **Hardware Acceleration:** Apple Silicon Metal GPU via `mlx-lm`.
+- **Validation Loss Improvement:** Drop from `4.487` ➔ `2.151` (>50% optimization).
+- **Quantized Deployment:** Exported to `./training/byte_fused_model` and served through Ollama `byte-llm`.
+
+---
+
+## ⚡ Quickstart & Installation
 
 ### Prerequisites
-- **OS**: macOS 14.0 (Sonoma) or later
-- **IDE**: Xcode 15.0 or later
-- **Language**: Swift 5.0+
-- **LLM Engine**: [Ollama](https://ollama.com) installed and running locally (`ollama serve`)
+- macOS 14.0 (Sonoma) or newer on Apple Silicon (M1/M2/M3/M4) or Intel Mac.
+- Xcode 15+ installed.
+- Python 3.9+ installed.
+- [Ollama](https://ollama.ai) installed.
 
-### Installation & Build
+### 1. Clone Repository
+```bash
+git clone https://github.com/your-username/Byte.git
+cd Byte
+```
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/Byte.git
-   cd Byte
-   ```
-2. Create Byte's local model in Ollama:
-   ```bash
-   ollama create byte-llm -f training/ByteModelfile
-   ```
-3. Open the project in Xcode:
-   ```bash
-   open Byte.xcodeproj
-   ```
-4. Select your local Mac as the build destination and hit `Cmd + R` (Run).
-5. **Permissions**: On first launch, macOS will prompt for **Accessibility Permissions**. This is required for `DesktopEnvironmentManager` to read window frames and dock positions. 
-   - Go to `System Settings` > `Privacy & Security` > `Accessibility` and toggle the switch for `Byte`.
+### 2. Launch Entire System (One Command)
+Run the launcher script to automatically start Ollama, Whisper STT, Kokoro TTS, and launch `DesktopPet.app`:
+```bash
+chmod +x start.sh
+./start.sh
+```
 
+---
 
-## 🛠 Contributing
+## 🛠 Model Training & Reproduction
 
-Contributions to Byte are highly encouraged! Whether it's adding new state behaviors, expanding context awareness, or optimizing the physics engine:
+### Re-build Master Dataset from Open-Source EmpatheticDialogues:
+```bash
+python3 training/download_and_build_master_dataset.py
+```
 
+### Run LoRA Fine-Tuning on Apple Silicon Metal GPU:
+```bash
+chmod +x training/train_mlx.sh
+./training/train_mlx.sh
+```
+
+### Register Custom Model in Ollama:
+```bash
+ollama create byte-llm -f training/ByteModelfile
+```
+
+---
+
+## 📁 Repository Directory Structure
+
+```
+Byte/
+├── DesktopPet/                   # Native macOS Swift overlay app
+│   ├── AIEngine.swift            # LLM prompt synthesis & response parsing
+│   ├── PetScene.swift            # 3D SceneKit rendering & custom physics loop
+│   ├── PetBrain.swift            # State machine & priority queue
+│   └── ReinforcementLearningModel.swift # Swift Q-Learning engine
+├── DesktopPet.xcodeproj          # Xcode project configuration
+├── docs/                         # In-depth architectural & ML documentation
+│   ├── EMPATHY_TRAINING_AND_ML_ARCHITECTURE.md
+│   └── CODE_FLOW_DIAGRAM.md
+├── training/                     # Machine learning fine-tuning suite
+│   ├── ByteModelfile             # Ollama model definition
+│   ├── download_and_build_master_dataset.py # Open-source dataset converter
+│   ├── generate_1000_connective_dataset.py  # Domain generator
+│   ├── train_mlx.sh              # Apple Silicon LoRA fine-tuning script
+│   ├── train.jsonl               # Master training dataset (38k+ pairs)
+│   └── valid.jsonl               # Validation dataset (6.8k pairs)
+├── backend/                      # Python microservices
+│   ├── whisper_server.py         # Offline speech-to-text API
+│   └── tts_server.py             # Kokoro text-to-speech API
+├── assets/                       # Sprites, motion renders, and logos
+└── start.sh                      # Universal background launcher script
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions are warmly welcomed! Please read our guidelines before submitting pull requests:
 1. Fork the project.
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
+2. Create a feature branch (`git checkout -b feature/amazing-feature`).
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`).
+4. Push to the branch (`git push origin feature/amazing-feature`).
 5. Open a Pull Request.
 
-## 📝 License
+---
+
+## 📜 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
