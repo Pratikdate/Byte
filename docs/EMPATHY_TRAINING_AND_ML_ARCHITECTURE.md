@@ -176,4 +176,58 @@ chmod +x training/train_mlx.sh
 
 ---
 
+## 9. Model Training Methodology & Continuous Improvement Strategy
+
+To ensure Byte grows more empathetic, responsive, and tailored over time, we employ a **dual-layer learning strategy**: offline model fine-tuning combined with real-time on-device reinforcement learning and reflection.
+
+### A. Step-by-Step Model Fine-Tuning Workflow
+
+1. **Dataset Sanitation & Parsing (`download_and_build_master_dataset.py`):**
+   - Filters out noisy or overly verbose dialogue turns (>35 words).
+   - Normalizes text formatting, converts raw emotion labels into mapped 3D action tags (`[ACTION: sitOnCorner] [EMOTION: cozy]`).
+   - Produces a balanced dataset split (85% `train.jsonl` / 15% `valid.jsonl`).
+
+2. **Low-Rank Adaptation (LoRA) on Metal GPU (`train_mlx.sh`):**
+   - Uses **Apple MLX** to inject low-rank decomposition matrices into model attention layers:
+     $$W = W_0 + \frac{\alpha}{r} (B \cdot A)$$
+   - Only **5.636 Million parameters** (0.456% of total weights) are updated during training, preserving base language fluency while instilling Byte's persona.
+   - Learning Rate schedule set to `1e-4` with Metal GPU memory optimization keeping peak RAM under `1.4 GB`.
+
+3. **Weight Fusion & Ollama Deployment:**
+   - Merges LoRA adapters directly back into the 4-bit base weights (`mlx_lm.fuse`) to produce `./training/byte_fused_model`.
+   - Registers the unified model into Ollama (`ollama create byte-llm -f training/ByteModelfile`).
+
+---
+
+### B. How We Continuously Improve Byte
+
+Byte is designed to get smarter and more aligned with your personal daily rhythm the longer you use him:
+
+```mermaid
+graph TD
+    A[User Interaction & Workspace Context] --> B[Real-Time Dialogue Response]
+    B --> C[User Feedback: Petting, Praise, Focus Time]
+    C --> D[Swift Q-Learning Action Model Updates]
+    C --> E[Offline Reflection Engine at Sleep Mode]
+    E --> F[Memory Graph Rule Extraction]
+    F --> G[Dynamic System Prompt Enrichment]
+    G --> A
+```
+
+1. **Offline Self-Reflection Loop (`ReflectionEngine` & `MemoryGraph`):**
+   - When Byte enters `Sleep` state at night or during breaks, a background reflection module processes recent interaction logs.
+   - Deduces permanent behavioral preferences (e.g. *"User prefers quiet focus during afternoon coding sessions"*) and updates `memory_graph.json`.
+   - These rules are dynamically injected into future LLM system prompts.
+
+2. **On-Device Q-Learning Reinforcement (`ReinforcementLearningModel`):**
+   - Byte's physical movement and perching behavior continuously updates a local Q-table using the Bellman equation:
+     $$Q(s, a) \leftarrow Q(s, a) + \alpha \left[ R + \gamma \max_{a'} Q(s', a') - Q(s, a) \right]$$
+   - User interactions (e.g. dragging, petting, clicking) send positive or negative reward signals $R$, optimizing Byte's autonomous state selection.
+
+3. **Incremental Dataset Fine-Tuning Checkpoints:**
+   - New user feedback and edge cases are captured and merged back into `train.jsonl`.
+   - Running `./training/train_mlx.sh` incrementally updates the LoRA adapters without losing baseline empathy performance.
+
+---
+
 *Document maintained as part of Byte 1.0 architecture specifications.*

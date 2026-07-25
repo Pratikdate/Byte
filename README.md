@@ -98,6 +98,13 @@ For full technical specifications, read our **[Empathy AI & ML Architecture Guid
 - **Validation Loss Improvement:** Drop from `4.487` ➔ `2.151` (>50% optimization).
 - **Quantized Deployment:** Exported to `./training/byte_fused_model` and served through Ollama `byte-llm`.
 
+### 🔄 How We Continuously Improve Byte:
+1. **Offline Self-Reflection Engine (`ReflectionEngine`):** Background reflection pass during sleep mode analyzes user interactions and updates permanent rules in `memory_graph.json`.
+2. **On-Device Q-Learning Reinforcement (`ReinforcementLearningModel`):** Physical movement and state transitions continuously update a local Q-table via Bellman reward signals.
+3. **Incremental LoRA Checkpoints:** User interaction feedback is periodically merged back into `train.jsonl` to re-tune model weights incrementally.
+
+For a deep mathematical break-down, read our **[Empathy AI Architecture & Continuous Learning Guide](docs/EMPATHY_TRAINING_AND_ML_ARCHITECTURE.md)**.
+
 ---
 
 ## ⚡ Quickstart & Installation
