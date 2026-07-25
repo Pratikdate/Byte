@@ -1,91 +1,110 @@
-# 🧠 Byte Empathy AI & ML Training Architecture
+# 🧠 Byte: System Architecture, Empathy Pipeline & ML Training Guide
 
-This document provides a comprehensive technical overview of the implementation, dataset pipeline, machine learning fine-tuning, and runtime architecture for **Byte**—an empathetic 3D macOS desktop pet companion.
+This document provides an exhaustive, step-by-step breakdown of **Byte**—an intelligent, context-aware 3D macOS desktop pet companion powered by local Machine Learning, speech processing, and emotional intelligence.
 
 ---
 
 ## 📑 Table of Contents
-1. [Architecture Overview](#1-architecture-overview)
-2. [Open-Source Empathetic Dataset Pipeline](#2-open-source-empathetic-dataset-pipeline)
-3. [Emotion & 3D Action Mapping Matrix](#3-emotion--3d-action-mapping-matrix)
-4. [Apple MLX Metal GPU Fine-Tuning](#4-apple-mlx-metal-gpu-fine-tuning)
-5. [Ollama Integration & Prompt Constraints](#5-ollama-integration--prompt-constraints)
-6. [Runtime Execution Flow](#6-runtime-execution-flow)
-7. [How to Reproduce & Run](#7-how-to-reproduce--run)
+1. [System Architecture Diagram & Overview](#1-system-architecture-diagram--overview)
+2. [Machine Learning & Empathy Training Pipeline](#2-machine-learning--empathy-training-pipeline)
+3. [Open-Source Empathetic Dataset Ingestion](#3-open-source-empathetic-dataset-ingestion)
+4. [Psychological Emotion to 3D Action Mapping Matrix](#4-psychological-emotion-to-3d-action-mapping-matrix)
+5. [Apple MLX Metal GPU Fine-Tuning & Quantization](#5-apple-mlx-metal-gpu-fine-tuning--quantization)
+6. [Ollama `byte-llm` Integration & Persona Constraints](#6-ollama-byte-llm-integration--persona-constraints)
+7. [Swift 3D Desktop Pet Engine & Physics Loop](#7-swift-3d-desktop-pet-engine--physics-loop)
+8. [Execution Guide & Commands](#8-execution-guide--commands)
 
 ---
 
-## 1. Architecture Overview
+## 1. System Architecture Diagram & Overview
 
-Byte combines real-time natural language processing, emotional intelligence (EQ), and 3D desktop sprite interactions. Rather than relying on simple hardcoded responses, Byte is driven by a fine-tuned Large Language Model (`byte-llm`) capable of predicting both:
-1. **Physical Desktop Actions** (`[ACTION: sitOnCorner]`, `[ACTION: climbWindow]`, `[ACTION: backflip]`, etc.)
-2. **Emotional States** (`[EMOTION: cozy]`, `[EMOTION: love]`, `[EMOTION: empathetic]`, etc.)
-3. **Gentle, Connective Dialogue** (Short, warm, under 15-20 words)
+Byte operates as a native macOS overlay application that interacts seamlessly with your desktop environment, active applications, audio subsystem, and voice input.
+
+![Byte System Architecture Sketch Diagram](/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/byte_architecture_sketch_1785001284709.png)
+
+### Core Components & Subsystems:
+
+1. **User Voice Input (`VoiceInputManager`):** Captures microphone audio during user conversation or commands.
+2. **Whisper STT Server (Port 9000):** Runs `faster-whisper` locally for low-latency, private offline speech-to-text transcription.
+3. **Ollama Local LLM Brain (`byte-llm`, Port 11434):** Processes user text and desktop context to generate dual-output responses containing:
+   - **3D Action Tags:** e.g. `[ACTION: sitOnCorner]`, `[ACTION: backflip]`, `[ACTION: climbWindow]`
+   - **Emotion Tags:** e.g. `[EMOTION: cozy]`, `[EMOTION: love]`, `[EMOTION: proud]`
+   - **Natural Conversational Speech:** Short, empathetic thoughts (<20 words).
+4. **Swift SceneKit 3D Render Engine (`PetScene.swift`):** Renders the 3D pet model, handles window bounds detection, gravity, drag-and-drop physics, and executes requested action animations.
+5. **Kokoro TTS Synthesizer (Port 8000):** Converts Byte's textual responses into high-quality humanlike audio output played through macOS speakers.
 
 ---
 
-## 2. Open-Source Empathetic Dataset Pipeline
+## 2. Machine Learning & Empathy Training Pipeline
 
-To achieve natural emotional intelligence, we integrated **Meta AI's EmpatheticDialogues dataset** (`Adapting/empathetic_dialogues_v2` on Hugging Face).
+To make Byte feel truly empathetic, supportive, and emotionally responsive, we engineered a dedicated end-to-end Machine Learning pipeline using Apple Silicon MLX GPU acceleration.
 
-### Pipeline Execution (`training/download_and_build_master_dataset.py`):
-1. **Automated Fetching:** Uses `huggingface_hub` to download raw training and validation splits.
-2. **Context-Response Extraction:** Parses multi-turn dialogue histories (`chat_history`), target responses (`sys_response`), and fine-grained emotion tags (`emotion`).
-3. **Format Transformation:** Formats open-source dialogues into Byte's structured input/output JSONL schema:
+![Byte Machine Learning Pipeline Sketch Diagram](/Users/shanacoder/.gemini/antigravity-ide/brain/3f3ed34a-13c9-4884-b578-24f1aa116afa/byte_ml_pipeline_sketch_1785001298280.png)
+
+---
+
+## 3. Open-Source Empathetic Dataset Ingestion
+
+Rather than relying purely on artificial rule-based dialogue, Byte's dataset pipeline ingests **Meta AI's EmpatheticDialogues dataset** (`Adapting/empathetic_dialogues_v2` on Hugging Face).
+
+### Pipeline Workflow (`training/download_and_build_master_dataset.py`):
+1. **Automated Ingestion:** Downloads raw dataset splits via `huggingface_hub`.
+2. **Turn Extraction:** Parses multi-turn dialogue histories (`chat_history`), target responses (`sys_response`), and fine-grained psychological emotion labels (`emotion`).
+3. **Data Formatting:** Transforms raw conversations into Byte's structured context-response schema:
    ```json
    {
-     "text": "CONTEXT: USER SAID: 'I'm so stressed about my exam tomorrow.'. EMOTION: calm.\nRESPONSE: [ACTION: stretch] [EMOTION: calm] Take a deep breath. You've prepared well, take it one step at a time."
+     "text": "CONTEXT: USER SAID: 'I had such a rough day at work today...'. EMOTION: sad.\nRESPONSE: [ACTION: sitOnCorner] [EMOTION: sad] I'm right here with you. Take a deep breath, you don't have to carry it all alone."
    }
    ```
 4. **Dataset Metrics:**
-   - **Total Samples:** `45,328`
+   - **Total Dataset Size:** `45,328` items
    - **Training Set (`train.jsonl`):** `38,528` samples (85%)
    - **Validation Set (`valid.jsonl`):** `6,800` samples (15%)
 
 ---
 
-## 3. Emotion & 3D Action Mapping Matrix
+## 4. Psychological Emotion to 3D Action Mapping Matrix
 
-Raw psychological emotion tags are dynamically mapped to Byte's 3D desktop pet animations:
+The ingestion script dynamically maps 30+ fine-grained psychological emotion categories to Byte's 3D desktop pet animations:
 
-| Open-Source Emotion | Byte Action Tag | Byte Emotion Tag | Persona Behavior |
+| Category / Psychological Emotion | Byte 3D Action Tag | Byte Emotion Tag | Behavioral Persona |
 | :--- | :--- | :--- | :--- |
-| `sentimental`, `nostalgic`, `content` | `sitOnCorner` | `cozy` | Sits peacefully on corner watching screen |
-| `caring`, `trusting`, `faithful`, `lonely` | `sitOnCorner` | `love` | Stays close to user, offering warm presence |
-| `grateful`, `joyful` | `jump` / `wave` | `happy` | Cheerful animation, celebrating user wins |
-| `excited` | `spin` | `excited` | Energetic spin on the desktop |
-| `proud`, `confident` | `backflip` | `proud` | Backflip animation to honor user milestones |
-| `hopeful`, `surprised`, `curious` | `climbWindow` | `curious` | Peeks up the window edge curiously |
+| `sentimental`, `nostalgic`, `content` | `sitOnCorner` | `cozy` | Sits peacefully on window corner watching screen |
+| `caring`, `trusting`, `faithful`, `lonely` | `sitOnCorner` | `love` | Stays right beside user, offering warm companionship |
+| `grateful`, `joyful` | `jump` / `wave` | `happy` | Cheerful animation, celebrating user happiness |
+| `excited` | `spin` | `excited` | Energetic 360° spin on desktop |
+| `proud`, `confident` | `backflip` | `proud` | Backflip to honor user achievements & commits |
+| `hopeful`, `surprised`, `curious` | `climbWindow` | `curious` | Peeks up window glass curiously |
 | `sad`, `devastated`, `disappointed` | `sitOnCorner` | `empathetic` | Calm posture, validating feelings gently |
 | `anxious`, `apprehensive`, `afraid` | `stretch` | `calm` | Gentle stretch prompt, encouraging deep breaths |
-| `embarrassed` | `sulk` | `embarrassed` | Shy sulk animation |
+| `embarrassed` | `sulk` | `embarrassed` | Shy sulk posture |
 | `neutral`, `prepared` | `sit` | `normal` | Quiet background companion mode |
 
 ---
 
-## 4. Apple MLX Metal GPU Fine-Tuning
+## 5. Apple MLX Metal GPU Fine-Tuning & Quantization
 
-Training is powered by **Apple Silicon MLX** (`mlx-lm`) using Metal GPU hardware acceleration.
+Training is executed natively on Apple Silicon using **Apple MLX** (`mlx-lm`) on Metal GPU.
 
-### Training Configuration (`training/train_mlx.sh`):
-- **Base LLM:** `mlx-community/Llama-3.2-1B-Instruct-4bit`
-- **Method:** LoRA (Low-Rank Adaptation)
+### Training Hyperparameters & Setup (`training/train_mlx.sh`):
+- **Base Model:** `mlx-community/Llama-3.2-1B-Instruct-4bit`
+- **Fine-Tuning Method:** LoRA (Low-Rank Adaptation)
 - **Trainable Parameters:** `5.636 Million` (0.456% of total weights)
 - **Learning Rate:** `1e-4`
 - **Batch Size:** `1`
-- **Iterations:** `200`
+- **Training Iterations:** `200`
 
-### Training Performance Results:
-- **Initial Loss:** `4.487`
+### Empirical Results:
+- **Initial Validation Loss:** `4.487`
 - **Final Validation Loss:** `2.151` (**>50% loss reduction**)
 - **Final Training Loss:** `2.034`
 - **Overfitting Gap:** `~0.11` (Clean generalization without string memorization)
 - **Peak RAM Usage:** `~1.40 GB`
-- **Weight Export:** Fused LoRA weights saved directly to `training/byte_fused_model`.
+- **Weight Export:** Fused LoRA weights exported directly to `training/byte_fused_model`.
 
 ---
 
-## 5. Ollama Integration & Prompt Constraints
+## 6. Ollama `byte-llm` Integration & Persona Constraints
 
 The fine-tuned model is served via Ollama using `training/ByteModelfile`:
 
@@ -115,46 +134,41 @@ ollama create byte-llm -f training/ByteModelfile
 
 ---
 
-## 6. Runtime Execution Flow
+## 7. Swift 3D Desktop Pet Engine & Physics Loop
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant App as macOS DesktopPet App (Swift)
-    participant STT as Whisper Server (Port 9000)
-    participant LLM as Ollama byte-llm (Port 11434)
-    participant TTS as Kokoro TTS Server (Port 8000)
+In Swift, Byte manages 3D animation transitions and desktop positioning:
 
-    User->>App: Speaks or types message
-    alt Voice Input
-        App->>STT: Stream Audio Bytes
-        STT-->>App: Return Transcribed Text
-    end
-    App->>LLM: Send CONTEXT + USER SAID
-    LLM-->>App: Return "[ACTION: sitOnCorner] [EMOTION: love] I'm right here with you."
-    App->>App: Parse ACTION tag & trigger 3D Sprite Animation
-    App->>TTS: Send text "I'm right here with you."
-    TTS-->>App: Return Synthesized Speech Audio
-    App->>User: Play Voice & Animate Desktop Pet
+```swift
+// Sample Action Parsing in Swift (AIEngine.swift)
+func processLLMResponse(_ response: String) {
+    let actionPattern = "\\[ACTION: (\\w+)\\]"
+    let emotionPattern = "\\[EMOTION: (\\w+)\\]"
+    
+    let action = extractRegex(pattern: actionPattern, from: response) ?? "sitOnCorner"
+    let emotion = extractRegex(pattern: emotionPattern, from: response) ?? "cozy"
+    let cleanSpeech = removeTags(from: response)
+    
+    // Trigger 3D Sprite Animation & Audio Speech Synthesis
+    PetScene.shared.performAction(action, emotion: emotion)
+    VoiceInputManager.shared.speak(cleanSpeech)
+}
 ```
 
 ---
 
-## 7. How to Reproduce & Run
+## 8. Execution Guide & Commands
 
-### Step 1: Run the Complete Desktop Pet Application
-To launch Ollama, Whisper STT, Kokoro TTS, and the macOS DesktopPet UI in one command:
+### Launch Entire System (App + LLM + STT + TTS):
 ```bash
 ./start.sh
 ```
 
-### Step 2: Re-build Master Dataset (Optional)
+### Re-build Open-Source Master Dataset:
 ```bash
 python3 training/download_and_build_master_dataset.py
 ```
 
-### Step 3: Re-run Apple MLX GPU Training (Optional)
+### Re-run Apple MLX GPU Fine-Tuning:
 ```bash
 chmod +x training/train_mlx.sh
 ./training/train_mlx.sh
@@ -162,4 +176,4 @@ chmod +x training/train_mlx.sh
 
 ---
 
-*Documentation maintained as part of Byte 1.0 release.*
+*Document maintained as part of Byte 1.0 architecture specifications.*
