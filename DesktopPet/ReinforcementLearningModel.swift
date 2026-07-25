@@ -47,12 +47,14 @@ class ReinforcementLearningModel {
     }
     
     func chooseAction(state: RLState, isWorkMode: Bool, isMuted: Bool) -> PetAction {
-        // If the user has explicitly requested silence, force a quiet action (override ML)
-        let secondsSinceSpoke = DialogueContextTracker.shared.secondsSinceInteraction()
-        if secondsSinceSpoke > 300 {
+        let seeksQuiet = DialogueContextTracker.shared.isUserSeekingQuiet()
+        
+        // If user is seeking quiet or silent after long inactivity, favor calm actions
+        if seeksQuiet || DialogueContextTracker.shared.secondsSinceInteraction() > 300 {
             lastState = state
-            lastAction = .sleep
-            return .sleep
+            let calmAction: PetAction = [.sit, .sitOnCorner, .idle, .wander].randomElement() ?? .sit
+            lastAction = calmAction
+            return calmAction
         }
         
         // Epsilon-greedy selection
@@ -65,8 +67,8 @@ class ReinforcementLearningModel {
             action = getBestAction(for: state)
         }
         
-        // Filter out noisy actions if in work mode
-        if isWorkMode && isNoisy(action) {
+        // Filter out noisy actions if in work mode or user interest is lower
+        if (isWorkMode || seeksQuiet) && isNoisy(action) {
             action = .sitOnCorner // Safe fallback
         }
         

@@ -16,9 +16,10 @@ class DialogueContextTracker {
     private var history: [DialogueLine] = []
     private let maxHistorySize = 30
 
-    // Silence tracking
+    // Silence & Interest tracking
     private var lastInteractionTime: Date = Date()
     private var isSilenced = false
+    private(set) var userInterestScore: Float = 0.8 // 0.0 (seeking quiet) to 1.0 (actively engaged)
 
     init() {
         initializeScriptVariants()
@@ -83,6 +84,26 @@ class DialogueContextTracker {
     func recordInteraction() {
         lastInteractionTime = Date()
         isSilenced = false
+        userInterestScore = min(1.0, userInterestScore + 0.2)
+    }
+
+    /// Record explicit feedback from user
+    func recordUserFeedback(positive: Bool) {
+        lastInteractionTime = Date()
+        if positive {
+            userInterestScore = min(1.0, userInterestScore + 0.3)
+            isSilenced = false
+        } else {
+            userInterestScore = max(0.1, userInterestScore - 0.4)
+            if userInterestScore < 0.4 {
+                isSilenced = true
+            }
+        }
+    }
+
+    /// Check if user is currently seeking quiet / low interest
+    func isUserSeekingQuiet() -> Bool {
+        return userInterestScore < 0.4 || isSilenced
     }
 
     /// Seconds since the user last interacted with Byte directly.
@@ -99,9 +120,13 @@ class DialogueContextTracker {
         }
     }
 
-    /// Check if Byte should be silent (user inactive > threshold)
+    /// Check if Byte should be silent (user inactive > threshold or seeking quiet)
     func shouldBeSilent() -> Bool {
         let inactiveSeconds = Date().timeIntervalSince(lastInteractionTime)
+
+        if userInterestScore < 0.4 {
+            return true
+        }
 
         // Silent after 5 minutes of inactivity
         if inactiveSeconds > 300 {
@@ -109,14 +134,13 @@ class DialogueContextTracker {
             return true
         }
 
-        // Partially quiet after 30 seconds (fewer unsolicited comments)
         return false
     }
 
-    /// Check if actively silent (user away > 5 minutes)
+    /// Check if actively silent (user away > 5 minutes or wants quiet)
     func isActivelySilent() -> Bool {
         let inactiveSeconds = Date().timeIntervalSince(lastInteractionTime)
-        return inactiveSeconds > 300 && isSilenced
+        return (inactiveSeconds > 300 && isSilenced) || userInterestScore < 0.3
     }
 
     /// Get inactivity level: 0-1 (0=just interacted, 1=max silence)
@@ -126,8 +150,11 @@ class DialogueContextTracker {
         return min(seconds / maxSeconds, 1.0)
     }
 
-    /// Reduce unsolicited comments when idle (30s-5m range)
+    /// Reduce unsolicited comments when idle or when interest is lower
     func shouldSkipUnsolicited() -> Bool {
+        if userInterestScore < 0.5 {
+            return true // Skip unsolicited comments when user is seeking quiet
+        }
         let inactiveSeconds = Date().timeIntervalSince(lastInteractionTime)
         // Skip 80% of ambient dialogue after 30s
         if inactiveSeconds > 30 && inactiveSeconds < 300 {

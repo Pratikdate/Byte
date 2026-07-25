@@ -1686,7 +1686,9 @@ class PetScene: SCNScene {
         let fall = SCNAction.moveBy(x: 0, y: -0.5, z: 0, duration: 0.25)
         let jumpCycle = SCNAction.sequence([jump, fall])
         let danceMove = SCNAction.group([spin, jumpCycle])
-        petContainer.runAction(SCNAction.repeatForever(SCNAction.sequence([danceMove, SCNAction.wait(duration: 0.2)])))
+        // Cap dance to 2 short cycles so Byte doesn't over-dance
+        let finiteDance = SCNAction.repeat(SCNAction.sequence([danceMove, SCNAction.wait(duration: 0.2)]), count: 2)
+        petContainer.runAction(finiteDance)
     }
     
     private func startBowAnimation() {
@@ -2259,6 +2261,9 @@ class PetScene: SCNScene {
     func sayToPet(_ message: String) {
         FeedbackLogger.shared.logExplicit(comment: message, context: "User explicitly spoke to Byte while he was doing: \(brain.currentAction.rawValue)")
         
+        // Prioritize user conversation & reset quiet state
+        DialogueContextTracker.shared.recordInteraction()
+        
         // Show "thinking..." emotion nodes and query AI with user message!
         applyEmotion(.thinking)
         brain.queryAI(userMessage: message)
@@ -2266,9 +2271,10 @@ class PetScene: SCNScene {
     
     func showListeningState(_ listening: Bool) {
         if listening {
-            // STOP speaking when user wants to talk!
+            // STOP speaking when user wants to talk & boost user interest
             AudioManager.shared.stopSpeaking()
             self.pendingSpeechTexts.removeAll()
+            DialogueContextTracker.shared.recordInteraction()
 
             applyEmotion(.curious)
             speechContainer?.removeAllActions()

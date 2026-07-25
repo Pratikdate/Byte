@@ -9,6 +9,9 @@ class EmotionalIntelligenceEngine {
         case empatheticSupport  // Warm encouragement during debugging / crunch
         case playfulTeasing     // Lighthearted remark on continuous coding
         case sharedMilestone    // Celebrating git commits / passes
+        case activeCuriosity    // Ask a brief, friendly question to learn user preferences
+        case energyMirroring    // Mirror user focus energy state softly
+        case habitReflection    // Reflect on Byte's growing bond with user
         case quietReflection    // Soft passing thought
         case silentCompanion    // Prefer quiet action with no speech
     }
@@ -17,7 +20,7 @@ class EmotionalIntelligenceEngine {
     private let maxHistorySize = 40
     private var lastUsedIntents: [Intent] = []
 
-    // Banned cliché phrases that break immersion when repeated
+    // Banned cliché phrases that break companion immersion when repeated
     private let bannedPhrases: [String] = [
         "so sleepy",
         "yawns",
@@ -30,7 +33,13 @@ class EmotionalIntelligenceEngine {
         "reading text",
         "reading",
         "focused in editor",
-        "busy working"
+        "busy working",
+        "as an ai",
+        "i am here to help",
+        "i am here to assist",
+        "doing great work",
+        "keep it up",
+        "how can i assist"
     ]
 
     private init() {}
@@ -123,8 +132,14 @@ class EmotionalIntelligenceEngine {
             return "CONVERSATIONAL INTENT: Make a witty remark about coding. (Reflect your \(personality.rawValue) personality)."
         case .sharedMilestone:
             return "CONVERSATIONAL INTENT: Celebrate steady progress quietly. (Reflect your \(personality.rawValue) personality)."
+        case .activeCuriosity:
+            return "CONVERSATIONAL INTENT: Ask a short, friendly, non-intrusive question to learn user preference or opinion."
+        case .energyMirroring:
+            return "CONVERSATIONAL INTENT: Mirror the developer's work energy state calmly and supportively."
+        case .habitReflection:
+            return "CONVERSATIONAL INTENT: Share a soft, warm thought about your growing companionship with the user."
         case .quietReflection:
-            return "CONVERSATIONAL INTENT: Speak a soft passing thought. (Reflect your \(personality.rawValue) personality)."
+            return "CONVERSATIONAL INTENT: Speak a soft passing thought."
         case .silentCompanion:
             return "CONVERSATIONAL INTENT: Do NOT speak. Leave 'speech' empty."
         }
