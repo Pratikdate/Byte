@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'BYTE',
   tagline: 'Intelligent 3D Desktop Pet for macOS',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/byte_logo.png',
 
   url: 'https://pratikdate.github.io',
   baseUrl: '/Byte/',
@@ -13,7 +13,7 @@ const config: Config = {
   organizationName: 'pratikdate',
   projectName: 'Byte',
 
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
 
   i18n: {
     defaultLocale: 'en',
@@ -50,7 +50,7 @@ const config: Config = {
           label: 'Documentation',
         },
         {
-          href: 'https://github.com/pratikdate/DesktopPet',
+          href: 'https://github.com/pratikdate/Byte',
           label: 'GitHub',
           position: 'right',
         },
