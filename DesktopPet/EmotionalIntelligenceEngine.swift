@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 /// Advanced Emotional Intelligence (EQ) & Anti-Repetition Engine for Byte
 class EmotionalIntelligenceEngine {
@@ -181,10 +182,55 @@ enum PersonalityProfile: String, CaseIterable, Codable {
     }
 }
 
+enum ByteTheme: String, CaseIterable, Identifiable {
+    case cyberBlack = "Cyber Black"
+    case cyberpunk = "Neon Cyberpunk"
+    case roseGold = "Sunset Gold"
+    case snowWhite = "Snow White"
+    case emeraldMatrix = "Emerald Matrix"
+    case electricViolet = "Electric Violet"
+    
+    var id: String { rawValue }
+    
+    var shellColor: NSColor {
+        switch self {
+        case .cyberBlack: return NSColor(white: 0.10, alpha: 1.0)
+        case .cyberpunk: return NSColor(red: 0.15, green: 0.05, blue: 0.25, alpha: 1.0)
+        case .roseGold: return NSColor(red: 0.45, green: 0.25, blue: 0.20, alpha: 1.0)
+        case .snowWhite: return NSColor(white: 0.88, alpha: 1.0)
+        case .emeraldMatrix: return NSColor(red: 0.05, green: 0.22, blue: 0.12, alpha: 1.0)
+        case .electricViolet: return NSColor(red: 0.08, green: 0.10, blue: 0.35, alpha: 1.0)
+        }
+    }
+    
+    var accentColor: NSColor {
+        switch self {
+        case .cyberBlack: return NSColor(white: 0.05, alpha: 1.0)
+        case .cyberpunk: return NSColor(red: 0.05, green: 0.02, blue: 0.10, alpha: 1.0)
+        case .roseGold: return NSColor(red: 0.20, green: 0.10, blue: 0.08, alpha: 1.0)
+        case .snowWhite: return NSColor(white: 0.70, alpha: 1.0)
+        case .emeraldMatrix: return NSColor(red: 0.02, green: 0.10, blue: 0.05, alpha: 1.0)
+        case .electricViolet: return NSColor(red: 0.04, green: 0.05, blue: 0.20, alpha: 1.0)
+        }
+    }
+    
+    var eyeColor: NSColor {
+        switch self {
+        case .cyberBlack: return NSColor.cyan
+        case .cyberpunk: return NSColor.green
+        case .roseGold: return NSColor.orange
+        case .snowWhite: return NSColor(red: 0.1, green: 0.6, blue: 1.0, alpha: 1.0)
+        case .emeraldMatrix: return NSColor.green
+        case .electricViolet: return NSColor.magenta
+        }
+    }
+}
+
 class SettingsManager {
     static let shared = SettingsManager()
     
     private let personalityKey = "ByteActivePersonality"
+    private let themeKey = "ByteActiveTheme"
     
     var activePersonality: PersonalityProfile {
         get {
@@ -195,6 +241,19 @@ class SettingsManager {
         }
         set {
             UserDefaults.standard.set(newValue.rawValue, forKey: personalityKey)
+        }
+    }
+    
+    var activeTheme: ByteTheme {
+        get {
+            if let saved = UserDefaults.standard.string(forKey: themeKey), let theme = ByteTheme(rawValue: saved) {
+                return theme
+            }
+            return .cyberBlack
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: themeKey)
+            NotificationCenter.default.post(name: NSNotification.Name("ByteThemeChanged"), object: nil)
         }
     }
 }

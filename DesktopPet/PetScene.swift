@@ -22,6 +22,8 @@ class PetScene: SCNScene {
     private var leftHeadphone: SCNNode!
     private var rightHeadphone: SCNNode!
     private var headphoneBandNode: SCNNode!
+    private var shellMaterial: SCNMaterial!
+    private var darkMaterial: SCNMaterial!
     
     // 2D Screen (Mapped to 3D)
     private var screenScene: SKScene!
@@ -142,11 +144,22 @@ class PetScene: SCNScene {
         
         // (petContainer Y is already set to groundY in setup3DRobot)
         
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("ByteThemeChanged"), object: nil, queue: .main) { [weak self] _ in
+            self?.applyTheme(SettingsManager.shared.activeTheme)
+        }
+        
         // Setup Update Loop on Main Thread (60 FPS) to prevent cross-thread SpriteKit/SceneKit races
         let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             self?.tick(currentTime: Date().timeIntervalSince1970)
         }
         RunLoop.main.add(timer, forMode: .common)
+    }
+    
+    func applyTheme(_ theme: ByteTheme) {
+        shellMaterial?.diffuse.contents = theme.shellColor
+        darkMaterial?.diffuse.contents = theme.accentColor
+        leftEye?.fillColor = theme.eyeColor
+        rightEye?.fillColor = theme.eyeColor
     }
     
     required init?(coder: NSCoder) {
@@ -214,17 +227,17 @@ class PetScene: SCNScene {
         petContainer.scale = SCNVector3(0.28, 0.28, 0.28)
         rootNode.addChildNode(petContainer)
         
-        let shellMaterial = SCNMaterial()
-        shellMaterial.diffuse.contents = NSColor(white: 0.1, alpha: 1.0)
+        shellMaterial = SCNMaterial()
         shellMaterial.specular.contents = NSColor(white: 0.8, alpha: 1.0) // Add shiny reflections
         shellMaterial.shininess = 1.0
         shellMaterial.roughness.contents = 0.2
         
-        let darkMaterial = SCNMaterial()
-        darkMaterial.diffuse.contents = NSColor(white: 0.05, alpha: 1.0)
+        darkMaterial = SCNMaterial()
         darkMaterial.specular.contents = NSColor(white: 0.5, alpha: 1.0)
         darkMaterial.shininess = 0.5
         darkMaterial.roughness.contents = 0.6
+
+        applyTheme(SettingsManager.shared.activeTheme)
         
         // HEAD (The only body part)
         let headGeo = SCNBox(width: 4.0, height: 3.2, length: 3.2, chamferRadius: 0.6)

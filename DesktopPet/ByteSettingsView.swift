@@ -7,6 +7,7 @@ struct ByteSettingsView: View {
     @State private var useCloudAI: Bool = false
     @State private var focusEngineStatus: String = "Active"
     @State private var activePersonality: PersonalityProfile = SettingsManager.shared.activePersonality
+    @State private var activeTheme: ByteTheme = SettingsManager.shared.activeTheme
     
     @State private var memoriesList: [String] = []
     @State private var behavioralRules: [String] = []
@@ -83,6 +84,19 @@ struct ByteSettingsView: View {
     
     private var companionTab: some View {
         VStack(spacing: 16) {
+            SettingsCard(title: "Body Theme & Appearance", icon: "paintbrush.fill") {
+                Picker("Body Theme", selection: $activeTheme) {
+                    ForEach(ByteTheme.allCases) { theme in
+                        Text(theme.rawValue).tag(theme)
+                    }
+                }
+                .pickerStyle(MenuPickerStyle())
+                .onChange(of: activeTheme) { newValue in
+                    SettingsManager.shared.activeTheme = newValue
+                }
+                .tint(.cyan)
+            }
+
             SettingsCard(title: "Personality Profile", icon: "face.smiling") {
                 Picker("Personality", selection: $activePersonality) {
                     ForEach(PersonalityProfile.allCases, id: \.self) { profile in
@@ -226,6 +240,7 @@ struct ByteSettingsView: View {
     private func loadSettingsData() {
         // Hydrate data from singletons
         activePersonality = SettingsManager.shared.activePersonality
+        activeTheme = SettingsManager.shared.activeTheme
     }
 }
 
