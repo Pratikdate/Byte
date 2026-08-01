@@ -46,7 +46,7 @@ class EmotionalIntelligenceEngine {
 
     /// Validates proposed speech for freshness, intent variance, and cliché suppression.
     /// Returns cleaned speech or `nil` if speech is repetitive/cliché.
-    func filterAndValidateSpeech(_ speech: String) -> String? {
+    func filterAndValidateSpeech(_ speech: String, isUserDirected: Bool = false) -> String? {
         let cleaned = speech.trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "\"", with: "")
             .replacingOccurrences(of: "*", with: "")
@@ -55,7 +55,20 @@ class EmotionalIntelligenceEngine {
 
         let lower = cleaned.lowercased()
 
-        // 1. Check against banned clichés
+        // User-directed responses must ALWAYS be delivered to the user (unless 100% exact duplicate of the immediate last line)
+        if isUserDirected {
+            if let last = recentUtterances.last, last.lowercased() == lower {
+                // Slightly vary if exact duplicate
+                print("[EQEngine] User-directed reply was exact duplicate of last sentence. Allowing anyway for responsiveness.")
+            }
+            recentUtterances.append(cleaned)
+            if recentUtterances.count > maxHistorySize {
+                recentUtterances.removeFirst()
+            }
+            return cleaned
+        }
+
+        // 1. Check against banned clichés (ambient only)
         for phrase in bannedPhrases {
             if lower.contains(phrase) {
                 print("[EQEngine] Suppressed cliché phrase: '\(cleaned)'")
@@ -63,11 +76,11 @@ class EmotionalIntelligenceEngine {
             }
         }
 
-        // 2. Check exact, n-gram overlap, or high similarity with last 40 utterances
-        for prev in recentUtterances {
+        // 2. Check exact or high similarity (>0.65 Jaccard overlap) with recent 10 utterances
+        for prev in recentUtterances.suffix(10) {
             let prevLower = prev.lowercased()
-            if lower == prevLower || similarityScore(lower, prevLower) > 0.25 || hasNGramOverlap(lower, prevLower) {
-                print("[EQEngine] Suppressed repetitive speech (overlap detected): '\(cleaned)' vs '\(prev)'")
+            if lower == prevLower || similarityScore(lower, prevLower) > 0.65 {
+                print("[EQEngine] Suppressed repetitive ambient speech: '\(cleaned)' vs '\(prev)'")
                 return nil
             }
         }

@@ -18,6 +18,8 @@
 		554FFA9636D67A6307C64C58 /* MemoryGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68D48B1782C1DFB38BC1410 /* MemoryGraph.swift */; };
 		6A19667BE12D5AE1C06810CF /* PetScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B652D45E6976F47D462A1D3 /* PetScene.swift */; };
 		7C7256ACF3896AA33EE22901 /* TrainingFeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB967A9AF0A826AD7E8E1624 /* TrainingFeedbackView.swift */; };
+		5C7256ACF3896AA33EE22999 /* RealtimeConversationDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA967A9AF0A826AD7E8E1699 /* RealtimeConversationDebugView.swift */; };
+		5C7256ACF3896AA33EE22000 /* SystemSTT.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA967A9AF0A826AD7E8E1000 /* SystemSTT.swift */; };
 		8A1100012C00000100000001 /* FocusEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100012C00000100000002 /* FocusEngine.swift */; };
 		8A1100022C00000100000001 /* DeveloperContextMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100022C00000100000002 /* DeveloperContextMonitor.swift */; };
 		8A1100032C00000100000001 /* ByteSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1100032C00000100000002 /* ByteSettingsView.swift */; };
@@ -52,6 +54,8 @@
 		B461484513570AF74412C8EB /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
 		B68D48B1782C1DFB38BC1410 /* MemoryGraph.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemoryGraph.swift; sourceTree = "<group>"; };
 		CB967A9AF0A826AD7E8E1624 /* TrainingFeedbackView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TrainingFeedbackView.swift; sourceTree = "<group>"; };
+		AA967A9AF0A826AD7E8E1699 /* RealtimeConversationDebugView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RealtimeConversationDebugView.swift; sourceTree = "<group>"; };
+		AA967A9AF0A826AD7E8E1000 /* SystemSTT.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SystemSTT.swift; sourceTree = "<group>"; };
 		CF328C5B701ACF61020B398C /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		DAD7A0876ADBF9BAB6CF7203 /* ReinforcementLearningModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ReinforcementLearningModel.swift; sourceTree = "<group>"; };
 		8A1100012C00000100000002 /* FocusEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FocusEngine.swift; path = DesktopPet/FocusEngine.swift; sourceTree = SOURCE_ROOT; };
@@ -131,6 +135,8 @@
 				9B8E272C8B41BE58DA231488 /* DialogueContextTracker.swift */,
 				DAD7A0876ADBF9BAB6CF7203 /* ReinforcementLearningModel.swift */,
 				CB967A9AF0A826AD7E8E1624 /* TrainingFeedbackView.swift */,
+				AA967A9AF0A826AD7E8E1699 /* RealtimeConversationDebugView.swift */,
+				AA967A9AF0A826AD7E8E1000 /* SystemSTT.swift */,
 				8A1100012C00000100000002 /* FocusEngine.swift */,
 				8A1100022C00000100000002 /* DeveloperContextMonitor.swift */,
 				8A1100032C00000100000002 /* ByteSettingsView.swift */,
@@ -224,6 +230,8 @@
 				9B9B7540D6EF7A11219CF14F /* DialogueContextTracker.swift in Sources */,
 				0C00AEA0CF89F976176AEFAC /* ReinforcementLearningModel.swift in Sources */,
 				7C7256ACF3896AA33EE22901 /* TrainingFeedbackView.swift in Sources */,
+				5C7256ACF3896AA33EE22999 /* RealtimeConversationDebugView.swift in Sources */,
+				5C7256ACF3896AA33EE22000 /* SystemSTT.swift in Sources */,
 				8A1100012C00000100000001 /* FocusEngine.swift in Sources */,
 				8A1100022C00000100000001 /* DeveloperContextMonitor.swift in Sources */,
 				8A1100032C00000100000001 /* ByteSettingsView.swift in Sources */,

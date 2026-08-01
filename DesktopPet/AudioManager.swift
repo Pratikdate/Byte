@@ -25,26 +25,45 @@ class AudioManager {
 
     func startListening() {
         guard !isListening else { return }
+        isListening = true
 
+        SystemSTT.shared.onTranscriptionUpdate = { [weak self] text in
+            DispatchQueue.main.async {
+                self?.onTranscriptionUpdate?(text)
+            }
+        }
+
+        SystemSTT.shared.onTranscriptionFinished = { [weak self] text in
+            DispatchQueue.main.async {
+                self?.onTranscriptionFinished?(text)
+            }
+        }
+
+        SystemSTT.shared.startListening()
+
+        // Also run PCM capture in parallel as backup for Whisper
         audioQueue.async {
             self.accumulatedAudio.removeAll()
             self.lastSendTime = Date()
-            self.isListening = true
             self.captureAudioAndTranscribe()
         }
     }
 
     func stopListening() {
-        audioQueue.async {
-            self.isListening = false
+        isListening = false
+
+        SystemSTT.shared.stopListeningAndTranscribe { [weak self] systemText in
+            guard let self = self else { return }
+
             if self.audioEngine.isRunning {
                 try? self.audioEngine.stop()
             }
             let inputNode = self.audioEngine.inputNode
             inputNode.removeTap(onBus: 0)
 
-            // Flush the final accumulated buffer if we have one
-            if !self.accumulatedAudio.isEmpty {
+            if systemText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !self.accumulatedAudio.isEmpty {
+                // System STT was empty — fallback to Whisper server
+                print("[AudioManager] System STT empty, falling back to Whisper server...")
                 self.forceSendAudioToWhisper()
             }
         }

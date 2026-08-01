@@ -19,6 +19,7 @@ class VoiceInputManager {
     private func setupAudioManagerCallbacks() {
         audioManager.onTranscriptionUpdate = { [weak self] text in
             self?.currentTranscript = text
+            RealtimeConversationLogger.shared.updateLiveTranscript(text)
             if !text.isEmpty { DialogueContextTracker.shared.recordInteraction() }
             self?.onTranscriptionUpdate?(text)
         }

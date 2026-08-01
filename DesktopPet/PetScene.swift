@@ -2260,6 +2260,8 @@ class PetScene: SCNScene {
     
     func sayToPet(_ message: String) {
         FeedbackLogger.shared.logExplicit(comment: message, context: "User explicitly spoke to Byte while he was doing: \(brain.currentAction.rawValue)")
+        RealtimeConversationLogger.shared.logUserMessage(message)
+        MemoryGraph.shared.extractAndSaveUserFacts(from: message)
         
         // Prioritize user conversation & reset quiet state
         DialogueContextTracker.shared.recordInteraction()

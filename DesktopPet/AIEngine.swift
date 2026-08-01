@@ -246,10 +246,18 @@ class LocalOllamaProvider: NSObject, AIProvider {
                            emotion = String(sub[..<endRange.lowerBound])
                        }
                    }
+                   if let cmdRange = speech.range(of: "[CMD: ") {
+                       let sub = speech[cmdRange.upperBound...]
+                       if let endRange = sub.range(of: "]") {
+                           let cmd = String(sub[..<endRange.lowerBound])
+                           AIEngine.executeSystemCommand(cmd)
+                       }
+                   }
                    
-                   // Clean up the tags from speech
+                   // Clean up all tags from speech
                    speech = speech.replacingOccurrences(of: "\\[ACTION:.*?\\]", with: "", options: .regularExpression)
                    speech = speech.replacingOccurrences(of: "\\[EMOTION:.*?\\]", with: "", options: .regularExpression)
+                   speech = speech.replacingOccurrences(of: "\\[CMD:.*?\\]", with: "", options: .regularExpression)
                    speech = speech.trimmingCharacters(in: .whitespacesAndNewlines)
 
                    let decision = AIAgentDecision(action: action, emotion: emotion, speech: speech, store_memory: nil, target_x: nil, target_y: nil)
@@ -309,14 +317,15 @@ class LocalOllamaProvider: NSObject, AIProvider {
                     
                     buffer += responseToken
                     
-                    // 1. Parse [ACTION: xxx] and [EMOTION: xxx] before sending speech
+                    // 1. Parse [ACTION: xxx], [EMOTION: xxx], and [CMD: xxx] before sending speech
                     if !actionParsed {
                         let upperBuffer = buffer.uppercased()
                         let hasAction = upperBuffer.contains("ACTION")
                         let hasEmotion = upperBuffer.contains("EMOTION")
+                        let hasCmd = upperBuffer.contains("CMD")
                         
-                        // Wait until we have both tags, or we've received enough characters to give up waiting
-                        if (hasAction && hasEmotion && buffer.contains("]")) || buffer.count > 80 || buffer.contains("\n") {
+                        // Wait until we have tags, or we've received enough characters to give up waiting
+                        if (hasAction && hasEmotion && buffer.contains("]")) || buffer.count > 120 || buffer.contains("\n") {
                             
                             if let actionMatch = upperBuffer.range(of: "ACTION") {
                                 let sub = buffer[actionMatch.upperBound...]
@@ -333,10 +342,22 @@ class LocalOllamaProvider: NSObject, AIProvider {
                                     parsedEmotion = raw.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
                                 }
                             }
+
+                            if hasCmd, let cmdMatch = upperBuffer.range(of: "CMD") {
+                                let sub = buffer[cmdMatch.upperBound...]
+                                if let end = sub.range(of: "]") {
+                                    var raw = String(sub[..<end.lowerBound])
+                                    raw = raw.replacingOccurrences(of: "^:\\s*", with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
+                                    if !raw.isEmpty && raw.lowercased() != "none" {
+                                        AIEngine.executeSystemCommand(raw)
+                                    }
+                                }
+                            }
                             
                             let decision = AIAgentDecision(action: parsedAction, emotion: parsedEmotion, speech: "", store_memory: nil, target_x: nil, target_y: nil)
                             
                             DispatchQueue.main.async {
+                                RealtimeConversationLogger.shared.updateActionAndEmotion(action: parsedAction, emotion: parsedEmotion)
                                 onAction(decision)
                             }
                             
@@ -361,6 +382,7 @@ class LocalOllamaProvider: NSObject, AIProvider {
                                 
                                 if !finalSentence.isEmpty {
                                     DispatchQueue.main.async {
+                                        RealtimeConversationLogger.shared.appendStreamSentence(finalSentence)
                                         onSentence(finalSentence)
                                     }
                                 }
@@ -376,10 +398,12 @@ class LocalOllamaProvider: NSObject, AIProvider {
                         
                         if !remainder.isEmpty && actionParsed {
                             DispatchQueue.main.async {
+                                RealtimeConversationLogger.shared.appendStreamSentence(remainder)
                                 onSentence(remainder)
                             }
                         }
                         DispatchQueue.main.async {
+                            RealtimeConversationLogger.shared.completeModelTurn()
                             onComplete()
                         }
                         break
@@ -588,9 +612,21 @@ class AIEngine {
     
     func generateAgentDecision(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, completion: @escaping (AIAgentDecision?) -> Void) {
         let personality = SettingsManager.shared.activePersonality
+        let isUserDirected = (userMessage != nil && !(userMessage?.isEmpty ?? true))
+
+        var userHeader = ""
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
-            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: Answer the user directly, helpfully, and warmly. Pay attention to the ENVIRONMENT CONTEXT! (Do NOT use emojis, because your response will be spoken aloud!)\n"
+            userHeader = """
+            
+            ==================================================
+            *** PRIORITY DIRECTIVE: THE USER SPOKE TO YOU ***
+            USER SAID: "\(msg)"
+            YOUR MAIN TASK: You MUST answer the user's message directly, warmly, and helpfully right after your [ACTION: xxx] [EMOTION: xxx] tags! Do NOT ignore what the user said!
+            ==================================================
+            
+            """
+            userInstruction = "\nTHE USER SAID: \"\(msg)\". Answer them directly and warmly. (No emojis!)\n"
         } else {
             let eqIntent = EmotionalIntelligenceEngine.shared.intentDirective()
             userInstruction = "\nYou are idling near the developer. FAVOR quiet observation. \(eqIntent) STRICT NO REPETITION & NO CLICHÉS: DO NOT use clichés like '*yawns* so sleepy' or 'hmm...'. Share a fresh, original thought or leave 'speech' empty.\n"
@@ -598,9 +634,7 @@ class AIEngine {
 
         let memoryContext = MemoryGraph.shared.getUserFactsString()
         let behavioralRules = MemoryGraph.shared.getBehavioralRulesString()
-
         let emotionalTone = emotionalInstructions(for: currentEmotion)
-
         let conversation = InteractionDirector.shared.conversationContext()
         let attentionNote = InteractionDirector.shared.attentionDirective()
         let avoidOpeners = InteractionDirector.shared.recentOpeners()
@@ -613,7 +647,7 @@ class AIEngine {
 
         let systemPrompt = """
         You are an autonomous AI desktop pet named Byte. You must decide your next physical action and what you want to say.
-        PERSONALITY TRAIT: \(personality.promptModifier)
+        \(userHeader)PERSONALITY TRAIT: \(personality.promptModifier)
 
         ENVIRONMENT CONTEXT: \(context)
         DEVELOPER WORKSPACE: \(devContext)
@@ -628,20 +662,21 @@ class AIEngine {
 
         CRITICAL RULES:
         1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
-        2. Pick one action from the AVAILABLE ACTIONS list.
+        2. \(isUserDirected ? "ACTIVE LISTENING IS REQUIRED: The user spoke directly to you ('\(userMessage!)'). You MUST address their input directly in your speech response!" : "Pick one action from the AVAILABLE ACTIONS list.")
         3. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
-        4. NEVER repeat a line or cliché phrase. If you have nothing fresh to add, just output the tags and leave speech empty.
-        5. KEEP YOUR RESPONSE EXTREMELY SHORT (under 12 words).
+        4. KEEP YOUR RESPONSE SHORT (under 15 words). Speak naturally.
 
         Example Response:
-        [ACTION: sitOnCorner] [EMOTION: happy]
+        [ACTION: sitOnCorner] [EMOTION: happy] Right here beside you!
         """
+
+        RealtimeConversationLogger.shared.startModelTurn(systemPrompt: systemPrompt, userMessage: userMessage)
 
         provider.generateAgentDecision(systemPrompt: systemPrompt) { decision in
             if let decision = decision {
                 var validatedSpeech = decision.speech
                 if !validatedSpeech.isEmpty {
-                    if let valid = EmotionalIntelligenceEngine.shared.filterAndValidateSpeech(validatedSpeech) {
+                    if let valid = EmotionalIntelligenceEngine.shared.filterAndValidateSpeech(validatedSpeech, isUserDirected: isUserDirected) {
                         validatedSpeech = DialogueNaturalness.enhanceForSpeech(valid, emotion: currentEmotion)
                     } else {
                         validatedSpeech = "" // Suppress repetitive speech into quiet physical action
@@ -665,12 +700,24 @@ class AIEngine {
 func generateAgentDecisionStreaming(context: String, currentEmotion: String, availableActions: [String], userMessage: String? = nil, onAction: @escaping (AIAgentDecision) -> Void, onSentence: @escaping (String) -> Void, onComplete: @escaping () -> Void) {
         
         let personality = SettingsManager.shared.activePersonality
+        let isUserDirected = (userMessage != nil && !(userMessage?.isEmpty ?? true))
+
+        var userHeader = ""
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
-            userInstruction = "\nTHE USER JUST SAID THIS TO YOU: \"\(msg)\"\nIMPORTANT: Answer the user directly, helpfully, and warmly. Pay attention to ENVIRONMENT CONTEXT. (Do NOT use emojis!)\n"
+            userHeader = """
+            
+            ==================================================
+            *** PRIORITY DIRECTIVE: THE USER SPOKE TO YOU ***
+            USER SAID: "\(msg)"
+            YOUR MAIN TASK: You MUST answer the user's message directly, warmly, and helpfully right after your [ACTION: xxx] [EMOTION: xxx] tags! Ask a gentle follow-up question if appropriate to learn more about them.
+            ==================================================
+            
+            """
+            userInstruction = "\nTHE USER SAID: \"\(msg)\". Answer them directly, warmly, and curiously like an active listener. (No emojis!)\n"
         } else {
             let eqIntent = EmotionalIntelligenceEngine.shared.intentDirective()
-            userInstruction = "\nYou are idling near the developer. FAVOR quiet observation. \(eqIntent) STRICT NO REPETITION & NO CLICHÉS: DO NOT use clichés like '*yawns* so sleepy', 'lots of code', or 'hmm...'. Share a fresh, original thought or leave 'speech' empty.\n"
+            userInstruction = "\nYou are Byte, a warm and curious desktop pet listener. Occasionally ask short, warm personal questions to learn about the user (e.g. 'What are you working on?', 'How is your day going?', 'What's your favorite project?'). \(eqIntent) STRICT NO REPETITION & NO CLICHÉS: Say something fresh or ask a curious question.\n"
         }
 
         let memoryContext = MemoryGraph.shared.getUserFactsString()
@@ -685,7 +732,7 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
 
         let systemPrompt = """
         You are an autonomous AI desktop pet named Byte. You must decide your next physical action and what you want to say.
-        PERSONALITY TRAIT: \(personality.promptModifier)
+        \(userHeader)PERSONALITY TRAIT: \(personality.promptModifier)
 
         ENVIRONMENT CONTEXT: \(context)
         USER ATTENTION: \(attentionNote)
@@ -702,20 +749,20 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
         - roll: Roll sideways
 
         CRITICAL RULES:
-        1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
-        2. Pick one action from the AVAILABLE ACTIONS list. IF THE USER REQUESTED A PHYSICAL ACTION, YOU MUST PICK THE CORRESPONDING ACTION IN THE [ACTION: xxx] TAG.
-        3. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
-        4. ACTIVE LISTENING: If the user spoke to you, answer directly, warmly, and empathetically right after the tags. Match their energy tone.
+        1. You must respond by starting with the tags [ACTION: xxx] [EMOTION: xxx] [CMD: xxx].
+        2. SYSTEM COMMAND EXECUTION ([CMD: ...]): IF THE USER ASKED YOU TO CONTROL MAC OR TAKE AN ACTION (open Music/Spotify/Terminal/Finder, adjust volume, mute, screenshot, dark mode, battery/CPU info, sleep Mac), YOU MUST WRITE THE EXACT macOS CLI COMMAND IN THE [CMD: ...] TAG (e.g. [CMD: open -a Music], [CMD: osascript -e "set volume output volume 50"], [CMD: screencapture ~/Desktop/screenshot.png]). IF NO COMMAND IS REQUESTED, WRITE [CMD: none].
+        3. Pick an action from the AVAILABLE ACTIONS list and an emotion that matches your choice.
+        4. ACTIVE LISTENING: \(isUserDirected ? "The user spoke directly to you ('\(userMessage!)'). You MUST answer them directly, warmly, and empathetically right after the tags!" : "If the user spoke to you, answer directly, warmly, and empathetically right after the tags.")
         5. NEVER repeat a line, opening phrase, or cliché you already used in RECENT CONVERSATION. Vary your sentence structure every time.
-        6. RESPECT BREAK & FOCUS TIME: when the user is focused or in a quiet workspace mode, choose calm actions (sit, sitOnCorner, idle, wander) and stay quiet unless spoken to.
-        7. ENERGY MIRRORING: Sound natural, friendly, and companionable—like a warm friend on their desktop who adapts to their pace.
-        8. KEEP YOUR RESPONSE SHORT. Never exceed 2 short, warm sentences.
-        9. DO NOT overuse generic assistant tropes or user's name. Speak like a real companion.
-        10. PROACTIVE LEARNING COMPANION: Moderately pick expressive actions (spin, wave, sitOnMenuBar) when engaged, avoiding repetitive high-energy moves. Ask a brief, curious question occasionally to learn user preferences!
+        6. KEEP YOUR RESPONSE SHORT. Never exceed 2 short, warm sentences (under 15 words).
+        7. DO NOT overuse generic assistant tropes or user's name. Speak like a real companion.
 
-        Example Response:
-        [ACTION: sitOnCorner] [EMOTION: happy] Right here beside you!
+        Example Responses:
+        [ACTION: dance] [EMOTION: happy] [CMD: open -a Music] Launching Music for you!
+        [ACTION: sitOnCorner] [EMOTION: happy] [CMD: none] Right here beside you!
         """
+
+        RealtimeConversationLogger.shared.startModelTurn(systemPrompt: systemPrompt, userMessage: userMessage)
 
         if let streamingProvider = provider as? LocalOllamaProvider {
             streamingProvider.generateAgentDecisionStreaming(systemPrompt: systemPrompt, onAction: onAction, onSentence: onSentence, onComplete: onComplete)
@@ -738,6 +785,19 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
     func cancelCurrentGeneration() {
         if let streamingProvider = provider as? LocalOllamaProvider {
             streamingProvider.cancelStreaming()
+        }
+    }
+    
+    static func executeSystemCommand(_ command: String) {
+        let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed.lowercased() != "none" else { return }
+        
+        print("⚡ [AIEngine] Executing macOS System Command: \(trimmed)")
+        DispatchQueue.global(qos: .userInitiated).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/bin/bash")
+            task.arguments = ["-c", trimmed]
+            try? task.run()
         }
     }
 }

@@ -29,11 +29,47 @@ class MemoryGraph {
         if !facts.contains(newFact) {
             facts.append(newFact)
             saveMemories()
+            print("[MemoryGraph] Saved new memory fact: \(newFact.description)")
         }
     }
     
     func addBehavioralRule(_ rule: String) {
         addFact(subject: "Rule", predicate: "must", object: rule)
+    }
+
+    /// Automatically extracts user preferences, likes, goals, and facts from user speech
+    func extractAndSaveUserFacts(from message: String) {
+        let lower = message.lowercased()
+        
+        if lower.contains("i like ") || lower.contains("i love ") {
+            if let range = message.range(of: "i like ", options: .caseInsensitive) ?? message.range(of: "i love ", options: .caseInsensitive) {
+                let object = String(message[range.upperBound...]).trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                if !object.isEmpty && object.count < 60 {
+                    addFact(subject: "User", predicate: "likes", object: object)
+                }
+            }
+        } else if lower.contains("my favorite ") {
+            if let range = message.range(of: "my favorite ", options: .caseInsensitive) {
+                let object = String(message[range.upperBound...]).trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                if !object.isEmpty && object.count < 60 {
+                    addFact(subject: "User", predicate: "favorite", object: object)
+                }
+            }
+        } else if lower.contains("working on ") {
+            if let range = message.range(of: "working on ", options: .caseInsensitive) {
+                let object = String(message[range.upperBound...]).trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                if !object.isEmpty && object.count < 60 {
+                    addFact(subject: "User", predicate: "is working on", object: object)
+                }
+            }
+        } else if lower.contains("i am ") || lower.contains("i'm ") {
+            if let range = message.range(of: "i am ", options: .caseInsensitive) ?? message.range(of: "i'm ", options: .caseInsensitive) {
+                let object = String(message[range.upperBound...]).trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                if !object.isEmpty && !object.contains("not") && object.count < 40 {
+                    addFact(subject: "User", predicate: "is", object: object)
+                }
+            }
+        }
     }
     
     func getAllFactsString() -> String {

@@ -14,8 +14,11 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}🐾 Desktop Pet Launcher 🐾${NC}\n"
 
 # Python interpreter selection
-PYTHON_BIN="./.venv/bin/python"
-if [ ! -f "$PYTHON_BIN" ]; then
+if [ -f "$PROJECT_ROOT/.venv/bin/python3" ]; then
+    PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python3"
+elif [ -f "$PROJECT_ROOT/.venv2/bin/python3" ]; then
+    PYTHON_BIN="$PROJECT_ROOT/.venv2/bin/python3"
+else
     PYTHON_BIN="python3"
 fi
 

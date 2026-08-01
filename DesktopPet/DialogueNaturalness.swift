@@ -26,25 +26,15 @@ class DialogueNaturalness {
 
         switch emotion.lowercased() {
         case "sleepy", "sad", "lonely":
-            // Longer pauses, more ellipses
-            result = result.replacingOccurrences(of: ".", with: "... ")
-            result = result.replacingOccurrences(of: "?", with: "...? ")
-
-        case "excited", "happy":
-            // Shorter, punchy pauses
-            result = result.replacingOccurrences(of: ".", with: ". ")
-            if !result.contains("!") {
-                result = result.replacingOccurrences(of: ".", with: ".! ", options: [])
+            // Longer pauses, gentle trailing ellipsis
+            if result.hasSuffix(".") && !result.hasSuffix("...") {
+                result.removeLast()
+                result += "..."
             }
 
-        case "annoyed", "angry":
-            // Sharp, clipped endings
+        case "excited", "happy", "annoyed", "angry", "curious":
+            // Clean spacing
             result = result.replacingOccurrences(of: ".", with: ". ")
-            result = result.trimmingCharacters(in: .whitespaces)
-
-        case "curious":
-            // Questioning lilt
-            result = result.replacingOccurrences(of: ".", with: ".? ")
 
         default:
             // Neutral: normal spacing

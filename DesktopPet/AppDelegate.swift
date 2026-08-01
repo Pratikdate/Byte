@@ -79,6 +79,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     var statusItem: NSStatusItem?
     var emotionUpdateTimer: Timer?
     var trainingWindow: NSWindow?
+    var realtimeDebugWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let screenRect = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
@@ -268,6 +269,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         trainingItem.state = .off
         menu.addItem(trainingItem)
         
+        let debugHudItem = NSMenuItem(title: "💬 Realtime LLM Debugger", action: #selector(toggleRealtimeDebugger(_:)), keyEquivalent: "d")
+        menu.addItem(debugHudItem)
+        
         #if DEBUG
         menu.addItem(NSMenuItem.separator())
         let animationsMenu = NSMenu()
@@ -384,6 +388,35 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             trainingWindow?.makeKeyAndOrderFront(nil)
         } else {
             trainingWindow?.orderOut(nil)
+        }
+    }
+
+    @objc private func toggleRealtimeDebugger(_ sender: NSMenuItem) {
+        if realtimeDebugWindow == nil {
+            let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
+            let view = NSHostingView(rootView: RealtimeConversationDebugView())
+            view.frame = NSRect(x: 0, y: 0, width: 480, height: 380)
+
+            let win = NSWindow(
+                contentRect: NSRect(x: screenRect.maxX - 500, y: screenRect.maxY - 420, width: 480, height: 380),
+                styleMask: [.titled, .closable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            win.title = "⚡ Realtime LLM Debugger & Fine-Tune Inspector"
+            win.isOpaque = false
+            win.backgroundColor = .clear
+            win.level = .floating
+            win.contentView = view
+            realtimeDebugWindow = win
+        }
+
+        if realtimeDebugWindow?.isVisible == true {
+            realtimeDebugWindow?.orderOut(nil)
+            sender.state = .off
+        } else {
+            realtimeDebugWindow?.makeKeyAndOrderFront(nil)
+            sender.state = .on
         }
     }
     
@@ -509,6 +542,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         isListeningForPet = true
         scene.brain.isListeningToUser = true
         scene.showListeningState(true)
+        RealtimeConversationLogger.shared.setListeningState(true)
         VoiceInputManager.shared.startListening { _ in }
     }
     
@@ -518,6 +552,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         isListeningForPet = false
         scene.brain.isListeningToUser = false
         scene.showListeningState(false)
+        RealtimeConversationLogger.shared.setListeningState(false)
         
         VoiceInputManager.shared.finishListeningWithResult { transcript in
             if !transcript.isEmpty {

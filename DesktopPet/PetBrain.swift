@@ -102,14 +102,14 @@ class PetIdleState: PetBaseState {
                 brain.applyAction(action)
                 nextActionTime = TimeInterval.random(in: 1.0...2.0)
             } else {
-                // Pace autonomy to the user's attention: back off when they're idle/away.
+                // Pace physical pet movements to user attention: active, cute pet movements every few seconds!
                 switch InteractionDirector.shared.currentAttention() {
                 case .away:
-                    nextActionTime = TimeInterval.random(in: 120.0...240.0)
+                    nextActionTime = TimeInterval.random(in: 15.0...30.0)
                 case .idle:
-                    nextActionTime = TimeInterval.random(in: 90.0...180.0)
+                    nextActionTime = TimeInterval.random(in: 6.0...12.0)
                 default:
-                    nextActionTime = TimeInterval.random(in: 60.0...120.0)
+                    nextActionTime = TimeInterval.random(in: 1.5...3.5)
                 }
                 brain.requestAmbientAction()
             }
@@ -379,6 +379,15 @@ class PetBrain {
         // A user-directed message always gets through — never dropped behind an ambient query.
         if isQueryingAI && !isUserDirected { return }
 
+        // STRICT GATE: Ambient self-initiated speech must pass InteractionDirector attention & throttle checks
+        if !isUserDirected {
+            guard InteractionDirector.shared.shouldSpeak(.ambient) else {
+                print("[PetBrain] Ambient speech request denied by InteractionDirector — Byte performs quiet pet movement instead.")
+                evaluateNextAction()
+                return
+            }
+        }
+
         if isUserDirected {
             // Barge-in: cut off any ambient speech so the reply feels immediate, not queued.
             AudioManager.shared.stopSpeaking()
@@ -439,7 +448,8 @@ class PetBrain {
                 if myGeneration != self.queryGeneration { return }
                 
                 if !sentence.isEmpty && sentence != "..." {
-                    InteractionDirector.shared.noteSpoke(sentence)
+                    let trigger: InteractionDirector.SpeechTrigger = (userMessage != nil && !(userMessage?.isEmpty ?? true)) ? .userDirected : .ambient
+                    InteractionDirector.shared.noteSpoke(sentence, trigger: trigger)
                     InteractionDirector.shared.consumeReturnGreeting()
                     self.onSentenceGenerated?(sentence)
                 }

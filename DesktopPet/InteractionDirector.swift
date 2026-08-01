@@ -35,8 +35,8 @@ class InteractionDirector {
     private var pendingReturnGreeting = false
 
     // Minimum silence between utterances, per trigger class (seconds)
-    private let ambientMinGap: TimeInterval = 60
-    private let reactiveMinGap: TimeInterval = 12
+    private let ambientMinGap: TimeInterval = 18
+    private let reactiveMinGap: TimeInterval = 5
 
     // MARK: - Conversation thread (fed to the LLM so it remembers what it just said)
 
@@ -86,6 +86,22 @@ class InteractionDirector {
         pendingReturnGreeting = false
     }
 
+    // MARK: - User-Centric Engagement Throttle
+    // Rule 1: Max 3 unprompted statements without user reply -> 1 minute pause.
+    // Rule 2: If 1-minute pause happens 2 times in a row -> Stop completely until user engages.
+
+    private(set) var unpromptedCount = 0
+    private(set) var strikeCount = 0
+    private(set) var isMutedUntilUserEngages = false
+    private(set) var pauseUntilTime: Date = .distantPast
+
+    func resetEngagementThrottle() {
+        unpromptedCount = 0
+        strikeCount = 0
+        isMutedUntilUserEngages = false
+        pauseUntilTime = .distantPast
+    }
+
     // MARK: - The Speech Gate
 
     /// Single funnel: should Byte speak right now for this trigger?
@@ -95,39 +111,60 @@ class InteractionDirector {
 
         switch trigger {
         case .userDirected:
-            // The user asked. Always answer.
+            // The user asked. Reset throttle counters immediately and answer.
+            resetEngagementThrottle()
             return true
 
-        case .reactive:
-            // Meaningful events. Stay quiet only when the user is fully away.
-            if attention == .away { return false }
-            return sinceLastSpoke >= reactiveMinGap
+        case .reactive, .ambient:
+            // 1. If 2 strikes reached, Byte stops speaking completely until user engages
+            if isMutedUntilUserEngages {
+                return false
+            }
 
-        case .ambient:
-            // Filler. Only when the user is present, and rarely.
-            switch attention {
-            case .engaged, .active:
-                guard sinceLastSpoke >= ambientMinGap else { return false }
-                // Keep ambient chatter quiet & occasional (15% chance after 60s silence gap)
-                return Double.random(in: 0...1) < 0.15
-            case .returning:
-                return true   // a greeting is welcome
-            case .idle, .away:
-                return false  // respect focus / absence
+            // 2. Check if currently in 1-minute pause penalty
+            if Date() < pauseUntilTime {
+                return false
+            }
+
+            if trigger == .reactive {
+                if attention == .away { return false }
+                return sinceLastSpoke >= reactiveMinGap
+            } else { // .ambient
+                switch attention {
+                case .engaged, .active:
+                    guard sinceLastSpoke >= ambientMinGap else { return false }
+                    return Double.random(in: 0...1) < 0.50
+                case .returning:
+                    return true
+                case .idle, .away:
+                    return false
+                }
             }
         }
     }
 
     /// Record that Byte just spoke (starts the min-gap clock).
-    func noteSpoke(_ text: String) {
+    func noteSpoke(_ text: String, trigger: SpeechTrigger = .ambient) {
         lastSpokeAt = Date()
         recordByteTurn(text)
+
+        if trigger != .userDirected {
+            unpromptedCount += 1
+            print("[InteractionDirector] Unprompted speech count: \(unpromptedCount)/6")
+
+            if unpromptedCount >= 6 {
+                unpromptedCount = 0
+                pauseUntilTime = Date().addingTimeInterval(30)
+                print("[InteractionDirector] 6 unprompted statements reached. Enforcing short 30-second cooldown.")
+            }
+        }
     }
 
     // MARK: - Conversation Threading
 
     func recordUserTurn(_ text: String) {
         guard !text.isEmpty else { return }
+        resetEngagementThrottle()
         thread.append(Turn(speaker: "User", text: text))
         trimThread()
     }
