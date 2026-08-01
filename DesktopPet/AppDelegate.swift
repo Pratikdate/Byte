@@ -122,6 +122,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         setupMenuBar()
         setupKeyboardShortcuts()
         
+        // Pop up Byte Control Center window automatically on launch
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.openControlCenter(NSMenuItem())
+        }
+        
         // Menu bar emotion icon updater (every 2 seconds)
         emotionUpdateTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
             self?.updateMenuBarEmotion()

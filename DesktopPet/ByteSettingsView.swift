@@ -85,16 +85,51 @@ struct ByteSettingsView: View {
     private var companionTab: some View {
         VStack(spacing: 16) {
             SettingsCard(title: "Body Theme & Appearance", icon: "paintbrush.fill") {
-                Picker("Body Theme", selection: $activeTheme) {
-                    ForEach(ByteTheme.allCases) { theme in
-                        Text(theme.rawValue).tag(theme)
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("Theme Dropdown", selection: $activeTheme) {
+                        ForEach(ByteTheme.allCases) { theme in
+                            Text(theme.rawValue).tag(theme)
+                        }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                    .onChange(of: activeTheme) { newValue in
+                        SettingsManager.shared.activeTheme = newValue
+                    }
+                    .tint(.cyan)
+                    
+                    // Visual Theme Swatches Grid
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                        ForEach(ByteTheme.allCases) { theme in
+                            Button(action: {
+                                activeTheme = theme
+                                SettingsManager.shared.activeTheme = theme
+                            }) {
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(Color(theme.shellColor))
+                                        .overlay(Circle().stroke(Color(theme.eyeColor), lineWidth: 2))
+                                        .frame(width: 14, height: 14)
+                                    Text(theme.rawValue)
+                                        .font(.system(size: 11, weight: activeTheme == theme ? .bold : .regular))
+                                        .foregroundColor(activeTheme == theme ? .white : .white.opacity(0.7))
+                                        .lineLimit(1)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 6)
+                                .frame(maxWidth: .infinity)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(activeTheme == theme ? Color.cyan.opacity(0.25) : Color.white.opacity(0.06))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(activeTheme == theme ? Color.cyan : Color.clear, lineWidth: 1)
+                                        )
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
                     }
                 }
-                .pickerStyle(MenuPickerStyle())
-                .onChange(of: activeTheme) { newValue in
-                    SettingsManager.shared.activeTheme = newValue
-                }
-                .tint(.cyan)
             }
 
             SettingsCard(title: "Personality Profile", icon: "face.smiling") {
