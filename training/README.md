@@ -45,3 +45,8 @@ Then Byte will automatically connect to `byte-llm` in Ollama!
    ollama create byte-llm -f training/ByteModelfile
    ```
 
+4. **Push Model Weights to Open Source (Hugging Face Hub)**:
+   ```bash
+   python3 training/upload_to_hf.py --repo-id "YOUR_USERNAME/Byte-Desktop-Pet-1B"
+   ```
+
