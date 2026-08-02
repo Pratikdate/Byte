@@ -82,6 +82,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     var realtimeDebugWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Automatically verify and start local Ollama LLM, STT, and TTS services if not running
+        BackgroundServerManager.shared.ensureServicesRunning()
+
         let screenRect = NSScreen.main?.frame ?? NSRect(x: 0, y: 0, width: 800, height: 600)
         
         window = PetWindow(
@@ -138,6 +141,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         
         setupNotifications()
     }
+
     
     // MARK: - Notifications for Q-Learning
     private func setupNotifications() {
@@ -607,3 +611,109 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         }
     }
 }
+
+// MARK: - Autonomous Background Services Manager
+class BackgroundServerManager {
+    static let shared = BackgroundServerManager()
+    
+    func ensureServicesRunning() {
+        DispatchQueue.global(qos: .utility).async {
+            self.ensureOllamaRunning()
+            self.ensureWhisperServerRunning()
+            self.ensureTTSServerRunning()
+        }
+    }
+    
+    private func ensureOllamaRunning() {
+        guard let url = URL(string: "http://localhost:11434/api/tags") else { return }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2.0)
+        request.httpMethod = "GET"
+        
+        let sema = DispatchSemaphore(value: 0)
+        var isRunning = false
+        
+        let task = URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
+                isRunning = true
+            }
+            sema.signal()
+        }
+        task.resume()
+        _ = sema.wait(timeout: .now() + 2.5)
+        
+        if !isRunning {
+            print("🚀 [BackgroundServerManager] Starting local Ollama server...")
+            let proc = Process()
+            var ollamaPath = "/usr/local/bin/ollama"
+            if !FileManager.default.fileExists(atPath: ollamaPath) {
+                ollamaPath = "/opt/homebrew/bin/ollama"
+            }
+            if FileManager.default.fileExists(atPath: ollamaPath) {
+                proc.executableURL = URL(fileURLWithPath: ollamaPath)
+                proc.arguments = ["serve"]
+                try? proc.run()
+            }
+        }
+    }
+    
+    private func ensureWhisperServerRunning() {
+        guard let url = URL(string: "http://localhost:9000/health") else { return }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2.0)
+        request.httpMethod = "GET"
+        
+        let sema = DispatchSemaphore(value: 0)
+        var isRunning = false
+        
+        let task = URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
+                isRunning = true
+            }
+            sema.signal()
+        }
+        task.resume()
+        _ = sema.wait(timeout: .now() + 2.5)
+        
+        if !isRunning {
+            let rootPath = "/Users/shanacoder/Documents/Byte"
+            let venvPy = "\(rootPath)/.venv/bin/python3"
+            let scriptPath = "\(rootPath)/backend/whisper_server.py"
+            if FileManager.default.fileExists(atPath: scriptPath) {
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: FileManager.default.fileExists(atPath: venvPy) ? venvPy : "/usr/bin/python3")
+                proc.arguments = [scriptPath]
+                try? proc.run()
+            }
+        }
+    }
+
+    private func ensureTTSServerRunning() {
+        guard let url = URL(string: "http://localhost:8000/health") else { return }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2.0)
+        request.httpMethod = "GET"
+        
+        let sema = DispatchSemaphore(value: 0)
+        var isRunning = false
+        
+        let task = URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
+                isRunning = true
+            }
+            sema.signal()
+        }
+        task.resume()
+        _ = sema.wait(timeout: .now() + 2.5)
+        
+        if !isRunning {
+            let rootPath = "/Users/shanacoder/Documents/Byte"
+            let venvPy = "\(rootPath)/.venv/bin/python3"
+            let scriptPath = "\(rootPath)/backend/tts_server.py"
+            if FileManager.default.fileExists(atPath: scriptPath) {
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: FileManager.default.fileExists(atPath: venvPy) ? venvPy : "/usr/bin/python3")
+                proc.arguments = [scriptPath]
+                try? proc.run()
+            }
+        }
+    }
+}
+
