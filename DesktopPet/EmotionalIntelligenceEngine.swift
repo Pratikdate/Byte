@@ -257,3 +257,93 @@ class SettingsManager {
         }
     }
 }
+
+// MARK: - User Emotion & Sentiment Trajectory Tracker
+class UserEmotionTracker {
+    static let shared = UserEmotionTracker()
+    
+    enum UserEmotion: String {
+        case angry = "Angry"
+        case frustrated = "Frustrated"
+        case sad = "Sad / Overwhelmed"
+        case anxious = "Anxious / Stressed"
+        case happy = "Happy / Excited"
+        case calm = "Calm / Neutral"
+    }
+    
+    private(set) var recentEmotions: [UserEmotion] = []
+    private let maxHistory = 10
+    
+    private init() {}
+    
+    func trackUserMessage(_ message: String) {
+        let lower = message.lowercased()
+        var detected: UserEmotion = .calm
+        
+        let angryKeywords = ["angry", "mad", "hate", "stupid", "annoying", "stop", "shut up", "damn", "ugh", "furious", "worst", "shut it"]
+        let frustratedKeywords = ["frustrated", "stuck", "bug", "failing", "error", "broken", "why doesn't", "doesn't work", "waste of time", "impossible"]
+        let sadKeywords = ["sad", "depressed", "crying", "lonely", "hurt", "upset", "disappointed", "heavy heart", "miss", "hopeless", "tired of this"]
+        let happyKeywords = ["yay", "awesome", "great", "love", "amazing", "solved", "fixed", "finally", "cool", "wonderful", "happy", "cuddle", "adorable"]
+        let anxiousKeywords = ["worried", "nervous", "scared", "stress", "deadline", "panicked", "help me", "freaking out"]
+        
+        if angryKeywords.contains(where: { lower.contains($0) }) {
+            detected = .angry
+        } else if frustratedKeywords.contains(where: { lower.contains($0) }) {
+            detected = .frustrated
+        } else if sadKeywords.contains(where: { lower.contains($0) }) {
+            detected = .sad
+        } else if anxiousKeywords.contains(where: { lower.contains($0) }) {
+            detected = .anxious
+        } else if happyKeywords.contains(where: { lower.contains($0) }) {
+            detected = .happy
+        }
+        
+        recentEmotions.append(detected)
+        if recentEmotions.count > maxHistory {
+            recentEmotions.removeFirst()
+        }
+        
+        print("🧠 [UserEmotionTracker] Detected User Emotion: \(detected.rawValue) (History: \(recentEmotions.map { $0.rawValue }))")
+    }
+    
+    func getEmotionalDirective(currentMessage: String? = nil) -> String {
+        if let msg = currentMessage, !msg.isEmpty {
+            trackUserMessage(msg)
+        }
+        
+        let currentDetected = recentEmotions.last ?? .calm
+        let hadRecentAnger = recentEmotions.suffix(5).contains { $0 == .angry || $0 == .frustrated }
+        let hadRecentSadness = recentEmotions.suffix(5).contains { $0 == .sad || $0 == .anxious }
+        
+        var directive = "USER DETECTED EMOTION: \(currentDetected.rawValue)\n"
+        
+        if hadRecentAnger {
+            directive += """
+            ==================================================
+            *** USER EMOTIONAL TRAJECTORY DIRECTIVE ***
+            - The user was recently ANGRY or FRUSTRATED!
+            - ADAPTIVE RULE: Even if the user's current message is on a soft, simple, or neutral topic, speak with EXTRA GENTLENESS, SOFTNESS, PATIENCE, AND EMPATHETIC WARMTH to soothe their mood. Never be sharp, loud, or sarcastic.
+            ==================================================
+            """
+        } else if hadRecentSadness {
+            directive += """
+            ==================================================
+            *** USER EMOTIONAL TRAJECTORY DIRECTIVE ***
+            - The user was recently SAD, OVERWHELMED, or ANXIOUS.
+            - ADAPTIVE RULE: Speak with comforting, gentle, and quiet companionship. Let them know you're right by their side.
+            ==================================================
+            """
+        } else if currentDetected == .happy {
+            directive += """
+            USER EMOTIONAL CONTEXT: Happy / Excited! Match their joyful, upbeat energy with playful enthusiasm!
+            """
+        } else {
+            directive += """
+            USER EMOTIONAL CONTEXT: Calm / Neutral. Speak warmly and companionably.
+            """
+        }
+        
+        return directive
+    }
+}
+

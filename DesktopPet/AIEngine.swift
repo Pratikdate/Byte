@@ -725,6 +725,7 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
         let emotionalTone = emotionalInstructions(for: currentEmotion)
         let conversation = InteractionDirector.shared.conversationContext()
         let attentionNote = InteractionDirector.shared.attentionDirective()
+        let userEmotionalContext = UserEmotionTracker.shared.getEmotionalDirective(currentMessage: userMessage)
         let avoidOpeners = InteractionDirector.shared.recentOpeners()
         let avoidLine = avoidOpeners.isEmpty
             ? ""
@@ -736,12 +737,14 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
 
         ENVIRONMENT CONTEXT: \(context)
         USER ATTENTION: \(attentionNote)
+        \(userEmotionalContext)
         \(conversation)
         YOUR MEMORIES ABOUT USER: \(memoryContext)
         YOUR BEHAVIORAL RULES:
         \(behavioralRules)
         YOUR CURRENT EMOTION: \(currentEmotion). \(emotionalTone)
         \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
+
 
         ACTION DESCRIPTIONS:
         - idle, wander, sleep, jump, sit, spin, dance, sitOnCorner, sitOnMenuBar, climbWindow, pushWidget, tapWindow, sneeze, backflip, headbang, wave
