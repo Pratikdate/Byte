@@ -323,9 +323,10 @@ class LocalOllamaProvider: NSObject, AIProvider {
                         let hasAction = upperBuffer.contains("ACTION")
                         let hasEmotion = upperBuffer.contains("EMOTION")
                         let hasCmd = upperBuffer.contains("CMD")
+                        let bracketCount = buffer.filter { $0 == "]" }.count
                         
-                        // Wait until we have tags, or we've received enough characters to give up waiting
-                        if (hasAction && hasEmotion && buffer.contains("]")) || buffer.count > 120 || buffer.contains("\n") {
+                        // Wait until all 3 tags are parsed (bracketCount >= 3) or buffer exceeds safety limit
+                        if (hasAction && hasEmotion && hasCmd && bracketCount >= 3) || buffer.count > 180 {
                             
                             if let actionMatch = upperBuffer.range(of: "ACTION") {
                                 let sub = buffer[actionMatch.upperBound...]
@@ -371,7 +372,14 @@ class LocalOllamaProvider: NSObject, AIProvider {
                     
                     // 2. Chunk sentences once action is parsed
                     if actionParsed {
+                        // Ensure no lingering bracket tags ([CMD: ...], [speech], etc.) are present in buffer
+                        buffer = buffer.replacingOccurrences(of: "\\[ACTION:.*?\\]", with: "", options: [.regularExpression, .caseInsensitive])
+                        buffer = buffer.replacingOccurrences(of: "\\[EMOTION:.*?\\]", with: "", options: [.regularExpression, .caseInsensitive])
+                        buffer = buffer.replacingOccurrences(of: "\\[CMD:.*?\\]", with: "", options: [.regularExpression, .caseInsensitive])
+                        buffer = buffer.replacingOccurrences(of: "\\[speech:?\\]", with: "", options: [.regularExpression, .caseInsensitive])
+
                         let terminators = [". ", "! ", "? ", "\n", ".\n", "!\n", "?\n", ", ", "... "]
+
                         for term in terminators {
                             if let range = buffer.range(of: term) {
                                 let sentence = String(buffer[..<range.lowerBound]) + term.trimmingCharacters(in: .whitespaces)
