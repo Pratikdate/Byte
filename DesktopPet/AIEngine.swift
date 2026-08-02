@@ -788,11 +788,41 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
         }
     }
     
+    static func isCommandAllowed(_ command: String) -> Bool {
+        let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed.lowercased() == "none" {
+            return false
+        }
+        
+        let allowedPatterns: [String] = [
+            #"^open -a "[A-Za-z0-9\s]+"$"#,
+            #"^open -a [A-Za-z0-9_-]+$"#,
+            #"^osascript -e "set volume output volume [0-9]{1,3}"$"#,
+            #"^osascript -e 'tell app "System Events" to set dark mode of appearance preferences to (true|false)'$"#,
+            #"^osascript -e 'tell application "System Events" to set dark mode of appearance preferences to (true|false)'$"#,
+            #"^screencapture ~/Desktop/.*\.png$"#,
+            #"^pmset sleepnow$"#,
+            #"^pmset displaysleepnow$"#
+        ]
+        
+        for pattern in allowedPatterns {
+            if trimmed.range(of: pattern, options: .regularExpression) != nil {
+                return true
+            }
+        }
+        return false
+    }
+
     static func executeSystemCommand(_ command: String) {
         let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.lowercased() != "none" else { return }
+        guard isCommandAllowed(trimmed) else {
+            if !trimmed.isEmpty && trimmed.lowercased() != "none" {
+                print("⚠️ [AIEngine Security] Blocked unauthorized command execution attempt: \(trimmed)")
+            }
+            return
+        }
         
-        print("⚡ [AIEngine] Executing macOS System Command: \(trimmed)")
+        print("⚡ [AIEngine Security Approved] Executing macOS System Command: \(trimmed)")
         DispatchQueue.global(qos: .userInitiated).async {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/bin/bash")
@@ -801,3 +831,4 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
         }
     }
 }
+
