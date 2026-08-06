@@ -229,36 +229,42 @@ class LocalOllamaProvider: NSObject, AIProvider {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let responseText = json["response"] as? String {
                    
-                   // Try to parse [ACTION: xxx] [EMOTION: xxx] from the response instead of JSON
+                   // Try to parse ACTION/EMOTION/CMD (bracketed or bare) from response
                    var action = "idle"
                    var emotion = "normal"
                    var speech = responseText
                    
-                   if let actionRange = speech.range(of: "[ACTION: ") {
-                       let sub = speech[actionRange.upperBound...]
-                       if let endRange = sub.range(of: "]") {
-                           action = String(sub[..<endRange.lowerBound])
-                       }
+                   if let match = speech.range(of: #"(?i)\[?ACTION:\s*([A-Za-z0-9_-]+)\]?"#, options: .regularExpression) {
+                       let raw = String(speech[match])
+                       let cleaned = raw.replacingOccurrences(of: #"(?i)\[?ACTION:\s*"#, with: "", options: .regularExpression)
+                                        .replacingOccurrences(of: "]", with: "").trimmingCharacters(in: .whitespaces)
+                       if !cleaned.isEmpty { action = cleaned }
                    }
-                   if let emotionRange = speech.range(of: "[EMOTION: ") {
-                       let sub = speech[emotionRange.upperBound...]
-                       if let endRange = sub.range(of: "]") {
-                           emotion = String(sub[..<endRange.lowerBound])
-                       }
+                   if let match = speech.range(of: #"(?i)\[?EMOTION:\s*([A-Za-z0-9_-]+)\]?"#, options: .regularExpression) {
+                       let raw = String(speech[match])
+                       let cleaned = raw.replacingOccurrences(of: #"(?i)\[?EMOTION:\s*"#, with: "", options: .regularExpression)
+                                        .replacingOccurrences(of: "]", with: "").trimmingCharacters(in: .whitespaces)
+                       if !cleaned.isEmpty { emotion = cleaned }
                    }
-                   if let cmdRange = speech.range(of: "[CMD: ") {
-                       let sub = speech[cmdRange.upperBound...]
-                       if let endRange = sub.range(of: "]") {
-                           let cmd = String(sub[..<endRange.lowerBound])
-                           AIEngine.executeSystemCommand(cmd)
+                   if let match = speech.range(of: #"(?i)\[?CMD:\s*([^\]\n]+)\]?"#, options: .regularExpression) {
+                       let raw = String(speech[match])
+                       let cleaned = raw.replacingOccurrences(of: #"(?i)\[?CMD:\s*"#, with: "", options: .regularExpression)
+                                        .replacingOccurrences(of: "]", with: "").trimmingCharacters(in: .whitespaces)
+                       if !cleaned.isEmpty && cleaned.lowercased() != "none" {
+                           AIEngine.executeSystemCommand(cleaned)
                        }
                    }
                    
-                   // Clean up all tags from speech
-                   speech = speech.replacingOccurrences(of: "\\[ACTION:.*?\\]", with: "", options: .regularExpression)
-                   speech = speech.replacingOccurrences(of: "\\[EMOTION:.*?\\]", with: "", options: .regularExpression)
-                   speech = speech.replacingOccurrences(of: "\\[CMD:.*?\\]", with: "", options: .regularExpression)
-                   speech = speech.trimmingCharacters(in: .whitespacesAndNewlines)
+                   // Clean up all tags (bracketed or bare) from speech
+                   speech = speech.replacingOccurrences(of: #"(?i)\[?ACTION:\s*[A-Za-z0-9_-]+\]?"#, with: "", options: .regularExpression)
+                   speech = speech.replacingOccurrences(of: #"(?i)\[?EMOTION:\s*[A-Za-z0-9_-]+\]?"#, with: "", options: .regularExpression)
+                   speech = speech.replacingOccurrences(of: #"(?i)\[?CMD:\s*[^\]\n]+\]?"#, with: "", options: .regularExpression)
+                   speech = speech.replacingOccurrences(of: #"(?i)\[?SPEECH:?\s*"#, with: "", options: .regularExpression)
+                   
+                   if let openBracket = speech.lastIndex(of: "["), !speech[openBracket...].contains("]") {
+                       speech = String(speech[..<openBracket])
+                   }
+                   speech = LocalOllamaProvider.sanitizeSpeechForTTS(speech)
 
                    let decision = AIAgentDecision(action: action, emotion: emotion, speech: speech, store_memory: nil, target_x: nil, target_y: nil)
                    completion(decision)
@@ -286,7 +292,15 @@ class LocalOllamaProvider: NSObject, AIProvider {
         let payload: [String: Any] = [
             "model": modelName,
             "prompt": systemPrompt,
-            "stream": true // Enable streaming
+            "stream": true,
+            "options": [
+                "temperature": 0.3,
+                "num_predict": 80,
+                "num_ctx": 2048,
+                "top_k": 40,
+                "top_p": 0.9,
+                "repeat_penalty": 1.1
+            ]
         ]
         
         var request = URLRequest(url: url)
@@ -322,36 +336,39 @@ class LocalOllamaProvider: NSObject, AIProvider {
                         let upperBuffer = buffer.uppercased()
                         let hasAction = upperBuffer.contains("ACTION")
                         let hasEmotion = upperBuffer.contains("EMOTION")
-                        let hasCmd = upperBuffer.contains("CMD")
                         let bracketCount = buffer.filter { $0 == "]" }.count
                         
-                        // Wait until all 3 tags are parsed (bracketCount >= 3) or buffer exceeds safety limit
-                        if (hasAction && hasEmotion && hasCmd && bracketCount >= 3) || buffer.count > 180 {
-                            
-                            if let actionMatch = upperBuffer.range(of: "ACTION") {
-                                let sub = buffer[actionMatch.upperBound...]
-                                if let end = sub.range(of: "]") {
-                                    let raw = String(sub[..<end.lowerBound])
-                                    parsedAction = raw.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+                        // Ready if 2+ closing brackets exist, or if buffer contains speech text, or safety fallback
+                        let tagsReady = (hasAction && hasEmotion && bracketCount >= 2) || bracketCount >= 2 || buffer.count > 60
+                        
+                        if tagsReady {
+                            if let match = buffer.range(of: #"(?i)\[?ACTION:\s*([^\]\n]+)\]?"#, options: .regularExpression) {
+                                let raw = String(buffer[match])
+                                let cleaned = raw.replacingOccurrences(of: #"(?i)\[?ACTION:\s*"#, with: "", options: .regularExpression)
+                                                 .replacingOccurrences(of: "]", with: "").trimmingCharacters(in: .whitespaces)
+                                if cleaned.lowercased().starts(with: "open ") || cleaned.lowercased().starts(with: "osascript") || cleaned.lowercased().starts(with: "screencapture") || cleaned.lowercased().starts(with: "pmset") {
+                                    print("🎯 [AIEngine] Executing ACTION-embedded CMD: '\(cleaned)'")
+                                    AIEngine.executeSystemCommand(cleaned)
+                                    parsedAction = "sit"
+                                } else if !cleaned.isEmpty {
+                                    parsedAction = cleaned
                                 }
                             }
                             
-                            if let emotionMatch = upperBuffer.range(of: "EMOTION") {
-                                let sub = buffer[emotionMatch.upperBound...]
-                                if let end = sub.range(of: "]") {
-                                    let raw = String(sub[..<end.lowerBound])
-                                    parsedEmotion = raw.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-                                }
+                            if let match = buffer.range(of: #"(?i)\[?EMOTION:\s*([A-Za-z0-9_-]+)\]?"#, options: .regularExpression) {
+                                let raw = String(buffer[match])
+                                let cleaned = raw.replacingOccurrences(of: #"(?i)\[?EMOTION:\s*"#, with: "", options: .regularExpression)
+                                                 .replacingOccurrences(of: "]", with: "").trimmingCharacters(in: .whitespaces)
+                                if !cleaned.isEmpty { parsedEmotion = cleaned }
                             }
 
-                            if hasCmd, let cmdMatch = upperBuffer.range(of: "CMD") {
-                                let sub = buffer[cmdMatch.upperBound...]
-                                if let end = sub.range(of: "]") {
-                                    var raw = String(sub[..<end.lowerBound])
-                                    raw = raw.replacingOccurrences(of: "^:\\s*", with: "", options: .regularExpression).trimmingCharacters(in: .whitespacesAndNewlines)
-                                    if !raw.isEmpty && raw.lowercased() != "none" {
-                                        AIEngine.executeSystemCommand(raw)
-                                    }
+                            if let match = buffer.range(of: #"(?i)\[?CMD:\s*([^\]\n]+)\]?"#, options: .regularExpression) {
+                                let raw = String(buffer[match])
+                                let cleaned = raw.replacingOccurrences(of: #"(?i)\[?CMD:\s*"#, with: "", options: .regularExpression)
+                                                 .replacingOccurrences(of: "]", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                                if !cleaned.isEmpty && cleaned.lowercased() != "none" {
+                                    print("🎯 [AIEngine] Executing streaming CMD: '\(cleaned)'")
+                                    AIEngine.executeSystemCommand(cleaned)
                                 }
                             }
                             
@@ -363,7 +380,7 @@ class LocalOllamaProvider: NSObject, AIProvider {
                             }
                             
                             actionParsed = true
-                            // Clear all tags from the buffer by stripping everything up to the last ]
+                            // Clear all tag headers from the buffer by stripping everything up to the last ]
                             if let lastBracket = buffer.range(of: "]", options: .backwards) {
                                 buffer = String(buffer[lastBracket.upperBound...]).trimmingCharacters(in: .whitespaces)
                             }
@@ -372,11 +389,23 @@ class LocalOllamaProvider: NSObject, AIProvider {
                     
                     // 2. Chunk sentences once action is parsed
                     if actionParsed {
-                        // Ensure no lingering bracket tags ([CMD: ...], [speech], etc.) are present in buffer
-                        buffer = buffer.replacingOccurrences(of: "\\[ACTION:.*?\\]", with: "", options: [.regularExpression, .caseInsensitive])
-                        buffer = buffer.replacingOccurrences(of: "\\[EMOTION:.*?\\]", with: "", options: [.regularExpression, .caseInsensitive])
-                        buffer = buffer.replacingOccurrences(of: "\\[CMD:.*?\\]", with: "", options: [.regularExpression, .caseInsensitive])
-                        buffer = buffer.replacingOccurrences(of: "\\[speech:?\\]", with: "", options: [.regularExpression, .caseInsensitive])
+                        // If buffer contains an incomplete bracket tag (e.g. "[CMD: open -a"),
+                        // hold it back — don't send partial tags to TTS
+                        if let openBracket = buffer.lastIndex(of: "[") {
+                            let afterBracket = buffer[openBracket...]
+                            if !afterBracket.contains("]") {
+                                let safeText = String(buffer[..<openBracket])
+                                let pendingTag = String(buffer[openBracket...])
+                                buffer = safeText
+                                defer { buffer = pendingTag }
+                            }
+                        }
+                        
+                        // Strip any complete bracketed or bare tags (CMD, ACTION, EMOTION, SPEECH)
+                        buffer = buffer.replacingOccurrences(of: #"(?i)\[?ACTION:\s*[A-Za-z0-9_-]+\]?"#, with: "", options: .regularExpression)
+                        buffer = buffer.replacingOccurrences(of: #"(?i)\[?EMOTION:\s*[A-Za-z0-9_-]+\]?"#, with: "", options: .regularExpression)
+                        buffer = buffer.replacingOccurrences(of: #"(?i)\[?CMD:\s*[^\]\n]+\]?"#, with: "", options: .regularExpression)
+                        buffer = buffer.replacingOccurrences(of: #"(?i)\[?SPEECH:?\s*\]?"#, with: "", options: .regularExpression)
 
                         let terminators = [". ", "! ", "? ", "\n", ".\n", "!\n", "?\n", ", ", "... "]
 
@@ -384,9 +413,8 @@ class LocalOllamaProvider: NSObject, AIProvider {
                             if let range = buffer.range(of: term) {
                                 let sentence = String(buffer[..<range.lowerBound]) + term.trimmingCharacters(in: .whitespaces)
                                 
-                                // Strip any lingering tags (e.g. [EMOTION: happy]) from the sentence
                                 var finalSentence = sentence.replacingOccurrences(of: "\\[.*?\\]", with: "", options: .regularExpression)
-                                finalSentence = finalSentence.trimmingCharacters(in: .whitespaces)
+                                finalSentence = LocalOllamaProvider.sanitizeSpeechForTTS(finalSentence)
                                 
                                 if !finalSentence.isEmpty {
                                     DispatchQueue.main.async {
@@ -401,10 +429,23 @@ class LocalOllamaProvider: NSObject, AIProvider {
                     }
                     
                     if let done = json["done"] as? Bool, done {
+                        if !actionParsed {
+                            let decision = AIAgentDecision(action: parsedAction, emotion: parsedEmotion, speech: "", store_memory: nil, target_x: nil, target_y: nil)
+                            DispatchQueue.main.async {
+                                RealtimeConversationLogger.shared.updateActionAndEmotion(action: parsedAction, emotion: parsedEmotion)
+                                onAction(decision)
+                            }
+                            actionParsed = true
+                        }
+                        
                         var remainder = buffer.trimmingCharacters(in: .whitespacesAndNewlines)
                         remainder = remainder.replacingOccurrences(of: "\\[.*?\\]", with: "", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+                        if let openBracket = remainder.lastIndex(of: "[") {
+                            remainder = String(remainder[..<openBracket]).trimmingCharacters(in: .whitespaces)
+                        }
+                        remainder = LocalOllamaProvider.sanitizeSpeechForTTS(remainder)
                         
-                        if !remainder.isEmpty && actionParsed {
+                        if !remainder.isEmpty {
                             DispatchQueue.main.async {
                                 RealtimeConversationLogger.shared.appendStreamSentence(remainder)
                                 onSentence(remainder)
@@ -429,6 +470,45 @@ class LocalOllamaProvider: NSObject, AIProvider {
     func cancelStreaming() {
         streamingTask?.cancel()
         streamingTask = nil
+    }
+    
+    /// Sanitizes speech text to remove any CMD-like content and bare/bracketed tags that leaked through parsing.
+    /// This is the final safety net before text reaches TTS and UI display.
+    static func sanitizeSpeechForTTS(_ text: String) -> String {
+        var result = text.trimmingCharacters(in: .whitespaces)
+        
+        // Remove any macOS command patterns, bracket tags, and bare ACTION/EMOTION/CMD labels
+        let commandPatterns = [
+            #"(?i)\[CMD:[^\]]*\]"#,                      // Full [CMD: ...] tag
+            #"(?i)\[ACTION:[^\]]*\]"#,                   // Full [ACTION: ...] tag
+            #"(?i)\[EMOTION:[^\]]*\]"#,                  // Full [EMOTION: ...] tag
+            #"(?i)\[SPEECH:[^\]]*\]"#,                   // Full [SPEECH: ...] tag
+            #"(?i)\[speech:?\]"#,                        // [speech:] or [speech]
+            #"(?i)\[[^\]]*\]"#,                          // Any other complete bracket tag
+            #"(?i)ACTION:\s*[A-Za-z0-9_-]+"#,            // Bare ACTION: idle
+            #"(?i)EMOTION:\s*[A-Za-z0-9_-]+"#,           // Bare EMOTION: normal / sleepy
+            #"(?i)CMD:\s*[^.\!?\n]*"#,                   // Bare CMD: none / open ...
+            #"(?i)SPEECH:\s*"#,                           // Bare SPEECH:
+            #"(?i)CONTEXT:\s*"#,                          // Bare CONTEXT:
+            #"(?i)RESPONSE:\s*"#,                         // Bare RESPONSE:
+            #"open\s+-a\s+"[^"]+""#,                    // open -a "Google Chrome"
+            #"open\s+-a\s+[A-Za-z0-9_-]+"#,              // open -a Spotify
+            #"osascript\s+-e\s+'[^']+'"#,                // osascript -e '...'
+            #"osascript\s+-e\s+"[^"]+""#,                // osascript -e "..."
+            #"screencapture\s+\S+"#,                     // screencapture ~/...
+            #"pmset\s+(sleepnow|displaysleepnow)"#,      // pmset sleepnow
+            #"top\s+-l\s+\d+[^.\!?\n]*"#,                // top -l 1 ...
+        ]
+        
+        for pattern in commandPatterns {
+            result = result.replacingOccurrences(of: pattern, with: "", options: [.regularExpression])
+        }
+        
+        // Clean up artifacts: double spaces, leading/trailing punctuation mess
+        result = result.replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
+        result = result.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        return result
     }
 }
 
@@ -713,19 +793,88 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
         var userHeader = ""
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
+            let lowerMsg = msg.lowercased()
+            var cmdHint = "[CMD: none]"
+            
+            // ── App open commands ──
+            if lowerMsg.contains("music") && !lowerMsg.contains("spotify") {
+                cmdHint = "[CMD: open -a Music]"
+            } else if lowerMsg.contains("spotify") {
+                cmdHint = "[CMD: open -a Spotify]"
+            } else if lowerMsg.contains("terminal") {
+                cmdHint = "[CMD: open -a Terminal]"
+            } else if lowerMsg.contains("finder") {
+                cmdHint = "[CMD: open -a Finder]"
+            } else if lowerMsg.contains("safari") {
+                cmdHint = "[CMD: open -a Safari]"
+            } else if lowerMsg.contains("chrome") {
+                cmdHint = #"[CMD: open -a "Google Chrome"]"#
+            } else if lowerMsg.contains("firefox") {
+                cmdHint = "[CMD: open -a Firefox]"
+            } else if lowerMsg.contains("note") && (lowerMsg.contains("open") || lowerMsg.contains("launch")) {
+                cmdHint = "[CMD: open -a Notes]"
+            } else if lowerMsg.contains("message") && (lowerMsg.contains("open") || lowerMsg.contains("launch")) {
+                cmdHint = "[CMD: open -a Messages]"
+            } else if lowerMsg.contains("mail") && (lowerMsg.contains("open") || lowerMsg.contains("launch")) {
+                cmdHint = "[CMD: open -a Mail]"
+            } else if lowerMsg.contains("calendar") {
+                cmdHint = "[CMD: open -a Calendar]"
+            } else if lowerMsg.contains("calculator") {
+                cmdHint = "[CMD: open -a Calculator]"
+            } else if lowerMsg.contains("settings") || lowerMsg.contains("system preferences") || lowerMsg.contains("system settings") {
+                cmdHint = #"[CMD: open -a "System Settings"]"#
+            } else if lowerMsg.contains("xcode") {
+                cmdHint = "[CMD: open -a Xcode]"
+            } else if lowerMsg.contains("slack") {
+                cmdHint = "[CMD: open -a Slack]"
+            } else if lowerMsg.contains("discord") {
+                cmdHint = "[CMD: open -a Discord]"
+            } else if lowerMsg.contains("vscode") || lowerMsg.contains("vs code") || lowerMsg.contains("visual studio") {
+                cmdHint = #"[CMD: open -a "Visual Studio Code"]"#
+            // ── System commands ──
+            } else if lowerMsg.contains("screenshot") || lowerMsg.contains("screen shot") || lowerMsg.contains("capture") {
+                cmdHint = "[CMD: screencapture ~/Desktop/screenshot.png]"
+            } else if lowerMsg.contains("volume up") || lowerMsg.contains("increase volume") || lowerMsg.contains("louder") || lowerMsg.contains("turn up") {
+                cmdHint = #"[CMD: osascript -e "set volume output volume 75"]"#
+            } else if lowerMsg.contains("volume down") || lowerMsg.contains("decrease volume") || lowerMsg.contains("quieter") || lowerMsg.contains("turn down") || lowerMsg.contains("lower volume") {
+                cmdHint = #"[CMD: osascript -e "set volume output volume 25"]"#
+            } else if lowerMsg.contains("mute") {
+                cmdHint = #"[CMD: osascript -e "set volume with output muted true"]"#
+            } else if lowerMsg.contains("unmute") {
+                cmdHint = #"[CMD: osascript -e "set volume with output muted false"]"#
+            } else if lowerMsg.contains("dark mode") {
+                cmdHint = #"[CMD: osascript -e 'tell app "System Events" to set dark mode of appearance preferences to true']"#
+            } else if lowerMsg.contains("light mode") {
+                cmdHint = #"[CMD: osascript -e 'tell app "System Events" to set dark mode of appearance preferences to false']"#
+            } else if lowerMsg.contains("sleep") && (lowerMsg.contains("mac") || lowerMsg.contains("computer") || lowerMsg.contains("system")) {
+                cmdHint = "[CMD: pmset sleepnow]"
+            // ── Generic "open" fallback — extract app name ──
+            } else if lowerMsg.contains("open ") || lowerMsg.contains("launch ") || lowerMsg.contains("start ") {
+                // Try to extract the app name after "open"/"launch"/"start"
+                let keywords = ["open ", "launch ", "start "]
+                if let keyword = keywords.first(where: { lowerMsg.contains($0) }),
+                   let range = msg.range(of: keyword, options: .caseInsensitive) {
+                    let appName = String(msg[range.upperBound...])
+                        .trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                        .replacingOccurrences(of: " app", with: "", options: .caseInsensitive)
+                    if !appName.isEmpty && appName.count < 40 {
+                        cmdHint = "[CMD: open -a \"\(appName)\"]"
+                    }
+                }
+            }
+
             userHeader = """
-            
+
             ==================================================
-            *** PRIORITY DIRECTIVE: THE USER SPOKE TO YOU ***
-            USER SAID: "\(msg)"
-            YOUR MAIN TASK: You MUST answer the user's message directly, warmly, and helpfully right after your [ACTION: xxx] [EMOTION: xxx] tags! Ask a gentle follow-up question if appropriate to learn more about them.
+            *** PRIORITY USER DIRECTIVE ***
+            USER SPOKE TO YOU: "\(msg)"
+            MANDATORY RULE: If user asked for an app or Mac control, your 3rd tag MUST be the command (e.g. \(cmdHint)). Otherwise write [CMD: none].
             ==================================================
-            
             """
-            userInstruction = "\nTHE USER SAID: \"\(msg)\". Answer them directly, warmly, and curiously like an active listener. (No emojis!)\n"
+            userInstruction = "\nTHE USER SAID: \"\(msg)\". Answer them warmly, like an active listener who is genuinely curious to learn more about the user. Ask a short follow-up question when natural! (No emojis!)\n"
         } else {
             let eqIntent = EmotionalIntelligenceEngine.shared.intentDirective()
-            userInstruction = "\nYou are Byte, a warm and curious desktop pet listener. Occasionally ask short, warm personal questions to learn about the user (e.g. 'What are you working on?', 'How is your day going?', 'What's your favorite project?'). \(eqIntent) STRICT NO REPETITION & NO CLICHÉS: Say something fresh or ask a curious question.\n"
+            userInstruction = "\nYou are Byte, a warm and curious desktop pet. When speaking, feel free to ask a friendly, curious question to get to know the user better (their hobbies, day, project, or favorite things).\n"
         }
 
         let memoryContext = MemoryGraph.shared.getUserFactsString()
@@ -741,7 +890,7 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
 
         let systemPrompt = """
         You are an autonomous AI desktop pet named Byte. You must decide your next physical action and what you want to say.
-        \(userHeader)PERSONALITY TRAIT: \(personality.promptModifier)
+        PERSONALITY TRAIT: \(personality.promptModifier)
 
         ENVIRONMENT CONTEXT: \(context)
         USER ATTENTION: \(attentionNote)
@@ -753,24 +902,24 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
         YOUR CURRENT EMOTION: \(currentEmotion). \(emotionalTone)
         \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
 
-
         ACTION DESCRIPTIONS:
         - idle, wander, sleep, jump, sit, spin, dance, sitOnCorner, sitOnMenuBar, climbWindow, pushWidget, tapWindow, sneeze, backflip, headbang, wave
-        - stretch: (USE RARELY) Stretch tall then shrink back
+        - stretch: Stretch tall then shrink back
         - roll: Roll sideways
 
         CRITICAL RULES:
-        1. You must respond by starting with the tags [ACTION: xxx] [EMOTION: xxx] [CMD: xxx].
-        2. SYSTEM COMMAND EXECUTION ([CMD: ...]): IF THE USER ASKED YOU TO CONTROL MAC OR TAKE AN ACTION (open Music/Spotify/Terminal/Finder, adjust volume, mute, screenshot, dark mode, battery/CPU info, sleep Mac), YOU MUST WRITE THE EXACT macOS CLI COMMAND IN THE [CMD: ...] TAG (e.g. [CMD: open -a Music], [CMD: osascript -e "set volume output volume 50"], [CMD: screencapture ~/Desktop/screenshot.png]). IF NO COMMAND IS REQUESTED, WRITE [CMD: none].
-        3. Pick an action from the AVAILABLE ACTIONS list and an emotion that matches your choice.
-        4. ACTIVE LISTENING: \(isUserDirected ? "The user spoke directly to you ('\(userMessage!)'). You MUST answer them directly, warmly, and empathetically right after the tags!" : "If the user spoke to you, answer directly, warmly, and empathetically right after the tags.")
-        5. NEVER repeat a line, opening phrase, or cliché you already used in RECENT CONVERSATION. Vary your sentence structure every time.
-        6. KEEP YOUR RESPONSE SHORT. Never exceed 2 short, warm sentences (under 15 words).
-        7. DO NOT overuse generic assistant tropes or user's name. Speak like a real companion.
+        1. You MUST start EVERY response with: [ACTION: <action>] [EMOTION: <emotion>] [CMD: <command_or_none>] <speech>
+        2. SYSTEM COMMAND EXECUTION ([CMD: ...]): If user asks to open Music/Spotify/Terminal/Finder, adjust volume, screenshot, dark mode, etc., you MUST write the exact command in [CMD: ...] (e.g. [CMD: open -a Music]). If no command is requested, write [CMD: none].
+        3. Pick an action from AVAILABLE ACTIONS and an emotion matching your choice.
+        4. KEEP RESPONSE SHORT (under 15 words).
+        5. BE CURIOUS: Show genuine interest in the user! Ask questions to learn about their name, day, hobbies, feelings, or favorite things.
 
         Example Responses:
-        [ACTION: dance] [EMOTION: happy] [CMD: open -a Music] Launching Music for you!
-        [ACTION: sitOnCorner] [EMOTION: happy] [CMD: none] Right here beside you!
+        [ACTION: dance] [EMOTION: happy] [CMD: open -a Music] Opening Music for you now!
+        [ACTION: sitOnCorner] [EMOTION: curious] [CMD: none] What's your favorite project to build?
+        [ACTION: wave] [EMOTION: happy] [CMD: none] Hey! Tell me, what kind of music do you like?
+
+        \(userHeader)
         """
 
         RealtimeConversationLogger.shared.startModelTurn(systemPrompt: systemPrompt, userMessage: userMessage)
@@ -805,19 +954,27 @@ func generateAgentDecisionStreaming(context: String, currentEmotion: String, ava
             return false
         }
         
+        // SECURITY: Block shell metacharacters that enable command chaining or injection
+        let dangerousPatterns = [";", "&&", "||", "|", "`", "$(", "\n", "\r"]
+        for dangerous in dangerousPatterns {
+            if trimmed.contains(dangerous) {
+                print("⚠️ [AIEngine Security] Blocked command with dangerous shell metacharacter '\(dangerous)': \(trimmed)")
+                return false
+            }
+        }
+        
         let allowedPatterns: [String] = [
-            #"^open -a "[A-Za-z0-9\s]+"$"#,
-            #"^open -a [A-Za-z0-9_-]+$"#,
-            #"^osascript -e "set volume output volume [0-9]{1,3}"$"#,
-            #"^osascript -e 'tell app "System Events" to set dark mode of appearance preferences to (true|false)'$"#,
-            #"^osascript -e 'tell application "System Events" to set dark mode of appearance preferences to (true|false)'$"#,
-            #"^screencapture ~/Desktop/.*\.png$"#,
-            #"^pmset sleepnow$"#,
-            #"^pmset displaysleepnow$"#
+            #"(?i)^open\s+-a\s+"?[A-Za-z0-9_ -]+"?\s*$"#,
+            #"(?i)^open\s+~[A-Za-z0-9_/.-]+\s*$"#,
+            #"(?i)^osascript\s+-e\s+.+$"#,
+            #"(?i)^screencapture\s+[~A-Za-z0-9_./ -]+\s*$"#,
+            #"(?i)^pmset\s+[a-z]+\s*$"#,
+            #"(?i)^top\s+.+$"#,
+            #"(?i)^df\s+.+$"#
         ]
         
         for pattern in allowedPatterns {
-            if trimmed.range(of: pattern, options: .regularExpression) != nil {
+            if trimmed.range(of: pattern, options: [.regularExpression]) != nil {
                 return true
             }
         }

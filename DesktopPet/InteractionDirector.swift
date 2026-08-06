@@ -40,12 +40,45 @@ class InteractionDirector {
 
     // MARK: - Conversation thread (fed to the LLM so it remembers what it just said)
 
-    private struct Turn {
+    private struct Turn: Codable {
         let speaker: String   // "User" or "Byte"
         let text: String
     }
     private var thread: [Turn] = []
-    private let maxThread = 8
+    private let maxThread = 20
+
+    private var fileURL: URL {
+        let currentDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        return currentDir.appendingPathComponent("chat_history.json")
+    }
+
+    private init() {
+        loadThread()
+    }
+
+    private func saveThread() {
+        let threadCopy = thread
+        let url = fileURL
+        DispatchQueue.global(qos: .background).async {
+            do {
+                let data = try JSONEncoder().encode(threadCopy)
+                try data.write(to: url)
+            } catch {
+                print("[InteractionDirector] Failed to save chat history: \(error)")
+            }
+        }
+    }
+
+    private func loadThread() {
+        do {
+            guard FileManager.default.fileExists(atPath: fileURL.path) else { return }
+            let data = try Data(contentsOf: fileURL)
+            thread = try JSONDecoder().decode([Turn].self, from: data)
+            print("[InteractionDirector] Loaded \(thread.count) persistent chat turns.")
+        } catch {
+            print("[InteractionDirector] Failed to load chat history: \(error)")
+        }
+    }
 
     // MARK: - Attention
 
@@ -167,12 +200,17 @@ class InteractionDirector {
         resetEngagementThrottle()
         thread.append(Turn(speaker: "User", text: text))
         trimThread()
+        saveThread()
+        
+        // Auto-extract facts & preferences into Knowledge Graph
+        MemoryGraph.shared.extractAndSaveUserFacts(from: text)
     }
 
     private func recordByteTurn(_ text: String) {
         guard !text.isEmpty else { return }
         thread.append(Turn(speaker: "Byte", text: text))
         trimThread()
+        saveThread()
     }
 
     private func trimThread() {
@@ -184,10 +222,13 @@ class InteractionDirector {
     /// Formatted recent conversation for the LLM prompt (empty string if none).
     func conversationContext() -> String {
         guard !thread.isEmpty else { return "" }
-        var out = "RECENT CONVERSATION (oldest first — continue it, do NOT repeat yourself):\n"
+        var out = "==================================================\n"
+        out += "*** RECENT CONVERSATION HISTORY (In Chronological Order) ***\n"
         for turn in thread {
             out += "\(turn.speaker): \(turn.text)\n"
         }
+        out += "CONVERSATION RULE: You MUST maintain context from the recent conversation history above! If the user asks a follow-up or refers to earlier messages, use this history.\n"
+        out += "==================================================\n"
         return out
     }
 

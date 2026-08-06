@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, jsonify
 import io
 import soundfile as sf
 import torch
@@ -11,6 +11,10 @@ pipeline = KPipeline(lang_code='a')
 
 # Optionally map emotions to different voices if you want, but for now we use a default
 default_voice = 'am_onyx'
+
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok"}), 200
 
 @app.route('/synthesize', methods=['POST'])
 def synthesize():

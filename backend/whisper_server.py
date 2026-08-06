@@ -5,6 +5,10 @@ import numpy as np
 app = Flask(__name__)
 model = WhisperModel("small")
 
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "ok"}), 200
+
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
     audio = np.frombuffer(request.data, dtype=np.float32)

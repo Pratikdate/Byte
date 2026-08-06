@@ -1,7 +1,14 @@
 FROM llama3.2:1b
 
-PARAMETER temperature 0.7
+PARAMETER temperature 0.3
+PARAMETER num_predict 80
+PARAMETER num_ctx 2048
+PARAMETER top_k 40
 PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
+
+PARAMETER stop "CONTEXT:"
+PARAMETER stop "USER:"
 
 TEMPLATE """CONTEXT: {{ .Prompt }}
 RESPONSE:"""

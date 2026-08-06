@@ -86,7 +86,7 @@ def load_open_source_empathetic_dialogues():
                         
                     ctx_str = f"USER SAID: '{user_utterance}'. EMOTION: {mapped_emo}."
                     item = {
-                        "text": f"CONTEXT: {ctx_str}\nRESPONSE: [ACTION: {act}] [EMOTION: {mapped_emo}] {bot_response}"
+                        "text": f"CONTEXT: {ctx_str}\nRESPONSE: [ACTION: {act}] [EMOTION: {mapped_emo}] [CMD: none] {bot_response}"
                     }
                     dataset_pairs.append(item)
                         

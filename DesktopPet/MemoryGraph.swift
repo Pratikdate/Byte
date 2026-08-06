@@ -37,36 +37,155 @@ class MemoryGraph {
         addFact(subject: "Rule", predicate: "must", object: rule)
     }
 
-    /// Automatically extracts user preferences, likes, goals, and facts from user speech
+    // MARK: - Transient state filter
+    /// Words that indicate a temporary mood/state, not a permanent identity fact
+    private static let transientKeywords = [
+        "feeling", "tired", "sleepy", "bored", "hungry", "thirsty",
+        "stressed", "anxious", "nervous", "excited", "happy", "sad",
+        "annoyed", "angry", "confused", "busy", "free", "cold", "hot",
+        "sick", "fine", "good", "bad", "okay", "ok", "great",
+        "not sure", "just", "going to", "about to", "trying to",
+        "gonna", "waiting"
+    ]
+    
+    /// Extracts the meaningful object phrase from text after a keyword match.
+    /// Stops at clause boundaries (conjunctions, punctuation, relative pronouns)
+    /// so "I like pizza but I'm not hungry" → "pizza", not the full tail.
+    private func extractObject(from message: String, after keyword: String) -> String? {
+        guard let range = message.range(of: keyword, options: .caseInsensitive) else {
+            return nil
+        }
+        let tail = String(message[range.upperBound...])
+        
+        // Split at clause boundaries: "but", "and", "so", "because", "when", "if", "which", "that", commas, periods
+        let clausePattern = #"\s+(?:but|and then|and|so|because|since|when|while|if|though|although|which|that|however)\s+|[,;.!?]"#
+        let parts: [String]
+        if let regex = try? NSRegularExpression(pattern: clausePattern, options: .caseInsensitive) {
+            let firstBreak = regex.firstMatch(in: tail, options: [], range: NSRange(location: 0, length: tail.utf16.count))
+            if let breakRange = firstBreak, let swiftRange = Range(breakRange.range, in: tail) {
+                parts = [String(tail[..<swiftRange.lowerBound])]
+            } else {
+                parts = [tail]
+            }
+        } else {
+            parts = [tail]
+        }
+        
+        let object = (parts.first ?? "")
+            .trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+        
+        guard !object.isEmpty, object.count >= 2, object.count < 60 else {
+            return nil
+        }
+        return object
+    }
+    
+    /// Returns true if the phrase describes a transient emotional/physical state
+    private func isTransientState(_ phrase: String) -> Bool {
+        let lower = phrase.lowercased()
+        return Self.transientKeywords.contains(where: { lower.hasPrefix($0) || lower == $0 })
+    }
+    
+    /// Automatically extracts user preferences, likes, goals, and facts from user speech.
+    /// Uses separate checks (not else-if) so multiple facts can be extracted from a single message.
     func extractAndSaveUserFacts(from message: String) {
         let lower = message.lowercased()
         
-        if lower.contains("i like ") || lower.contains("i love ") {
-            if let range = message.range(of: "i like ", options: .caseInsensitive) ?? message.range(of: "i love ", options: .caseInsensitive) {
-                let object = String(message[range.upperBound...]).trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
-                if !object.isEmpty && object.count < 60 {
-                    addFact(subject: "User", predicate: "likes", object: object)
+        // ── Likes / Loves ──
+        if lower.contains("i like ") || lower.contains("i love ") || lower.contains("i enjoy ") {
+            let keyword = ["i like ", "i love ", "i enjoy "].first(where: { lower.contains($0) })!
+            if let object = extractObject(from: message, after: keyword) {
+                addFact(subject: "User", predicate: "likes", object: object)
+            }
+        }
+        
+        // ── Dislikes / Hates ──
+        if lower.contains("i hate ") || lower.contains("i don't like ") || lower.contains("i dislike ") {
+            let keyword = ["i hate ", "i don't like ", "i dislike "].first(where: { lower.contains($0) })!
+            if let object = extractObject(from: message, after: keyword) {
+                addFact(subject: "User", predicate: "dislikes", object: object)
+            }
+        }
+        
+        // ── Favorites ──
+        if lower.contains("my favorite ") || lower.contains("my favourite ") {
+            let keyword = lower.contains("my favorite ") ? "my favorite " : "my favourite "
+            if let object = extractObject(from: message, after: keyword) {
+                addFact(subject: "User", predicate: "favorite", object: object)
+            }
+        }
+        
+        // ── Working on / Building ──
+        if lower.contains("working on ") || lower.contains("building ") {
+            let keyword = lower.contains("working on ") ? "working on " : "building "
+            if let object = extractObject(from: message, after: keyword) {
+                addFact(subject: "User", predicate: "is working on", object: object)
+            }
+        }
+        
+        // ── Name ──
+        if lower.contains("my name is ") || lower.contains("call me ") || lower.contains("i'm called ") {
+            let keyword = ["my name is ", "call me ", "i'm called "].first(where: { lower.contains($0) })!
+            if let object = extractObject(from: message, after: keyword) {
+                addFact(subject: "User", predicate: "name is", object: object)
+            }
+        }
+        
+        // ── Location ──
+        if lower.contains("i live in ") || lower.contains("i'm from ") || lower.contains("i am from ") {
+            let keyword = ["i live in ", "i'm from ", "i am from "].first(where: { lower.contains($0) })!
+            if let object = extractObject(from: message, after: keyword) {
+                addFact(subject: "User", predicate: "lives in", object: object)
+            }
+        }
+        
+        // ── Pets / Family ──
+        if lower.contains("i have a ") || lower.contains("i've got a ") {
+            let keyword = lower.contains("i have a ") ? "i have a " : "i've got a "
+            if let object = extractObject(from: message, after: keyword) {
+                addFact(subject: "User", predicate: "has", object: object)
+            }
+        }
+        
+        // ── Profession / Role ──
+        if lower.contains("i work as ") || lower.contains("i'm a ") && lower.contains(where: { _ in
+            // Only match "I'm a <profession>" not "I'm a bit tired"
+            true
+        }) {
+            if lower.contains("i work as ") {
+                if let object = extractObject(from: message, after: "i work as ") {
+                    addFact(subject: "User", predicate: "works as", object: object)
                 }
             }
-        } else if lower.contains("my favorite ") {
-            if let range = message.range(of: "my favorite ", options: .caseInsensitive) {
-                let object = String(message[range.upperBound...]).trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
-                if !object.isEmpty && object.count < 60 {
-                    addFact(subject: "User", predicate: "favorite", object: object)
-                }
+        }
+        
+        // ── Hobbies ──
+        if lower.contains("my hobby is ") || lower.contains("my hobbies are ") {
+            let keyword = lower.contains("my hobby is ") ? "my hobby is " : "my hobbies are "
+            if let object = extractObject(from: message, after: keyword) {
+                addFact(subject: "User", predicate: "hobby is", object: object)
             }
-        } else if lower.contains("working on ") {
-            if let range = message.range(of: "working on ", options: .caseInsensitive) {
-                let object = String(message[range.upperBound...]).trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
-                if !object.isEmpty && object.count < 60 {
-                    addFact(subject: "User", predicate: "is working on", object: object)
-                }
-            }
-        } else if lower.contains("i am ") || lower.contains("i'm ") {
-            if let range = message.range(of: "i am ", options: .caseInsensitive) ?? message.range(of: "i'm ", options: .caseInsensitive) {
-                let object = String(message[range.upperBound...]).trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
-                if !object.isEmpty && !object.contains("not") && object.count < 40 {
+        }
+        
+        // ── Identity (I am / I'm) — filtered for transient states ──
+        if lower.contains("i am ") || lower.contains("i'm ") {
+            // Prefer "i am " first, fallback to "i'm "
+            let keyword = lower.contains("i am ") ? "i am " : "i'm "
+            if let object = extractObject(from: message, after: keyword) {
+                // Skip transient states and negations
+                if !object.lowercased().contains("not") && !isTransientState(object) {
                     addFact(subject: "User", predicate: "is", object: object)
+                }
+            }
+        }
+        
+        // ── Needs / Wants ──
+        if lower.contains("i need ") || lower.contains("i want ") || lower.contains("i wish ") {
+            let keyword = ["i need ", "i want ", "i wish "].first(where: { lower.contains($0) })!
+            if let object = extractObject(from: message, after: keyword) {
+                // Only save if it seems like a lasting preference, not a one-off request
+                if object.count > 5 && !isTransientState(object) {
+                    addFact(subject: "User", predicate: "wants", object: object)
                 }
             }
         }
