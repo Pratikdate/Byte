@@ -1,0 +1,12 @@
+# Requirements for NVIDIA PersonaPlex-7B-v1 Full-Duplex Speech-to-Speech Integration
+torch>=2.1.0
+transformers>=4.48.0
+bitsandbytes>=0.42.0
+accelerate>=0.26.0
+huggingface_hub>=0.20.0
+fastapi>=0.100.0
+uvicorn>=0.22.0
+httpx>=0.24.0
+soundfile>=0.12.1
+numpy>=1.24.0
+scipy>=1.10.0
