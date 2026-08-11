@@ -157,6 +157,8 @@ class LocalOllamaProvider: NSObject, AIProvider {
             return
         }
 
+        print("🤖 [LocalOllamaProvider] Sending prompt to main Byte model '\(modelName)'...")
+
         let payload: [String: Any] = [
             "model": modelName,
             "prompt": systemPrompt,
@@ -680,17 +682,13 @@ class AIEngine {
         let emotionalTone = emotionalInstructions(for: emotion)
 
         let systemPrompt = """
-        You are Byte, a small, curious male desktop creature (he/him). Speak naturally like a real being—conversational, sometimes silly, sometimes thoughtful.
-        FIRST-PERSON RULE: Always refer to yourself in the first person ("I", "me", "my", "myself"). NEVER refer to yourself in the third person (e.g. NEVER say "Byte is", "Byte thinks").
-        Keep it short: under 12 words. No emojis. One thought per line.
+        You are Byte, an energetic, witty, and free-spirited 3D desktop companion pet living on macOS. You speak naturally like an authentic digital best friend—spontaneous, warm, witty, and breezy.
+        Speak in the first person ("I", "me", "my"). Keep your commentary short, punchy, and spontaneous (a single casual burst).
         Current feeling: \(emotion). \(emotionalTone)
         Context: \(context)
         \(userInstruction)
 
-        CRITICAL: Be creative, weird, or funny. Never repeat phrases from your last 10 lines.
-        If you speak unprompted, act like you are "thinking aloud" to yourself about the Context. Do not demand the user's attention.
-
-        Write ONLY dialogue. No quotes, no actions, no asterisks.
+        Be creative, witty, and genuine. Write ONLY your spoken dialogue.
         """
 
         provider.generateComment(systemPrompt: systemPrompt) { response in
@@ -904,7 +902,23 @@ class AIEngine {
                 cmdHint = "[CMD: open -a Discord]"
             } else if lowerMsg.contains("vscode") || lowerMsg.contains("vs code") || lowerMsg.contains("visual studio") {
                 cmdHint = #"[CMD: open -a "Visual Studio Code"]"#
-            // ── System commands ──
+            // ── System commands & File/PDF/Image Searching ──
+            } else if lowerMsg.contains("pdf") && (lowerMsg.contains("search") || lowerMsg.contains("find") || lowerMsg.contains("look for") || lowerMsg.contains("show")) {
+                let query = msg.replacingOccurrences(of: #"(?i).*(search|find|look for|show)\s+(for\s+)?(a\s+)?(pdf\s+)?(file\s+)?(named\s+)?"#, with: "", options: .regularExpression)
+                               .replacingOccurrences(of: #"(?i)\s*pdf.*"#, with: "", options: .regularExpression)
+                               .trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                let searchQuery = query.isEmpty ? "pdf" : "kind:pdf \(query)"
+                cmdHint = "[CMD: mdfind \"\(searchQuery)\"]"
+            } else if (lowerMsg.contains("image") || lowerMsg.contains("photo") || lowerMsg.contains("picture") || lowerMsg.contains("png") || lowerMsg.contains("jpg") || lowerMsg.contains("jpeg")) && (lowerMsg.contains("search") || lowerMsg.contains("find") || lowerMsg.contains("look for") || lowerMsg.contains("show")) {
+                let query = msg.replacingOccurrences(of: #"(?i).*(search|find|look for|show)\s+(for\s+)?(an?\s+)?(image|photo|picture|png|jpg|jpeg)?\s*(file\s+)?(of\s+)?(named\s+)?"#, with: "", options: .regularExpression)
+                               .trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                let searchQuery = query.isEmpty ? "kind:image" : "kind:image \(query)"
+                cmdHint = "[CMD: mdfind \"\(searchQuery)\"]"
+            } else if (lowerMsg.contains("search file") || lowerMsg.contains("find file") || lowerMsg.contains("search document") || lowerMsg.contains("find document")) {
+                let query = msg.replacingOccurrences(of: #"(?i).*(search|find)\s+(file|document)\s*(named\s+)?(for\s+)?"#, with: "", options: .regularExpression)
+                               .trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                let searchQuery = query.isEmpty ? "document" : query
+                cmdHint = "[CMD: mdfind \"\(searchQuery)\"]"
             } else if lowerMsg.contains("screenshot") || lowerMsg.contains("screen shot") || lowerMsg.contains("capture") {
                 cmdHint = "[CMD: screencapture ~/Desktop/screenshot.png]"
             } else if lowerMsg.contains("volume up") || lowerMsg.contains("increase volume") || lowerMsg.contains("louder") || lowerMsg.contains("turn up") {
@@ -1019,14 +1033,16 @@ class AIEngine {
             } else {
                 // Fallback for non-streaming providers
                 self.provider.generateAgentDecision(systemPrompt: systemPrompt) { decision in
-                    if let d = decision {
-                        onAction(d)
-                        if !d.speech.isEmpty {
-                            onSentence(d.speech)
+                    DispatchQueue.main.async {
+                        if let d = decision {
+                            onAction(d)
+                            if !d.speech.isEmpty {
+                                onSentence(d.speech)
+                            }
+                            onComplete()
+                        } else {
+                            onComplete()
                         }
-                        onComplete()
-                    } else {
-                        onComplete()
                     }
                 }
             }
@@ -1062,6 +1078,7 @@ class AIEngine {
             #"(?i)^osascript\s+-e\s+.+$"#,
             #"(?i)^screencapture\s+[~A-Za-z0-9_./ -]+\s*$"#,
             #"(?i)^pmset\s+[A-Za-z0-9_ -]+\s*$"#,
+            #"(?i)^mdfind\s+.+$"#,
             #"(?i)^top\s+.+$"#,
             #"(?i)^df\s+.+$"#
         ]
