@@ -74,8 +74,8 @@ if [ "$1" == "--all" ] || [ "$PERSONAPLEX_ONLY" == "0" ]; then
 fi
 
 if [ $STANDALONE_PERSONAPLEX -eq 1 ]; then
-    echo -e "${GREEN}⚡ Running in Standalone PersonaPlex-7B Voice-to-Voice Mode.${NC}"
-    echo -e "${YELLOW}Skipping legacy discrete servers (Whisper, Kokoro TTS, Ollama)...${NC}\n"
+    echo -e "${GREEN}⚡ Running in Pure PersonaPlex-7B Voice-to-Voice Mode.${NC}"
+    echo -e "${YELLOW}Skipping all legacy servers (Whisper, Kokoro TTS, Ollama, Florence-2 Vision)...${NC}\n"
 else
     # 1. Start Ollama if needed
     if lsof -Pi :$OLLAMA_PORT -sTCP:LISTEN -t >/dev/null ; then
@@ -109,17 +109,17 @@ else
         STARTED_TTS=1
         sleep 2 # wait for it to bind
     fi
-fi
 
-# 4. Start Florence-2 Vision Server if needed (Optional Visual Perception)
-if lsof -Pi :$FLORENCE_PORT -sTCP:LISTEN -t >/dev/null ; then
-    echo -e "${GREEN}✓ Florence-2 Vision server is already running.${NC}"
-else
-    echo -e "${YELLOW}Starting Florence-2 Vision server...${NC}"
-    $PYTHON_BIN backend/florence_vision_server.py >/dev/null 2>&1 &
-    FLORENCE_PID=$!
-    STARTED_FLORENCE=1
-    sleep 2 # wait for it to bind
+    # 4. Start Florence-2 Vision Server if needed
+    if lsof -Pi :$FLORENCE_PORT -sTCP:LISTEN -t >/dev/null ; then
+        echo -e "${GREEN}✓ Florence-2 Vision server is already running.${NC}"
+    else
+        echo -e "${YELLOW}Starting Florence-2 Vision server...${NC}"
+        $PYTHON_BIN backend/florence_vision_server.py >/dev/null 2>&1 &
+        FLORENCE_PID=$!
+        STARTED_FLORENCE=1
+        sleep 2 # wait for it to bind
+    fi
 fi
 
 # 5. Start PersonaPlex-7B Full-Duplex Server if needed
