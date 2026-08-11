@@ -8,6 +8,7 @@ class AudioManager {
 
     private let whisperEndpoint = "http://localhost:9000/transcribe"
     private let kokoroEndpoint = "http://localhost:8000/synthesize"
+    private let personaplexEndpoint = "http://localhost:9006/synthesize_speech"
 
     private let audioEngine = AVAudioEngine()
     private var audioPlayer: AVAudioPlayerNode?
@@ -281,64 +282,51 @@ class AudioManager {
             "voice_id": "am_onyx" // American Male TTS voice profile
         ]
 
-        guard let url = URL(string: kokoroEndpoint) else {
-            print("[AudioManager] Invalid Kokoro endpoint URL")
-            DispatchQueue.main.async {
-                SystemTTSFallback.shared.speak(text, emotion: emotion) {
-                    DispatchQueue.main.async {
-                        self.isDownloading = false
-                        if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
-                            self.onSpeakingFinished?()
-                        }
-                        self.processDownloadQueue()
-                    }
-                }
-            }
-            return
-        }
+        // Try Kokoro endpoint first, then PersonaPlex endpoint (port 9006), then System TTS
+        let targetEndpoint = URL(string: kokoroEndpoint) ?? URL(string: personaplexEndpoint)!
 
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: targetEndpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 10.0 // More time for network variance
+        request.timeoutInterval = 5.0
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         } catch {
-            print("[AudioManager] Failed to serialize Kokoro payload: \(error)")
-            DispatchQueue.main.async {
-                SystemTTSFallback.shared.speak(text, emotion: emotion) {
-                    DispatchQueue.main.async {
-                        self.isDownloading = false
-                        if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
-                            self.onSpeakingFinished?()
-                        }
-                        self.processDownloadQueue()
-                    }
-                }
-            }
-            return
+            print("[AudioManager] Failed to serialize TTS payload: \(error)")
         }
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
 
-            // Fallback to system TTS if Kokoro unavailable
-            if error != nil || data == nil {
-                print("[AudioManager] Kokoro TTS unavailable, using system TTS")
-                DispatchQueue.main.async {
-                    self.isSpeaking = true
-                    SystemTTSFallback.shared.speak(text, emotion: emotion) {
+            if (error != nil || data == nil), let pURL = URL(string: self.personaplexEndpoint) {
+                // Retry with PersonaPlex-7B (port 9006)
+                var pReq = URLRequest(url: pURL)
+                pReq.httpMethod = "POST"
+                pReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                pReq.httpBody = try? JSONSerialization.data(withJSONObject: ["text": text, "speed": speed])
+                pReq.timeoutInterval = 5.0
+
+                URLSession.shared.dataTask(with: pReq) { pData, pResp, pErr in
+                    if let audioData = pData, pErr == nil, audioData.count > 100 {
+                        self.playAudioData(audioData, text: text, emotion: emotion)
+                    } else {
+                        print("[AudioManager] PersonaPlex & Kokoro unavailable, using system TTS")
                         DispatchQueue.main.async {
-                            self.isSpeaking = false
-                            self.isDownloading = false
-                            if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
-                                self.onSpeakingFinished?()
+                            self.isSpeaking = true
+                            SystemTTSFallback.shared.speak(text, emotion: emotion) {
+                                DispatchQueue.main.async {
+                                    self.isSpeaking = false
+                                    self.isDownloading = false
+                                    if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
+                                        self.onSpeakingFinished?()
+                                    }
+                                    self.processDownloadQueue()
+                                }
                             }
-                            self.processDownloadQueue()
                         }
                     }
-                }
+                }.resume()
                 return
             }
 
