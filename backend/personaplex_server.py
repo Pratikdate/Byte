@@ -33,8 +33,9 @@ app = FastAPI(
 # Configuration & Model State
 MODEL_ID = "nvidia/personaplex-7b-v1"
 DEFAULT_PERSONA_PROMPT = (
-    "You are Byte, a playful, hyper-intelligent, and loyal 3D desktop companion pet. "
-    "You speak concisely, witty, and warmly."
+    "You are Byte, a playful 3D desktop companion pet. "
+    "STRICT RULE: Keep all spoken responses VERY SHORT (maximum 1 short sentence, under 8 words). "
+    "Be quick, punchy, witty, and concise!"
 )
 
 class ModelManager:
@@ -230,7 +231,7 @@ async def websocket_duplex(websocket: WebSocket):
                     })
                 elif msg_type == "text_input":
                     user_text = msg.get("text", "")
-                    reply = f"Byte (PersonaPlex 7B): Direct Voice-to-Voice pipeline initialized for input '{user_text}'!"
+                    reply = f"Byte: Got it!"
                     await websocket.send_json({
                         "type": "response_text",
                         "content": reply

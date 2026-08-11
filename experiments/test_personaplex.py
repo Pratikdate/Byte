@@ -95,7 +95,7 @@ class TestPersonaPlex7B(unittest.TestCase):
             
             resp_text = websocket.receive_json()
             self.assertEqual(resp_text["type"], "response_text")
-            self.assertIn("Byte (PersonaPlex 7B)", resp_text["content"])
+            self.assertIn("Byte", resp_text["content"])
 
             resp_audio = websocket.receive_json()
             self.assertEqual(resp_audio["type"], "audio_frame")
