@@ -74,7 +74,7 @@ class RealtimeConversationLogger: ObservableObject {
             self.isModelGenerating = true
             let item = LogItem(
                 timestamp: Date(),
-                speaker: "Byte (byte-llm)",
+                speaker: "🐾 Byte (byte-llm:v1-fused)",
                 text: "",
                 action: "thinking...",
                 emotion: "curious",
@@ -181,17 +181,17 @@ struct RealtimeConversationDebugView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header Bar
+            // Header Bar (Light Mode with 🐾 Logo)
             HStack {
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(logger.isListeningForSpeech ? Color.red : (logger.isModelGenerating ? Color.yellow : Color.green))
+                        .fill(logger.isListeningForSpeech ? Color.red : (logger.isModelGenerating ? Color.orange : Color.green))
                         .frame(width: 10, height: 10)
-                        .shadow(color: logger.isListeningForSpeech ? .red : (logger.isModelGenerating ? .yellow : .green), radius: 4)
+                        .shadow(color: logger.isListeningForSpeech ? .red : (logger.isModelGenerating ? .orange : .green), radius: 4)
 
-                    Text("⚡ Byte Debugger & Memory Graph")
+                    Text("🐾 Byte Debugger & Memory Graph")
                         .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(red: 0.06, green: 0.09, blue: 0.16))
                 }
 
                 Spacer()
@@ -211,14 +211,14 @@ struct RealtimeConversationDebugView: View {
                             .font(.system(size: 11, weight: .medium))
                     }
                     .buttonStyle(.plain)
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                 }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(logger.isListeningForSpeech ? Color.red.opacity(0.2) : Color.black.opacity(0.4))
+            .background(logger.isListeningForSpeech ? Color.red.opacity(0.12) : Color.white)
 
-            Divider().background(Color.white.opacity(0.1))
+            Divider().background(Color(red: 0.88, green: 0.91, blue: 0.94))
 
             Group {
                 if selectedTab == 0 {

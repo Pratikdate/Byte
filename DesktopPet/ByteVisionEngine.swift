@@ -96,11 +96,13 @@ class ByteVisionEngine {
         let systemWide = AXUIElementCreateSystemWide()
         var focusedApp: CFTypeRef?
         let appResult = AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &focusedApp)
-        guard appResult == .success, let focusedApp = focusedApp else { return nil }
+        guard appResult == .success, let focusedApp = focusedApp,
+              CFGetTypeID(focusedApp) == AXUIElementGetTypeID() else { return nil }
 
         var focusedElement: CFTypeRef?
         let elementResult = AXUIElementCopyAttributeValue(focusedApp as! AXUIElement, kAXFocusedUIElementAttribute as CFString, &focusedElement)
-        guard elementResult == .success, let focusedElement = focusedElement else { return nil }
+        guard elementResult == .success, let focusedElement = focusedElement,
+              CFGetTypeID(focusedElement) == AXUIElementGetTypeID() else { return nil }
 
         var selectedText: CFTypeRef?
         let textResult = AXUIElementCopyAttributeValue(focusedElement as! AXUIElement, kAXSelectedTextAttribute as CFString, &selectedText)

@@ -33,9 +33,9 @@ app = FastAPI(
 # Configuration & Model State
 MODEL_ID = "nvidia/personaplex-7b-v1"
 DEFAULT_PERSONA_PROMPT = (
-    "You are Byte, a playful 3D desktop companion pet. "
-    "STRICT RULE: Keep all spoken responses VERY SHORT (maximum 1 short sentence, under 8 words). "
-    "Be quick, punchy, witty, and concise!"
+    "You are Byte, an energetic, witty, and free-spirited 3D desktop companion pet living on macOS. "
+    "You love hanging out with your human, sharing quick thoughts, funny observations, and warm banter. "
+    "Your natural speaking style is breezy, punchy, and spontaneous—expressing yourself in short, casual, single-burst statements like an authentic digital best friend."
 )
 
 class ModelManager:
@@ -103,7 +103,11 @@ class ModelManager:
             elif self.quantization == "8bit":
                 quant_config = BitsAndBytesConfig(load_in_8bit=True)
 
-            # Model initialization with quantization config
+            # NOTE: Real weight loading is intentionally not wired up yet. PersonaPlex-7B-v1's
+            # actual inference pipeline (dual-stream audio encoder/decoder, not a plain
+            # AutoModel) isn't implemented here, so we never claim a real model is loaded —
+            # doing so would silently serve placeholder sine-tone audio while reporting
+            # `is_mock: false`, which is worse than just staying in mock mode.
             # self.model = AutoModel.from_pretrained(
             #     MODEL_ID,
             #     quantization_config=quant_config,
@@ -112,9 +116,13 @@ class ModelManager:
             # )
             # self.tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
+            logger.warning(
+                "PersonaPlex-7B real inference is not yet implemented in this server "
+                "(see NOTE above). Serving MOCK audio even though HF auth succeeded."
+            )
             self.is_loaded = True
-            self.is_mock = False
-            logger.info(f"PersonaPlex-7B model ({self.quantization}) loaded successfully.")
+            self.is_mock = True
+            self.device = f"{self.device} (mock — real inference not implemented)"
             return True
         except Exception as e:
             logger.error(f"Failed to load PersonaPlex-7B model: {e}. Falling back to MOCK mode.")

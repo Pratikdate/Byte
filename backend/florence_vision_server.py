@@ -114,7 +114,7 @@ def parse_florence_output(parsed_output, task):
     if extracted_text:
         # Filter high value code/error keywords
         lines = [line.strip() for line in extracted_text.split('\n') if line.strip()]
-        error_lines = [l for l in lines if any(k in l.lowercased() for k in ["error", "fatal", "exception", "failed", "warning"])]
+        error_lines = [l for l in lines if any(k in l.lower() for k in ["error", "fatal", "exception", "failed", "warning"])]
         code_lines = [l for l in lines if any(k in l for k in ["func ", "class ", "def ", "import ", "let ", "var ", "return"])]
 
         if error_lines:

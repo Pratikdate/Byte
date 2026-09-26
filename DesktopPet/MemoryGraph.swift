@@ -101,16 +101,16 @@ class MemoryGraph {
         
         // ── Likes / Loves ──
         if lower.contains("i like ") || lower.contains("i love ") || lower.contains("i enjoy ") {
-            let keyword = ["i like ", "i love ", "i enjoy "].first(where: { lower.contains($0) })!
-            if let object = extractObject(from: message, after: keyword) {
+            if let keyword = ["i like ", "i love ", "i enjoy "].first(where: { lower.contains($0) }),
+               let object = extractObject(from: message, after: keyword) {
                 addFact(subject: "User", predicate: "likes", object: object)
             }
         }
         
         // ── Dislikes / Hates ──
         if lower.contains("i hate ") || lower.contains("i don't like ") || lower.contains("i dislike ") {
-            let keyword = ["i hate ", "i don't like ", "i dislike "].first(where: { lower.contains($0) })!
-            if let object = extractObject(from: message, after: keyword) {
+            if let keyword = ["i hate ", "i don't like ", "i dislike "].first(where: { lower.contains($0) }),
+               let object = extractObject(from: message, after: keyword) {
                 addFact(subject: "User", predicate: "dislikes", object: object)
             }
         }
@@ -133,16 +133,16 @@ class MemoryGraph {
         
         // ── Name ──
         if lower.contains("my name is ") || lower.contains("call me ") || lower.contains("i'm called ") {
-            let keyword = ["my name is ", "call me ", "i'm called "].first(where: { lower.contains($0) })!
-            if let object = extractObject(from: message, after: keyword) {
+            if let keyword = ["my name is ", "call me ", "i'm called "].first(where: { lower.contains($0) }),
+               let object = extractObject(from: message, after: keyword) {
                 addFact(subject: "User", predicate: "name is", object: object)
             }
         }
         
         // ── Location ──
         if lower.contains("i live in ") || lower.contains("i'm from ") || lower.contains("i am from ") {
-            let keyword = ["i live in ", "i'm from ", "i am from "].first(where: { lower.contains($0) })!
-            if let object = extractObject(from: message, after: keyword) {
+            if let keyword = ["i live in ", "i'm from ", "i am from "].first(where: { lower.contains($0) }),
+               let object = extractObject(from: message, after: keyword) {
                 addFact(subject: "User", predicate: "lives in", object: object)
             }
         }
@@ -189,8 +189,8 @@ class MemoryGraph {
         
         // ── Needs / Wants ──
         if lower.contains("i need ") || lower.contains("i want ") || lower.contains("i wish ") {
-            let keyword = ["i need ", "i want ", "i wish "].first(where: { lower.contains($0) })!
-            if let object = extractObject(from: message, after: keyword) {
+            if let keyword = ["i need ", "i want ", "i wish "].first(where: { lower.contains($0) }),
+               let object = extractObject(from: message, after: keyword) {
                 // Only save if it seems like a lasting preference, not a one-off request
                 if object.count > 5 && !isTransientState(object) {
                     addFact(subject: "User", predicate: "wants", object: object)

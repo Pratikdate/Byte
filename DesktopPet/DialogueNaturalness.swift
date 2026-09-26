@@ -4,9 +4,12 @@ import Foundation
 /// Adds pauses, breathing points, rhythm, and emotion-appropriate speech patterns
 class DialogueNaturalness {
 
-    /// Process raw dialogue to add natural rhythm (micro-pauses, ellipses, breathing)
+    /// Process raw dialogue to add natural rhythm (micro-pauses, ellipses, breathing, thinking hesitations)
     static func enhanceForSpeech(_ text: String, emotion: String) -> String {
         var enhanced = text
+
+        // Inject organic thinking hesitation if in a thoughtful state and text doesn't already have one
+        enhanced = addRelatableThinkingPrefix(enhanced, emotion: emotion)
 
         // Add subtle punctuation for natural pauses based on emotion
         enhanced = addEmotionalPauses(enhanced, emotion: emotion)
@@ -14,10 +17,31 @@ class DialogueNaturalness {
         // Break long sentences at natural endpoints
         enhanced = addBreathingPoints(enhanced)
 
-        // Normalize for TTS (remove problematic characters)
+        // Normalize for TTS (remove problematic characters while retaining natural pause punctuation like '...')
         enhanced = normalizeForTTS(enhanced)
 
         return enhanced
+    }
+
+    /// Add organic thinking hesitations for thoughtful/curious states if missing
+    private static func addRelatableThinkingPrefix(_ text: String, emotion: String) -> String {
+        var result = text.trimmingCharacters(in: .whitespaces)
+        
+        let lower = result.lowercased()
+        let hasPrefix = lower.hasPrefix("oh") || lower.hasPrefix("hmm") || lower.hasPrefix("ah") || lower.hasPrefix("well") || lower.hasPrefix("let me")
+        
+        if (emotion.lowercased() == "thinking" || emotion.lowercased() == "curious") && !hasPrefix {
+            let fillers = [
+                "Oh, okay... let me think... hmm... ",
+                "Hmm, let me check... ",
+                "Ah, wait... let me see... ",
+                "Oh! Well... let me check... "
+            ]
+            if let filler = fillers.randomElement() {
+                result = filler + result
+            }
+        }
+        return result
     }
 
     /// Inject pauses that match emotional tone
@@ -25,7 +49,7 @@ class DialogueNaturalness {
         var result = text
 
         switch emotion.lowercased() {
-        case "sleepy", "sad", "lonely":
+        case "sleepy", "sad", "lonely", "thinking":
             // Longer pauses, gentle trailing ellipsis
             if result.hasSuffix(".") && !result.hasSuffix("...") {
                 result.removeLast()

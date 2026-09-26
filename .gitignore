@@ -18,7 +18,11 @@ DerivedData
 **/.DS_Store
 
 .venv/
+.venv2/
 Kokoro/
+node_modules/
+DerivedDataBuild/
+DesktopPet.app/
 
 *.json
 *.safetensors

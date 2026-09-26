@@ -309,7 +309,7 @@ class AudioManager {
 
                 URLSession.shared.dataTask(with: pReq) { pData, pResp, pErr in
                     if let audioData = pData, pErr == nil, audioData.count > 100 {
-                        self.playAudioData(audioData, text: text, emotion: emotion)
+                        self.playAudioData(audioData)
                     } else {
                         print("[AudioManager] PersonaPlex & Kokoro unavailable, using system TTS")
                         DispatchQueue.main.async {

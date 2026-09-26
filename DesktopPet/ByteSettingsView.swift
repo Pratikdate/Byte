@@ -14,31 +14,29 @@ struct ByteSettingsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header bar
+            // Header bar (Light Mode with 🐾 Logo)
             HStack(spacing: 12) {
-                Image(systemName: "pawprint.circle.fill")
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .foregroundColor(Color.cyan)
+                Text("🐾")
+                    .font(.system(size: 28))
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Byte Control Center")
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(red: 0.06, green: 0.09, blue: 0.16))
                     Text("Autonomous Developer Companion")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                 }
                 Spacer()
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Color.black.opacity(0.4))
+            .background(Color.white)
             
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(Color(red: 0.88, green: 0.91, blue: 0.94))
             
-            // Custom Tab Bar
+            // Custom Tab Bar (Light Mode)
             HStack(spacing: 16) {
                 TabButton(title: "Companion", icon: "person.circle.fill", index: 0, selectedTab: $selectedTab)
                 TabButton(title: "Developer Focus", icon: "brain.head.profile", index: 1, selectedTab: $selectedTab)
@@ -47,10 +45,10 @@ struct ByteSettingsView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color.black.opacity(0.2))
+            .background(Color(red: 0.96, green: 0.97, blue: 0.98))
             
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(Color(red: 0.88, green: 0.91, blue: 0.94))
             
             // Content Area
             ScrollView {
@@ -68,11 +66,11 @@ struct ByteSettingsView: View {
                 .padding(20)
             }
         }
-        .frame(width: 520, height: 420)
+        .frame(minWidth: 580, minHeight: 580)
         .background(
             ZStack {
-                Color(red: 0.08, green: 0.09, blue: 0.12)
-                LinearGradient(colors: [Color.cyan.opacity(0.08), Color.purple.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Color(red: 0.97, green: 0.98, blue: 0.99)
+                LinearGradient(colors: [Color.cyan.opacity(0.06), Color.blue.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
         )
         .onAppear {
@@ -85,17 +83,23 @@ struct ByteSettingsView: View {
     private var companionTab: some View {
         VStack(spacing: 16) {
             SettingsCard(title: "Body Theme & Appearance", icon: "paintbrush.fill") {
-                VStack(alignment: .leading, spacing: 10) {
-                    Picker("Theme Dropdown", selection: $activeTheme) {
-                        ForEach(ByteTheme.allCases) { theme in
-                            Text(theme.rawValue).tag(theme)
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Active Theme Preset")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
+                        Spacer()
+                        Picker("", selection: $activeTheme) {
+                            ForEach(ByteTheme.allCases) { theme in
+                                Text(theme.rawValue).tag(theme)
+                            }
                         }
+                        .pickerStyle(MenuPickerStyle())
+                        .onChange(of: activeTheme) { newValue in
+                            SettingsManager.shared.activeTheme = newValue
+                        }
+                        .tint(.cyan)
                     }
-                    .pickerStyle(MenuPickerStyle())
-                    .onChange(of: activeTheme) { newValue in
-                        SettingsManager.shared.activeTheme = newValue
-                    }
-                    .tint(.cyan)
                     
                     // Visual Theme Swatches Grid
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
@@ -111,7 +115,7 @@ struct ByteSettingsView: View {
                                         .frame(width: 14, height: 14)
                                     Text(theme.rawValue)
                                         .font(.system(size: 11, weight: activeTheme == theme ? .bold : .regular))
-                                        .foregroundColor(activeTheme == theme ? .white : .white.opacity(0.7))
+                                        .foregroundColor(activeTheme == theme ? Color(red: 0.06, green: 0.09, blue: 0.16) : Color(red: 0.35, green: 0.40, blue: 0.50))
                                         .lineLimit(1)
                                 }
                                 .padding(.horizontal, 8)
@@ -119,7 +123,7 @@ struct ByteSettingsView: View {
                                 .frame(maxWidth: .infinity)
                                 .background(
                                     RoundedRectangle(cornerRadius: 6)
-                                        .fill(activeTheme == theme ? Color.cyan.opacity(0.25) : Color.white.opacity(0.06))
+                                        .fill(activeTheme == theme ? Color.cyan.opacity(0.18) : Color(red: 0.94, green: 0.96, blue: 0.98))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 6)
                                                 .stroke(activeTheme == theme ? Color.cyan : Color.clear, lineWidth: 1)
@@ -133,16 +137,22 @@ struct ByteSettingsView: View {
             }
 
             SettingsCard(title: "Personality Profile", icon: "face.smiling") {
-                Picker("Personality", selection: $activePersonality) {
-                    ForEach(PersonalityProfile.allCases, id: \.self) { profile in
-                        Text(profile.rawValue).tag(profile)
+                HStack {
+                    Text("Personality Persona")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
+                    Spacer()
+                    Picker("", selection: $activePersonality) {
+                        ForEach(PersonalityProfile.allCases, id: \.self) { profile in
+                            Text(profile.rawValue).tag(profile)
+                        }
                     }
+                    .pickerStyle(MenuPickerStyle())
+                    .onChange(of: activePersonality) { newValue in
+                        SettingsManager.shared.activePersonality = newValue
+                    }
+                    .tint(.cyan)
                 }
-                .pickerStyle(MenuPickerStyle())
-                .onChange(of: activePersonality) { newValue in
-                    SettingsManager.shared.activePersonality = newValue
-                }
-                .tint(.cyan)
             }
             
             SettingsCard(title: "Activity Mode", icon: "slider.horizontal.3") {
@@ -171,15 +181,15 @@ struct ByteSettingsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         Text("Active IDE / App:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
                         Text(DeveloperContextMonitor.shared.currentContext.activeAppName.isEmpty ? "None" : DeveloperContextMonitor.shared.currentContext.activeAppName)
                             .fontWeight(.semibold)
-                            .foregroundColor(.cyan)
+                            .foregroundColor(.blue)
                     }
                     HStack {
                         Text("Detected Language:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
                         Text(DeveloperContextMonitor.shared.currentContext.detectedLanguage)
                             .fontWeight(.semibold)
@@ -187,7 +197,7 @@ struct ByteSettingsView: View {
                     }
                     HStack {
                         Text("Current Focus State:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
                         Text(FocusEngine.shared.currentFocusLevel.rawValue.capitalized)
                             .fontWeight(.bold)
@@ -195,7 +205,7 @@ struct ByteSettingsView: View {
                     }
                     HStack {
                         Text("Visual Vision Engine:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
                         Text(ByteVisionEngine.shared.activeEngineName)
                             .fontWeight(.semibold)
@@ -203,7 +213,7 @@ struct ByteSettingsView: View {
                     }
                     HStack {
                         Text("Perception Mode:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
                         Text("Event-Driven & On-Demand (0% Idle)")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -211,7 +221,7 @@ struct ByteSettingsView: View {
                     }
                     HStack {
                         Text("Visual Perception Context:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
                         Text(ByteVisionEngine.shared.formattedVisionContextForAI())
                             .fontWeight(.semibold)
@@ -239,34 +249,34 @@ struct ByteSettingsView: View {
                     
                     HStack {
                         Text("Active LLM Model:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
-                        Text(useCloudAI ? "Gemini 2.5 Flash" : "Ollama LLaMA 3.2 (Local)")
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                            .foregroundColor(.cyan)
+                        Text(useCloudAI ? "Gemini 2.5 Flash" : "Ollama byte-llm:v1-fused (Recent Fine-Tuned)")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundColor(.blue)
                     }
                     HStack {
                         Text("Vision Model:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
                         Text("Florence-2-Base (232M / Port 9005)")
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundColor(.orange)
                     }
                     HStack {
                         Text("STT Engine:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
                         Text("faster-whisper (Port 9000)")
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundColor(.green)
                     }
                     HStack {
                         Text("TTS Engine:")
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
                         Text("Kokoro-82M (Port 8000)")
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundColor(.purple)
                     }
                 }
@@ -281,7 +291,7 @@ struct ByteSettingsView: View {
                     let rules = MemoryGraph.shared.getBehavioralRulesString()
                     Text(rules)
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundColor(Color(red: 0.20, green: 0.25, blue: 0.32))
                 }
             }
             
@@ -290,7 +300,7 @@ struct ByteSettingsView: View {
                     let facts = MemoryGraph.shared.getUserFactsString()
                     Text(facts)
                         .font(.system(size: 12, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.85))
+                        .foregroundColor(Color(red: 0.20, green: 0.25, blue: 0.32))
                 }
             }
         }
@@ -327,12 +337,12 @@ struct TabButton: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(isSelected ? Color.cyan.opacity(0.2) : Color.clear)
-            .foregroundColor(isSelected ? .cyan : .white.opacity(0.6))
+            .background(isSelected ? Color.blue.opacity(0.15) : Color.clear)
+            .foregroundColor(isSelected ? .blue : Color(red: 0.35, green: 0.40, blue: 0.50))
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.cyan.opacity(0.4) : Color.clear, lineWidth: 1)
+                    .stroke(isSelected ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -354,22 +364,24 @@ struct SettingsCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .foregroundColor(.cyan)
+                    .foregroundColor(.blue)
                 Text(title)
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(Color(red: 0.06, green: 0.09, blue: 0.16))
                 Spacer()
             }
             Divider()
-                .background(Color.white.opacity(0.1))
+                .background(Color(red: 0.88, green: 0.91, blue: 0.94))
             content
         }
         .padding(14)
-        .background(Color.black.opacity(0.3))
+        .background(Color.white)
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(Color(red: 0.88, green: 0.91, blue: 0.94), lineWidth: 1)
         )
+        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
 }
+

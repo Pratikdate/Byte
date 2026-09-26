@@ -388,10 +388,10 @@ class PetBrain {
             }
         }
 
-        if isUserDirected {
+        if isUserDirected, let msg = userMessage {
             // Barge-in: cut off any ambient speech so the reply feels immediate, not queued.
             AudioManager.shared.stopSpeaking()
-            InteractionDirector.shared.recordUserTurn(userMessage!)
+            InteractionDirector.shared.recordUserTurn(msg)
         }
 
         // Bump generation so any older in-flight request is discarded when it returns.
