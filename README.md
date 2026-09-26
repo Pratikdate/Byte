@@ -55,7 +55,7 @@ Unlike static desktop widgets, Byte runs a **hybrid machine learning architectur
 
 ### 🗣️ 2. 100% Offline Voice & Dialogue Loop
 - **Speech-to-Text (STT):** Local low-latency audio transcription using `faster-whisper` (Port 9000).
-- **Text-to-Speech (TTS):** Natural speech output powered by Kokoro TTS (Port 8000).
+- **Text-to-Speech (TTS):** Natural speech output powered by Kokoro TTS (Port 8880).
 - **Privacy First:** Zero cloud API dependencies; your voice audio and workspace state never leave your Mac.
 
 ### 🎮 3. 3D SceneKit Render & Physics Engine
@@ -98,6 +98,20 @@ window. A few ways to build that up:
   sessions, compiler errors on screen, and time of day all nudge its mood
   and the breaks it suggests.
 
+### He reads the room
+
+`BehaviorDirector` combines what's playing, how focused you are, and whether you're on a call:
+
+| What you're doing | What Byte does |
+|---|---|
+| Playing music in Apple Music or Spotify | Dances, headbangs, and spins along. Artists you play a lot become "favorites" (hearts and extra excitement), and he remembers them in conversation |
+| Focused work in an IDE or terminal | Walks to a free bottom corner away from your window, sits, and quietly watches your screen with small curious glances. No chatter |
+| Focused work with music on | Stays in his corner and bobs along every so often, still quiet |
+| On a video call (Zoom, Teams, Meet, FaceTime) | Moves out of the way and stays completely silent |
+| Finishing a 25+ minute focus session | Stretches, looks proud, and cheers you on |
+
+Music detection uses the players' own system notifications: no microphone, no permission prompt, and it works with headphones. A quick alt-tab to a browser won't make him get up. He only leaves his work spot after about 45 seconds away from your editor, and if you drag him off, he walks back.
+
 ---
 
 ## 📐 System Architecture
@@ -112,7 +126,7 @@ sequenceDiagram
     participant Vision as Florence-2 Vision (Port 9005)
     participant STT as Whisper Server (Port 9000)
     participant LLM as Ollama byte-llm (Port 11434)
-    participant TTS as Kokoro / PersonaPlex TTS (Port 8000 / 9006)
+    participant TTS as Kokoro / PersonaPlex TTS (Port 8880 / 9006)
 
     App->>Vision: On-demand screen read (active window)
     Vision-->>App: Extracted text / caption / UI regions
@@ -198,17 +212,34 @@ chmod +x training/train_mlx.sh
 ./training/train_mlx.sh
 ```
 
-### Automatic Model Versioning & Ollama Registration:
-When `DesktopPet.app` starts, it automatically registers the model:
-- **`byte-llm:v1-fused`** (from fine-tuned MLX weights in `training/byte_fused_model`)
-- **`byte-llm:v1-base`** (from `llama3.2:1b` base + ByteModelfile)
-- **`byte-llm`** (main active alias used by the app)
+### Deploying the Fine-Tune to Ollama:
+`training/ByteModelfile` is `FROM llama3.2:1b`: the **base** model with Byte's prompt. Byte's personality fine-tune is a LoRA adapter that Ollama applies on top of that same base, so deploying it needs only ~50 MB, not a multi-GB fused copy.
 
-Or register manually:
 ```bash
-ollama create byte-llm:v1-fused -f training/ByteModelfile
-ollama cp byte-llm:v1-fused byte-llm
+cd training
+python3 -m mlx_lm lora -c lora_config_1b.yaml   # train on train.jsonl / valid.jsonl (~35 min on an M-series Mac)
+./deploy_finetune.sh                            # convert to GGUF, create byte-llm:v2-lora, run the head-to-head
 ```
+
+`deploy_finetune.sh` never changes the model the app uses. It prints a scored comparison against the current `byte-llm` on real app prompts (tag format, Mac commands, memory use, reply time). Promote the fine-tune only if it wins:
+
+```bash
+ollama cp byte-llm byte-llm:pre-lora-backup && ollama cp byte-llm:v2-lora byte-llm
+```
+
+Details worth knowing:
+- The adapter is trained on the Llama 3.2 chat format, so `ByteModelfile.lora` uses that template. Plain `CONTEXT: … RESPONSE:` prompts don't match what it learned.
+- `build_lora_gguf.py` handles the MLX to llama.cpp conversion, including the Q/K row permutation llama.cpp uses. Without it, the adapter silently corrupts attention.
+- The older `adapters/` checkpoint (Aug 1, 200 steps) predates the current dataset. It scores worse than the base model, so don't deploy it.
+
+When `DesktopPet.app` starts, it makes sure **`byte-llm`** exists: it aliases `byte-llm:v1-fused` if you've built one, or otherwise creates `byte-llm:v1-base` from `llama3.2:1b` + ByteModelfile.
+
+### How Byte Personalizes (and Stays Fast) On-Device:
+- **Memory that persists:** facts, chat history, and learned Q-tables live in `~/Library/Application Support/Byte/`. Delete that folder to give Byte a fresh start.
+- **Facts stay clean:** a new name, city, or job replaces the old one; liking something you previously disliked flips the fact; repeated mentions make a fact rank higher.
+- **Relevant memories, not all memories:** each turn picks up to 8 facts about you, ranked by how related they are to what you just said, then by how often and how recently they came up, plus your name. This keeps the prompt within the 1B model's 2048-token window.
+- **Prompt layout built for speed:** unchanging instructions come first so Ollama reuses its cached prefix. On an M-series Mac this cut prompt processing from about 460 ms to about 40 ms per turn. The model is warmed up at launch and kept loaded for 30 minutes between chats.
+- **Safe Mac control:** `[CMD: ...]` actions are parsed against a short allowlist (open an app or web URL, volume, mute, dark mode, screenshot, sleep, Spotlight search) and run directly, never through a shell. Commands the model emits are honored only on turns where you asked for something, so on-screen text can't trigger them.
 
 ---
 
@@ -237,7 +268,7 @@ Byte/
 │   └── valid.jsonl               # Validation dataset (6.8k pairs)
 ├── backend/                      # Python microservices
 │   ├── whisper_server.py         # Offline speech-to-text API (Port 9000)
-│   ├── tts_server.py             # Kokoro text-to-speech API (Port 8000)
+│   ├── tts_server.py             # Kokoro text-to-speech API (Port 8880)
 │   ├── florence_vision_server.py # Microsoft Florence-2 screen-reading API (Port 9005)
 │   └── personaplex_server.py     # NVIDIA PersonaPlex-7B full-duplex speech API (Port 9006, experimental)
 ├── assets/                       # Sprites, motion renders, and logos

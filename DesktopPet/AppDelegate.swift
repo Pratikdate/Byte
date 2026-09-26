@@ -718,8 +718,30 @@ class BackgroundServerManager {
             }
         }
 
-        // Now verify installed models & register 'byte-llm:v1-fused' or 'byte-llm:v1-base' tagged to 'byte-llm'
+        // Make sure "byte-llm" exists: alias the fine-tune if built, else create it from the base model
         self.verifyAndRegisterByteModel(ollamaBin: ollamaBin, existingTagsData: responseData)
+        LocalOllamaProvider.refreshPromptStyle()
+        self.warmUpByteModel()
+    }
+
+    /// Loads byte-llm into memory at launch (a request with no prompt only loads the model),
+    /// so the user's first "hey Byte" doesn't wait on a cold model load.
+    private func warmUpByteModel() {
+        guard let url = URL(string: "http://localhost:11434/api/generate") else { return }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 60)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "model": "byte-llm",
+            "keep_alive": LocalOllamaProvider.keepAlive
+        ])
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                print("🔥 [BackgroundServerManager] byte-llm warmed up and resident for \(LocalOllamaProvider.keepAlive).")
+            } else {
+                print("⚠️ [BackgroundServerManager] byte-llm warm-up skipped: \(error?.localizedDescription ?? "model not ready")")
+            }
+        }.resume()
     }
 
     private func verifyAndRegisterByteModel(ollamaBin: String?, existingTagsData: Data?) {
@@ -730,35 +752,25 @@ class BackgroundServerManager {
             installedModels = models.compactMap { $0["name"] as? String }
         }
 
-        let hasMainModel = installedModels.contains { $0.hasPrefix("byte-llm") }
-        if hasMainModel {
-            print("✅ [BackgroundServerManager] Recent fine-tuned model 'byte-llm:v1-fused' (tagged as 'byte-llm') is ready and set as default model.")
+        // The app always requests "byte-llm", which Ollama resolves to "byte-llm:latest".
+        if installedModels.contains("byte-llm:latest") {
+            print("✅ [BackgroundServerManager] Model 'byte-llm' is ready.")
             return
         }
 
-        print("⚙️ [BackgroundServerManager] Registering recent fine-tuned Byte model in Ollama...")
-        let projectRoot = Self.projectRoot
-        let fusedModelPath = "\(projectRoot)/training/byte_fused_model"
-        let fusedModelV1Path = "\(projectRoot)/training/byte_fused_model_v1_best"
-        let modelfilePath = "\(projectRoot)/training/ByteModelfile"
-
+        let modelfilePath = "\(Self.projectRoot)/training/ByteModelfile"
         guard let binaryPath = ollamaBin else { return }
 
-        if FileManager.default.fileExists(atPath: fusedModelPath) || FileManager.default.fileExists(atPath: fusedModelV1Path) {
-            print("🧠 [BackgroundServerManager] Creating default model version 'byte-llm:v1-fused' from MLX fine-tuned weights...")
-            let proc = Process()
-            proc.executableURL = URL(fileURLWithPath: binaryPath)
-            proc.arguments = ["create", "byte-llm:v1-fused", "-f", modelfilePath]
-            try? proc.run()
-            proc.waitUntilExit()
-
-            // Assign main alias 'byte-llm'
+        if installedModels.contains("byte-llm:v1-fused") {
+            // Built by training/deploy_finetune.sh from the real LoRA fine-tune. Never
+            // rebuild this tag here: ByteModelfile is the base model and would overwrite it.
+            print("🧠 [BackgroundServerManager] Using fine-tuned 'byte-llm:v1-fused' as 'byte-llm'...")
             let aliasProc = Process()
             aliasProc.executableURL = URL(fileURLWithPath: binaryPath)
             aliasProc.arguments = ["cp", "byte-llm:v1-fused", "byte-llm"]
             try? aliasProc.run()
             aliasProc.waitUntilExit()
-            print("✅ [BackgroundServerManager] Successfully registered 'byte-llm:v1-fused' as main model 'byte-llm'.")
+            print("✅ [BackgroundServerManager] Registered 'byte-llm:v1-fused' as main model 'byte-llm'.")
         } else if FileManager.default.fileExists(atPath: modelfilePath) {
             print("📦 [BackgroundServerManager] Pulling base model 'llama3.2:1b' for version 'byte-llm:v1-base'...")
             let pullProc = Process()
@@ -816,28 +828,40 @@ class BackgroundServerManager {
     }
 
     private func ensureTTSServerRunning() {
-        guard let url = URL(string: "http://localhost:8000/health") else { return }
+        guard let url = URL(string: "http://localhost:8880/health") else { return }
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2.0)
         request.httpMethod = "GET"
         
         let sema = DispatchSemaphore(value: 0)
         var isRunning = false
         
-        let task = URLSession.shared.dataTask(with: request) { _, response, _ in
+        var portTakenByOtherApp = false
+        let task = URLSession.shared.dataTask(with: request) { data, response, _ in
             if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
-                isRunning = true
+                // Any web app can answer /health with 200; only count it if it's Byte's voice.
+                let body = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                if body.contains("byte-kokoro-tts") {
+                    isRunning = true
+                } else {
+                    portTakenByOtherApp = true
+                }
             }
             sema.signal()
         }
         task.resume()
         _ = sema.wait(timeout: .now() + 2.5)
-        
+
+        if portTakenByOtherApp {
+            print("⚠️ [BackgroundServerManager] Port 8880 is used by another app, so Byte's Kokoro voice can't start. Byte will use the macOS voice. Set BYTE_TTS_PORT or free the port.")
+            return
+        }
+
         if !isRunning {
             let rootPath = Self.projectRoot
             let pythonBin = getPythonExecutablePath()
             let scriptPath = "\(rootPath)/backend/tts_server.py"
             if FileManager.default.fileExists(atPath: scriptPath) {
-                print("🚀 [BackgroundServerManager] Starting Kokoro TTS Server on port 8000...")
+                print("🚀 [BackgroundServerManager] Starting Kokoro TTS Server on port 8880...")
                 let proc = Process()
                 proc.executableURL = URL(fileURLWithPath: pythonBin)
                 proc.arguments = [scriptPath]

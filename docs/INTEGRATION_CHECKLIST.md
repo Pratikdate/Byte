@@ -55,7 +55,7 @@ python whisper_server.py
 ```bash
 cd ~/Kokoro
 python tts_server.py
-# Listens on localhost:8000
+# Listens on localhost:8880
 ```
 
 (See LOCAL_AUDIO_SETUP.md for server code)
@@ -150,7 +150,7 @@ case "excited": return 1.3  // Even faster
 
 | Issue | Solution |
 |-------|----------|
-| "Kokoro TTS unavailable" in logs | Start Kokoro server on port 8000 (see LOCAL_AUDIO_SETUP.md) |
+| "Kokoro TTS unavailable" in logs | Start Kokoro server on port 8880 (see LOCAL_AUDIO_SETUP.md) |
 | No audio output | Check speaker isn't muted; verify system TTS fallback works |
 | Transcription not updating | Ensure whisper server running on port 9000 |
 | Responses feel slow | Gemma 2B ~1-2s is normal; switch to smaller model if needed |

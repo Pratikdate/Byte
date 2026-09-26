@@ -34,3 +34,5 @@ casual_reflective_100k.jsonl
 training/training_data/versions/
 .byte_dequantized_tmp/
 chat_history.json
+training/.fused_tmp/
+*.gguf

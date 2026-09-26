@@ -14,7 +14,7 @@ PetScene.say(text: String)
     │   ├─→ addBreathingPoints() [break at 7 words]
     │   └─→ normalizeForTTS() [remove emojis, expand abbrev]
     │
-    ├─→ POST to localhost:8000/synthesize (Kokoro TTS)
+    ├─→ POST to localhost:8880/synthesize (Kokoro TTS)
     │   └─→ If success → playAudioData() → AVAudioEngine
     │   └─→ If fail → fallback to SystemTTSFallback
     │
@@ -217,7 +217,7 @@ VoiceInputManager.speak(text, emotion)
     ↓
     → AudioManager.speak(text, emotion, speed)
         ↓
-        → POST to Kokoro TTS (port 8000)
+        → POST to Kokoro TTS (port 8880)
         ↓
         ├─ Success → playAudioData() → speaker 🔊
         │
@@ -247,7 +247,7 @@ localhost:9000    ← faster-whisper
                    Request: audio bytes
                    Response: {"text": "...", "is_final": bool}
 
-localhost:8000    ← Kokoro TTS
+localhost:8880    ← Kokoro TTS
                    POST /synthesize
                    Request: {"text": "...", "emotion": "...", "speed": 1.0}
                    Response: WAV audio bytes
@@ -272,7 +272,7 @@ localhost:8000    ← Kokoro TTS
     ↓
 ✨ Natural Text (pauses, emotion)
     ↓
-[Kokoro:8000 OR SystemTTS]
+[Kokoro:8880 OR SystemTTS]
     ↓
 🔊 Speaker Output
 ```

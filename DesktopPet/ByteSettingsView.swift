@@ -251,7 +251,7 @@ struct ByteSettingsView: View {
                         Text("Active LLM Model:")
                             .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
-                        Text(useCloudAI ? "Gemini 2.5 Flash" : "Ollama byte-llm:v1-fused (Recent Fine-Tuned)")
+                        Text(useCloudAI ? "Gemini 2.5 Flash" : "Ollama byte-llm (Local)")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .foregroundColor(.blue)
                     }
@@ -275,7 +275,7 @@ struct ByteSettingsView: View {
                         Text("TTS Engine:")
                             .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
                         Spacer()
-                        Text("Kokoro-82M (Port 8000)")
+                        Text("Kokoro-82M (Port 8880)")
                             .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundColor(.purple)
                     }

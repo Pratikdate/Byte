@@ -68,7 +68,7 @@ open DesktopPet.xcodeproj
 
 | File | Change |
 |------|--------|
-| **AudioManager.swift** | NEW: wraps whisper (port 9000) + Kokoro (port 8000) for local audio |
+| **AudioManager.swift** | NEW: wraps whisper (port 9000) + Kokoro (port 8880) for local audio |
 | **DialogueNaturalness.swift** | NEW: adds micro-pauses, breathing, prevents repetition, emotion-aware speech |
 | **SystemTTSFallback.swift** | NEW: fallback to macOS native TTS if Kokoro unavailable |
 | **VoiceInputManager.swift** | Removed cloud Speech API, now uses local whisper |

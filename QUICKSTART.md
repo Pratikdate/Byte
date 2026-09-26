@@ -39,7 +39,7 @@ None of these send data off your Mac.
 |---|---|---|
 | 11434 | Ollama (`byte-llm`) | Fine-tuned chat brain — every reply carries an `[ACTION: ...] [EMOTION: ...]` tag that drives the 3D animation |
 | 9000 | `backend/whisper_server.py` | Speech-to-text (faster-whisper) |
-| 8000 | `backend/tts_server.py` | Text-to-speech (Kokoro) |
+| 8880 | `backend/tts_server.py` | Text-to-speech (Kokoro) |
 | 9005 | `backend/florence_vision_server.py` | Reads on-screen text/code so Byte can react to what you're looking at |
 | 9006 | `backend/personaplex_server.py` | **Experimental** full-duplex speech engine (see note below) — falls back to Kokoro/system voice automatically |
 
@@ -68,10 +68,12 @@ and shuts all of them down cleanly on Ctrl+C.
 
 | Problem | Fix |
 |---|---|
-| No voice, or a system-default voice instead of Byte's | Kokoro (port 8000) isn't running — check `curl http://localhost:8000/health`. Byte still works via the macOS fallback voice. |
+| No voice, or a system-default voice instead of Byte's | Kokoro (port 8880) isn't running — check `curl http://localhost:8880/health` (it should say `byte-kokoro-tts`). Byte still works via the macOS fallback voice. |
 | Byte doesn't understand speech | Check the Whisper server: `curl http://localhost:9000/health`. If it's down, `start.sh` will restart it on next launch. |
-| Chat replies feel generic / not "Byte" | The fine-tuned model isn't registered yet — check `ollama list` for `byte-llm`. Rebuilding it: see "Model Training & Reproduction" in the [README](README.md). |
+| Chat replies feel generic / not "Byte" | By default `byte-llm` is the base Llama 3.2 1B with Byte's prompt. Train and compare the fine-tune with the steps under "Deploying the Fine-Tune" in the [README](README.md) (about 50 MB of disk). |
 | App won't build | Confirm the Xcode scheme target is macOS and the Swift toolchain is 5.9+. |
+| Byte forgot everything after a restart | Memories now live in `~/Library/Application Support/Byte/`. Older builds saved them to the launch directory, which is `/` when opened from Finder, so they were lost. Existing files in the project root are copied over automatically on first launch. |
+| Want Byte to forget you | Quit Byte and delete `~/Library/Application Support/Byte/`. |
 | Ollama not found | The app will ask you (via a macOS notification) to install it from [ollama.ai](https://ollama.ai) — it will not install anything on your Mac without asking. |
 
 ## Next steps

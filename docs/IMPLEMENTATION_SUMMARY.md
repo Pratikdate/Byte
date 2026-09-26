@@ -6,7 +6,7 @@
 
 #### `AudioManager.swift`
 - Handles speech-to-text via **faster-whisper** (port 9000)
-- Handles text-to-speech via **Kokoro TTS** (port 8000)
+- Handles text-to-speech via **Kokoro TTS** (port 8880)
 - All processing on-device, no cloud APIs
 - Streams microphone → whisper server for real-time transcription
 - Posts dialogue → Kokoro for natural speech synthesis
@@ -63,7 +63,7 @@
 ```
 🎤 → faster-whisper (local, port 9000)
      → Byte's Brain (Gemma 2B via Ollama)
-     → Kokoro TTS (local, port 8000) OR system TTS fallback
+     → Kokoro TTS (local, port 8880) OR system TTS fallback
      → 🔊 (natural voice)
 ```
 

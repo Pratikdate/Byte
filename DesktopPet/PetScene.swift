@@ -830,6 +830,12 @@ class PetScene: SCNScene {
         default: break
         }
         
+        // Watching the user work: eyes rest on their window with small curious glances.
+        if let watch = brain.behaviorDirector.watchTarget(),
+           [.sit, .idle, .headbang].contains(brain.currentAction) {
+            lookAt(targetX: watch.x, targetY: watch.y)
+        }
+
         // Hover Awareness (Overrides looking if mouse is close)
         if distanceToMouse < 3.0 && brain.currentAction != .sleep && brain.currentAction != .dizzy && brain.currentAction != .sulk {
              lookAt(targetX: mouseLocation.x, targetY: mouseLocation.y)
@@ -840,7 +846,7 @@ class PetScene: SCNScene {
         
         // DJ Headphones (Music/Spotify or Physical Headphones connected)
         let activeApp = DesktopEnvironmentManager.shared.activeAppTracker.lowercased()
-        if activeApp.contains("music") || activeApp.contains("spotify") || AudioMonitor.shared.isHeadphoneConnected {
+        if NowPlayingMonitor.shared.isPlaying || activeApp.contains("music") || activeApp.contains("spotify") || AudioMonitor.shared.isHeadphoneConnected {
             headphoneBandNode.isHidden = false
             
             // Make the existing headphones glow neon!

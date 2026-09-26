@@ -74,7 +74,7 @@ class RealtimeConversationLogger: ObservableObject {
             self.isModelGenerating = true
             let item = LogItem(
                 timestamp: Date(),
-                speaker: "🐾 Byte (byte-llm:v1-fused)",
+                speaker: "🐾 Byte (byte-llm)",
                 text: "",
                 action: "thinking...",
                 emotion: "curious",

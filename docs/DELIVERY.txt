@@ -21,7 +21,7 @@ LOCAL AUDIO PIPELINE (All on-device, zero cloud dependency):
    → Fast, natural responses
 
 💬 Text-to-Speech
-   → Kokoro TTS (port 8000) OR macOS fallback
+   → Kokoro TTS (port 8880) OR macOS fallback
    → Emotion-aware pauses and speech rhythm
 
 ================================================================================
@@ -233,7 +233,7 @@ AFTER:
 ┌──────────────────────────────────────────────────────────┐
 │ Mic → faster-whisper:9000 (local STT)                    │
 │ → Gemma 2B:11434 (local dialogue)                        │
-│ → Kokoro:8000 OR SystemTTSFallback (emotion-aware TTS)   │
+│ → Kokoro:8880 OR SystemTTSFallback (emotion-aware TTS)   │
 │ → Speaker (natural, emotion-driven pauses)              │
 │ Benefits: 2-4s round trip, zero privacy leak, natural   │
 └──────────────────────────────────────────────────────────┘
@@ -259,7 +259,7 @@ Stage 2 (Fallback TTS):
 Stage 3 (Full stack):
   □ Ollama running (gemma:2b)
   □ Whisper server running (port 9000)
-  □ Kokoro server running (port 8000)
+  □ Kokoro server running (port 8880)
   □ Click pet → natural Kokoro voice
   □ Responses have emotion-aware pauses
   □ Mic button → transcription works

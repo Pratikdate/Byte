@@ -31,7 +31,7 @@ Byte operates as a native macOS overlay application that interacts seamlessly wi
    - **Emotion Tags:** e.g. `[EMOTION: cozy]`, `[EMOTION: love]`, `[EMOTION: proud]`
    - **Natural Conversational Speech:** Short, empathetic thoughts (<20 words).
 4. **Swift SceneKit 3D Render Engine (`PetScene.swift`):** Renders the 3D pet model, handles window bounds detection, gravity, drag-and-drop physics, and executes requested action animations.
-5. **Kokoro TTS Synthesizer (Port 8000):** Converts Byte's textual responses into high-quality humanlike audio output played through macOS speakers.
+5. **Kokoro TTS Synthesizer (Port 8880):** Converts Byte's textual responses into high-quality humanlike audio output played through macOS speakers.
 
 ---
 

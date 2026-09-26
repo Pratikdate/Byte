@@ -11,7 +11,7 @@ Complete guide to set up faster-whisper (speech-to-text) + Kokoro TTS (text-to-s
     ↓
 Text ↔ Byte's Brain (Gemma 2B via Ollama)
     ↓
-[Kokoro TTS] (port 8000) → generate natural speech
+[Kokoro TTS] (port 8880) → generate natural speech
     ↓
 🔊 Speaker
 ```
@@ -99,13 +99,13 @@ def synthesize():
     return send_file(io.BytesIO(audio_bytes), mimetype='audio/wav')
 
 if __name__ == '__main__':
-    app.run(host='localhost', port=8000)
+    app.run(host='localhost', port=8880)
 EOF
 
 python tts_server.py
 ```
 
-Runs on `localhost:8000`.
+Runs on `localhost:8880`.
 
 ## Step 4: Configure Byte
 
@@ -113,7 +113,7 @@ Update `AudioManager.swift` endpoint URLs if ports differ:
 
 ```swift
 private let whisperEndpoint = "http://localhost:9000/transcribe"
-private let kokoroEndpoint = "http://localhost:8000/synthesize"
+private let kokoroEndpoint = "http://localhost:8880/synthesize"
 ```
 
 ## Step 5: Run Everything
@@ -147,7 +147,7 @@ open DesktopPet.xcodeproj
 - Verify microphone permissions in System Settings → Privacy & Security → Microphone
 
 ### TTS no audio
-- Check Kokoro server: `curl http://localhost:8000/health`
+- Check Kokoro server: `curl http://localhost:8880/health`
 - Check speaker is not muted
 - Verify Kokoro model files exist in repo
 

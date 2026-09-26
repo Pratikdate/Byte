@@ -9,7 +9,7 @@ All code modifications done. Ready to test in Xcode.
 ### Audio Layer (Core)
 1. **AudioManager.swift** — Whisper STT + Kokoro TTS wrapper
    - `startListening()` → streams mic to port 9000
-   - `speak(text, emotion, speed)` → TTS to port 8000, fallback to SystemTTSFallback
+   - `speak(text, emotion, speed)` → TTS to port 8880, fallback to SystemTTSFallback
 
 2. **DialogueNaturalness.swift** — Speech naturalness
    - `enhanceForSpeech()` → adds pauses/breathing/emotion
@@ -59,7 +59,7 @@ Mic → Cloud API (Apple Speech) → Text
 ```
 Mic → Local (faster-whisper:9000) → Text
       → Local (Gemma 2B:11434) → Dialogue
-      → Local (Kokoro:8000 or fallback) → Natural Voice
+      → Local (Kokoro:8880 or fallback) → Natural Voice
       🔊 Emotion-aware speech with pauses
 ```
 

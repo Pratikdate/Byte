@@ -330,6 +330,29 @@ class ByteVisionEngine {
         return context
     }
 
+    /// Vision context as separate tags for the fine-tune's compact prompt, in the same
+    /// forms its training data uses. Call after prepareVisualContextForPrompt(). Screen
+    /// text is only included when this message asked about the screen; otherwise the
+    /// cached scan may be stale.
+    func compactVisionTags(userMessage: String?) -> [String] {
+        var tags: [String] = []
+        if let img = currentImageContext, !img.isEmpty {
+            tags.append("[\(img)]")
+        }
+        if let sel = getSelectedText(), !sel.isEmpty {
+            let trimmed = sel.count > 200 ? String(sel.prefix(200)) + "..." : sel
+            tags.append("[USER HIGHLIGHTED/SELECTED TEXT: \"\(trimmed.replacingOccurrences(of: "\"", with: "'"))\"]")
+        }
+        let screen = currentVisualContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        let askedAboutScreen = userMessage.map { !$0.isEmpty && detectVisionIntent(in: $0) } ?? false
+        let placeholders = ["No visual target detected.", "Developer is focused in editor."]
+        if askedAboutScreen, !screen.isEmpty, !placeholders.contains(screen) {
+            let trimmed = screen.count > 160 ? String(screen.prefix(160)) + "..." : screen
+            tags.append("[SCREEN TEXT: '\(trimmed.replacingOccurrences(of: "'", with: "’"))']")
+        }
+        return tags
+    }
+
     /// Prepares fresh visual, selected text, and image context before LLM prompt generation, guaranteeing completion before AI prompt assembly.
     func prepareVisualContextForPrompt(userMessage: String?, completion: @escaping (String) -> Void) {
         let clipboardImg = getClipboardImage()
