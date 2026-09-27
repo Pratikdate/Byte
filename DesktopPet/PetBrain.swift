@@ -896,6 +896,7 @@ class PetBrain {
         AIEngine.shared.generateComment(context: context, emotion: emotion, event: event) { [weak self] comment in
             DispatchQueue.main.async {
                 guard let comment = comment, !comment.isEmpty else { return }
+                print("💬 [Byte] (\(event ?? "reaction")) \(comment)")
                 self?.onSentenceGenerated?(comment)
                 self?.onSpeechComplete?()
             }

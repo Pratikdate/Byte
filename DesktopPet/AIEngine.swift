@@ -649,10 +649,67 @@ class LocalOllamaProvider: NSObject, AIProvider {
         // Restore name intros
         result = result.replacingOccurrences(of: "__BYTE_NAME__", with: "Byte")
 
+        // Stray halves of tags that survived the patterns above ("] Hey there.")
+        result = result.replacingOccurrences(of: #"[\[\]]"#, with: "", options: .regularExpression)
+
+        result = guardUserName(result)
+
         // Clean up artifacts: double spaces, leading/trailing punctuation mess
         result = result.replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
         result = result.trimmingCharacters(in: .whitespacesAndNewlines)
         
+        return result
+    }
+
+    /// Words that can follow "Hey" without being a name.
+    private static let vocativeWords: Set<String> = [
+        "there", "you", "buddy", "friend", "again", "hey", "hi", "yo", "okay", "ok", "wow", "look",
+        "sure", "nice", "welcome", "back", "morning", "afternoon", "evening", "mac", "chrome", "byte", "i"]
+
+    /// The model learned that greetings carry a name, so when Byte doesn't know the user's
+    /// name it invents one ("Hey Claude"). Drop an invented name, or replace a wrong one
+    /// with the real one, wherever it's used to address the user.
+    static func guardUserName(_ rawText: String) -> String {
+        // Tag-stripping upstream can leave leading whitespace ("[CMD: none] Hey Pradeep."
+        // -> " Hey Pradeep."), which broke the start-of-string anchor below.
+        let text = rawText.trimmingCharacters(in: .whitespaces)
+        let known = MemoryGraph.shared.userName
+        let knownFirst = known?.split(separator: " ").first.map(String.init)
+        // "Hey Claude." / "Morning, Claude!" / "Welcome back Claude," at the start…
+        // Not just at the start: filler ("Here is my take. Hey Claude.") can push the
+        // greeting into the middle of the reply.
+        let opener = #"(?:^|[.!?]\s+)((?:Hey|Hi|Hello|Yo|Oh|Morning|Good (?:morning|afternoon|evening)|Welcome back|Nice work|Look at you),?\s+)([A-Z][a-z]+)\b([.,!?]?)"#
+        // …or ", Claude." at the very end.
+        let closer = #",\s+([A-Z][a-z]+)([.!?]?)$"#
+
+        func fix(_ name: String) -> String? {       // nil = leave as is
+            if name.count < 2 || vocativeWords.contains(name.lowercased()) { return nil }
+            if let k = known, name == k || name == knownFirst { return nil }
+            return knownFirst ?? ""                  // wrong name → theirs; unknown → drop
+        }
+
+        var result = text
+        if let regex = try? NSRegularExpression(pattern: opener),
+           let m = regex.firstMatch(in: result, range: NSRange(result.startIndex..., in: result)),
+           let whole = Range(m.range, in: result),
+           let nameRange = Range(m.range(at: 2), in: result),
+           let replacement = fix(String(result[nameRange])) {
+            let lead = String(result[whole.lowerBound..<(Range(m.range(at: 1), in: result)?.lowerBound ?? whole.lowerBound)])
+            let greeting = Range(m.range(at: 1), in: result).map { String(result[$0]) } ?? ""
+            let punct = Range(m.range(at: 3), in: result).map { String(result[$0]) } ?? ""
+            let fixed = replacement.isEmpty
+                ? greeting.trimmingCharacters(in: CharacterSet(charactersIn: ", ")) + (punct.isEmpty ? "." : punct)
+                : greeting + replacement + punct
+            result.replaceSubrange(whole, with: lead + fixed)
+        }
+        if let regex = try? NSRegularExpression(pattern: closer),
+           let m = regex.firstMatch(in: result, range: NSRange(result.startIndex..., in: result)),
+           let nameRange = Range(m.range(at: 1), in: result),
+           let replacement = fix(String(result[nameRange])),
+           let whole = Range(m.range, in: result) {
+            let punct = Range(m.range(at: 2), in: result).map { String(result[$0]) } ?? ""
+            result.replaceSubrange(whole, with: replacement.isEmpty ? (punct.isEmpty ? "." : punct) : ", \(replacement)\(punct)")
+        }
         return result
     }
 }

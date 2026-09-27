@@ -46,6 +46,65 @@ final class NowPlayingMonitor {
     }
 }
 
+// MARK: - Xcode Builds
+/// Notices when an Xcode build finishes, from Xcode or `xcodebuild`, by watching for new
+/// .xcactivitylog files in each project's DerivedData/…/Logs/Build. Every build writes
+/// one, and a failed build's log contains "Build failed". (LogStoreManifest.plist looked
+/// easier but skips some failed builds entirely.) No Xcode plugin or permission needed.
+final class XcodeBuildMonitor {
+    /// (failed, project name), on the main queue.
+    var onBuildFinished: ((Bool, String) -> Void)?
+
+    private let derivedData = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Developer/Xcode/DerivedData")
+    private var timer: Timer?
+    private var seen = Set<String>()
+    /// Logs from before Byte started are history, not news.
+    private let startedAt = Date()
+    private let queue = DispatchQueue(label: "com.byte.buildmonitor", qos: .utility)
+
+    func start() {
+        timer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
+            self?.queue.async { self?.poll() }
+        }
+    }
+
+    private func poll() {
+        let fm = FileManager.default
+        guard let projects = try? fm.contentsOfDirectory(atPath: derivedData.path) else { return }
+        let settled = Date().addingTimeInterval(-2)       // written and closed, not mid-write
+        for project in projects {
+            let logsDir = derivedData.appendingPathComponent(project).appendingPathComponent("Logs/Build")
+            guard let names = try? fm.contentsOfDirectory(atPath: logsDir.path) else { continue }
+            for name in names where name.hasSuffix(".xcactivitylog") && !seen.contains(name) {
+                let url = logsDir.appendingPathComponent(name)
+                guard let mtime = (try? fm.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date else { continue }
+                if mtime < startedAt { seen.insert(name); continue }
+                guard mtime < settled else { continue }
+                seen.insert(name)
+                let failed = logSaysFailed(url)
+                // "DesktopPet-glpgbx…" → "DesktopPet"
+                let projectName = project.components(separatedBy: "-").dropLast().joined(separator: "-")
+                print("🔨 [XcodeBuildMonitor] \(projectName) build \(failed ? "failed" : "succeeded")")
+                DispatchQueue.main.async { self.onBuildFinished?(failed, projectName.isEmpty ? project : projectName) }
+            }
+        }
+    }
+
+    /// .xcactivitylog is gzip; decompress with the system gzip (fixed path and arguments).
+    private func logSaysFailed(_ url: URL) -> Bool {
+        let gzip = Process()
+        gzip.executableURL = URL(fileURLWithPath: "/usr/bin/gzip")
+        gzip.arguments = ["-dc", url.path]
+        let out = Pipe()
+        gzip.standardOutput = out
+        gzip.standardError = FileHandle.nullDevice
+        guard (try? gzip.run()) != nil else { return false }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        gzip.waitUntilExit()
+        return data.range(of: Data("Build failed".utf8)) != nil
+    }
+}
+
 // MARK: - Behavior Director
 /// Turns what the user is doing into how Byte behaves, so he reads the room:
 ///
@@ -56,6 +115,11 @@ final class NowPlayingMonitor {
 /// | Focused work + music         | Sits aside and bobs along now and then, still quiet         |
 /// | Video call                   | Moves out of the way and stays completely silent            |
 /// | Long focus session ends      | Stretches and cheers you on                                 |
+/// | Back after 5+ minutes away   | Wakes up, waves, welcomes you back by name                  |
+/// | First time at the Mac today  | A good morning / afternoon / evening                        |
+/// | Xcode build fails            | Sympathy (and a nudge after repeated failures)              |
+/// | Build passes after failures  | Cheers                                                      |
+/// | Call ends                    | Stretches and asks how it went                              |
 final class BehaviorDirector {
     enum Vibe: String {
         case normal
@@ -83,11 +147,31 @@ final class BehaviorDirector {
     private var watchJitter = CGPoint.zero
     private var lastJitterAt = Date.distantPast
 
+    // Day events
+    private var awayStartedAt: Date?
+    private static let awayThreshold: TimeInterval = 300    // same as InteractionDirector's "away"
+    private static let dailyGreetingKey = "byte.lastDailyGreetingDay"
+    private let buildMonitor = XcodeBuildMonitor()
+    private var consecutiveBuildFailures = 0
+    private var lastBuildRemarkAt = Date.distantPast
+
     init(brain: PetBrain) {
         self.brain = brain
         NowPlayingMonitor.shared.onChange = { [weak self] playing, track, isNewTrack in
             self?.musicChanged(playing: playing, track: track, isNewTrack: isNewTrack)
         }
+        buildMonitor.onBuildFinished = { [weak self] failed, project in
+            self?.buildFinished(failed: failed, project: project)
+        }
+        buildMonitor.start()
+        #if DEBUG
+        // Lets a developer (or a test) trigger a day event without waiting for it:
+        //   distributed notification "com.byte.debug.dayEvent", userInfo ["event": "returned"]
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.byte.debug.dayEvent"), object: nil, queue: .main) { [weak self] note in
+            self?.simulate(note.userInfo?["event"] as? String ?? "")
+        }
+        #endif
     }
 
     // MARK: Queries used by PetBrain / PetScene
@@ -123,6 +207,8 @@ final class BehaviorDirector {
         let now = Date()
         guard now.timeIntervalSince(lastEvaluation) >= 1.0 else { return }
         lastEvaluation = now
+
+        checkPresence(now: now)
 
         let desired = desiredVibe()
         if desired != candidate {
@@ -166,6 +252,8 @@ final class BehaviorDirector {
         vibe = newVibe
         print("🎭 [BehaviorDirector] \(old.rawValue) → \(newVibe.rawValue)")
         guard brain.currentMode != .sleep, brain.currentAction != .sleep else { return }
+
+        if old == .meeting && newVibe != .meeting { callEnded() }
 
         switch newVibe {
         case .watchingWork, .vibingWork:
@@ -224,6 +312,114 @@ final class BehaviorDirector {
             brain.speakReaction(context: context, emotion: "proud", event: "focus session ended after \(Int(minutes)) minutes")
         }
     }
+
+    // MARK: Day events
+
+    /// Tracks stepping away and coming back, and the first moment at the Mac each day.
+    private func checkPresence(now: Date) {
+        let idle = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
+        if idle >= Self.awayThreshold {
+            if awayStartedAt == nil { awayStartedAt = now.addingTimeInterval(-idle) }
+            return
+        }
+        guard idle < 3 else { return }           // wait for real input, not just "not away"
+
+        if greetForNewDayIfNeeded(now: now) {
+            awayStartedAt = nil                  // one greeting, not two
+            return
+        }
+        if let since = awayStartedAt {
+            awayStartedAt = nil
+            welcomeBack(minutes: max(5, Int(now.timeIntervalSince(since) / 60)))
+        }
+    }
+
+    private func callEnded() {
+        react(event: "call ended", context: "The user's video call just ended. Ask briefly how it went.",
+              emotion: .happy, action: .stretch)
+    }
+
+    private func welcomeBack(minutes: Int) {
+        let project = MemoryGraph.shared.compactMemory(for: "project working building", musicContext: false, maxFacts: 1)
+        let about = project.isEmpty ? "" : " What you know: \(project)."
+        react(event: "back after \(minutes) minutes away",
+              context: "The user just came back after \(minutes) minutes away. Welcome them back warmly, once.\(about)",
+              emotion: .happy, action: .wave)
+    }
+
+    /// Returns true if it greeted.
+    private func greetForNewDayIfNeeded(now: Date) -> Bool {
+        let day = ISO8601DateFormatter.string(from: now, timeZone: .current, formatOptions: [.withFullDate])
+        guard UserDefaults.standard.string(forKey: Self.dailyGreetingKey) != day else { return false }
+        UserDefaults.standard.set(day, forKey: Self.dailyGreetingKey)
+
+        let hour = Calendar.current.component(.hour, from: now)
+        let part = hour < 12 ? "morning" : (hour < 17 ? "afternoon" : "evening")
+        react(event: "first time today, \(part)",
+              context: "It's the user's first time at the Mac today (\(part)). Greet them for the day.",
+              emotion: hour < 9 ? .sleepy : .happy, action: hour < 9 ? .stretch : .wave)
+        return true
+    }
+
+    private func buildFinished(failed: Bool, project: String) {
+        guard vibe != .meeting else { return }
+        let now = Date()
+        if failed {
+            consecutiveBuildFailures += 1
+            let again = consecutiveBuildFailures > 1
+            // A face every time, words only now and then: failing builds come in bursts.
+            let speak = now.timeIntervalSince(lastBuildRemarkAt) > 180 || consecutiveBuildFailures == 3
+            if speak { lastBuildRemarkAt = now }
+            react(event: again ? "build failed again" : "build failed",
+                  context: "The user's Xcode build of \(project) just failed\(again ? " again (\(consecutiveBuildFailures) times in a row)" : ""). Be briefly supportive.",
+                  emotion: .sad, action: nil, particle: .sweat, speak: speak)
+        } else {
+            defer { consecutiveBuildFailures = 0 }
+            guard consecutiveBuildFailures > 0 else { return }     // routine green builds: stay quiet
+            lastBuildRemarkAt = now
+            react(event: "build succeeded after several failures",
+                  context: "The user's Xcode build of \(project) just passed after failing. Cheer briefly.",
+                  emotion: .proud, action: .jump, particle: .sparkle)
+        }
+    }
+
+    /// Shared reaction: expression and particle always; a move only if it won't pull Byte
+    /// out of his work spot; words only if InteractionDirector allows a reactive remark.
+    private func react(event: String, context: String, emotion: PetEmotion, action: PetAction?,
+                       particle: ParticleType? = nil, speak: Bool = true) {
+        guard brain.currentMode != .sleep else { return }
+        print("📅 [BehaviorDirector] Day event: \(event)")
+        InteractionDirector.shared.consumeReturnGreeting()   // this is the greeting; don't send another
+
+        if brain.currentAction == .sleep { brain.applyAction(.idle) }
+        let staysInSpot: Set<PetAction> = [.sit, .idle, .wave, .headbang, .bow]
+        if let action = action, !suppressesAmbient || staysInSpot.contains(action) {
+            brain.applyAction(action)
+        }
+        brain.currentEmotion = emotion
+        brain.forceUpdate = true
+        if let particle = particle { brain.onShowParticle?(particle) }
+
+        if speak && !brain.isMuted && InteractionDirector.shared.shouldSpeak(.reactive) {
+            brain.speakReaction(context: context, emotion: emotion.rawValue, event: event)
+        }
+    }
+
+    #if DEBUG
+    private func simulate(_ event: String) {
+        print("🧪 [BehaviorDirector] Simulating day event: \(event)")
+        switch event {
+        case "returned":        welcomeBack(minutes: 45)
+        case "morning":
+            UserDefaults.standard.removeObject(forKey: Self.dailyGreetingKey)
+            _ = greetForNewDayIfNeeded(now: Date())
+        case "buildFailed":     buildFinished(failed: true, project: "DesktopPet")
+        case "buildSucceeded":  buildFinished(failed: false, project: "DesktopPet")
+        case "callEnded":       callEnded()
+        default: print("   unknown event; use returned, morning, buildFailed, buildSucceeded, callEnded")
+        }
+    }
+    #endif
 
     // MARK: Idle ticks
 

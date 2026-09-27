@@ -189,7 +189,9 @@ class MemoryGraph {
     /// e.g. "I'm heading out", "I'm from Pune", "I'm called Sam", "I'm working on X".
     static func isNonIdentityPhrase(_ phrase: String) -> Bool {
         let lower = phrase.lowercased()
-        let prefixes = ["from ", "called ", "working ", "building ", "a bit", "kind of", "sort of", "so ", "just ", "still ", "here", "back", "done", "sure", "sorry", "in ", "at ", "on "]
+        let prefixes = ["from ", "called ", "working ", "building ", "a bit", "kind of", "sort of", "so ", "just ", "still ", "here", "back", "done", "sure", "sorry", "in ", "at ", "on ",
+                        // Intensifiers: "I'm pretty sure…", "I'm really tired" are moods, not identity.
+                        "pretty", "really", "very", "quite", "totally", "kinda", "sorta", "a little", "not "]
         if prefixes.contains(where: { lower.hasPrefix($0) }) { return true }
         // "I'm heading out", "I'm watching a movie": gerunds are activities, not identity.
         if let firstWord = lower.split(separator: " ").first, firstWord.hasSuffix("ing") { return true }
@@ -414,8 +416,11 @@ class MemoryGraph {
         if lower.contains("i need ") || lower.contains("i want ") || lower.contains("i wish ") {
             if let keyword = ["i need ", "i want ", "i wish "].first(where: { lower.contains($0) }),
                let object = extractObject(from: message, after: keyword) {
-                // Only save if it seems like a lasting preference, not a one-off request
-                if object.count > 5 && !isTransientState(object) {
+                // Only save if it seems like a lasting preference, not a one-off request.
+                // "to listen" (a sentence cut short) says nothing; "to learn Rust" does.
+                let words = object.split(separator: " ")
+                let isBareVerb = words.first?.lowercased() == "to" && words.count < 3
+                if object.count > 5 && !isTransientState(object) && !isBareVerb {
                     addFact(subject: "User", predicate: "wants", object: object)
                 }
             }
