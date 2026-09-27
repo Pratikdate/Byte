@@ -40,17 +40,16 @@ struct TrainingFeedbackView: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(spacing: 6) {
-                Circle()
-                    .fill(Color.green)
-                    .frame(width: 8, height: 8)
-                Text("RL Training Mode")
+                Text("🐾")
+                    .font(.system(size: 14))
+                Text("Byte RL Training Mode")
                     .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(Color(red: 0.06, green: 0.09, blue: 0.16))
             }
 
             Text("Action: \(viewModel.currentActionName)")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(Color(red: 0.35, green: 0.40, blue: 0.50))
 
             HStack(spacing: 12) {
                 Button(action: { viewModel.giveGoodFeedback() }) {
@@ -62,10 +61,10 @@ struct TrainingFeedbackView: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.green.opacity(0.3))
+                    .background(Color.green.opacity(0.12))
                     .foregroundColor(.green)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.green.opacity(0.5), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.green.opacity(0.3), lineWidth: 1))
                 }
                 .buttonStyle(PlainButtonStyle())
 
@@ -78,10 +77,10 @@ struct TrainingFeedbackView: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.red.opacity(0.3))
+                    .background(Color.red.opacity(0.12))
                     .foregroundColor(.red)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.5), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.3), lineWidth: 1))
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -89,12 +88,13 @@ struct TrainingFeedbackView: View {
         .padding(12)
         .background(
             ZStack {
-                VisualEffectBlur(material: .hudWindow, blendingMode: .withinWindow)
-                Color.black.opacity(0.5)
+                VisualEffectBlur(material: .popover, blendingMode: .withinWindow)
+                Color.white.opacity(0.95)
             }
         )
         .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(red: 0.88, green: 0.91, blue: 0.94), lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
         .onAppear {
             viewModel.getBrain = getBrain
             viewModel.startPolling()

@@ -5,6 +5,7 @@
   
   ### *Empathetic, Autonomous, and Offline AI Desktop Companion*
 
+  [![YouTube Demo](https://img.shields.io/badge/YouTube-Watch%20Demo-red?logo=youtube)](https://youtu.be/Z_1ZqCDeFx0)
   [![macOS 14.0+](https://img.shields.io/badge/macOS-14.0%2B-blue.svg?logo=apple)](https://developer.apple.com/macos/)
   [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-orange.svg?logo=swift)](https://swift.org)
   [![Apple Silicon MLX](https://img.shields.io/badge/MLX-Metal%20GPU-black.svg?logo=apple)](https://github.com/ml-explore/mlx)
@@ -20,6 +21,17 @@
   <img src="./assets/motion_looking.png" width="19%" title="Looking Forward" />
   <img src="./assets/motion_sideways.png" width="19%" title="Turned Sideways" />
 </p>
+
+---
+
+## 🎬 Video Demo
+
+<div align="center">
+  <a href="https://youtu.be/Z_1ZqCDeFx0" target="_blank">
+    <img src="https://img.youtube.com/vi/Z_1ZqCDeFx0/maxresdefault.jpg" width="700" alt="Byte macOS Desktop Pet Video Demo" />
+  </a>
+  <p>🍿 <b><a href="https://youtu.be/Z_1ZqCDeFx0">Watch Byte in Action on YouTube</a></b></p>
+</div>
 
 ---
 
@@ -43,7 +55,7 @@ Unlike static desktop widgets, Byte runs a **hybrid machine learning architectur
 
 ### 🗣️ 2. 100% Offline Voice & Dialogue Loop
 - **Speech-to-Text (STT):** Local low-latency audio transcription using `faster-whisper` (Port 9000).
-- **Text-to-Speech (TTS):** Natural speech output powered by Kokoro TTS (Port 8000).
+- **Text-to-Speech (TTS):** Natural speech output powered by Kokoro TTS (Port 8880).
 - **Privacy First:** Zero cloud API dependencies; your voice audio and workspace state never leave your Mac.
 
 ### 🎮 3. 3D SceneKit Render & Physics Engine
@@ -53,8 +65,52 @@ Unlike static desktop widgets, Byte runs a **hybrid machine learning architectur
 
 ### 💻 4. macOS Workspace Awareness
 - **Accessibility API Integration (`AXUIElement`):** Reads active application names and window frame coordinates.
+- **Screen Vision (`ByteVisionEngine` + Florence-2):** Microsoft's Florence-2-Base model (Port 9005) reads on-screen text and UI regions on demand, so Byte can notice a compiler error or the file you're editing, not just which app is frontmost.
 - **Media & Headphone Detection:** Subscribes to `CoreAudio` to detect output device changes and media playback (Apple Music, Spotify).
 - **Real-Time Environment Adaptability:** Synchronizes behavior with local weather and time of day (e.g. cozy night rest mode, rainy day umbrella state).
+
+### 🎙️ 5. Full-Duplex Voice (Experimental)
+- **PersonaPlex-7B (Port 9006):** A dedicated FastAPI server for NVIDIA's [PersonaPlex-7B](https://huggingface.co/nvidia/personaplex-7b-v1) full-duplex speech model is wired into the app's TTS pipeline.
+- **Status:** the API surface (`/health`, `/prompt`, `/synthesize_speech`, `/ws/duplex`) is live, but real model inference isn't implemented yet — it currently serves placeholder audio and reports `is_mock: true` at `/health`. Byte transparently falls back to Kokoro or the system voice, so this never blocks normal use. Contributions welcome — see [backend/personaplex_server.py](backend/personaplex_server.py).
+
+---
+
+## 🗨️ Getting to Know Byte
+
+Byte is designed to feel like it's actually there with you, not a chatbot in a
+window. A few ways to build that up:
+
+- **Hold ⌘ (Command) and talk.** Byte listens, transcribes offline, and
+  replies in character — no typing required.
+- **Click, drag, and throw it.** Byte reacts physically (and emotionally) to
+  how you handle it.
+- **Just leave it running.** The Q-learning brain wanders, perches, and
+  sleeps on its own between interactions, and the `ReflectionEngine` quietly
+  reviews your conversations while Byte "sleeps" to update what it remembers
+  about you in `memory_graph.json`.
+- **Tell it about yourself.** Mention your name, what you like, or where
+  you're from in conversation — `MemoryGraph` picks facts like these up
+  automatically and Byte will bring them back up later.
+- **Open Settings** (right-click the pet) to switch its personality profile
+  and visual theme, or to see exactly which engine (LLM, vision, STT, TTS)
+  is active and what it currently believes about you and your workspace.
+- **Byte notices your workspace, not just your clicks.** Long coding
+  sessions, compiler errors on screen, and time of day all nudge its mood
+  and the breaks it suggests.
+
+### He reads the room
+
+`BehaviorDirector` combines what's playing, how focused you are, and whether you're on a call:
+
+| What you're doing | What Byte does |
+|---|---|
+| Playing music in Apple Music or Spotify | Dances, headbangs, and spins along. Artists you play a lot become "favorites" (hearts and extra excitement), and he remembers them in conversation |
+| Focused work in an IDE or terminal | Walks to a free bottom corner away from your window, sits, and quietly watches your screen with small curious glances. No chatter |
+| Focused work with music on | Stays in his corner and bobs along every so often, still quiet |
+| On a video call (Zoom, Teams, Meet, FaceTime) | Moves out of the way and stays completely silent |
+| Finishing a 25+ minute focus session | Stretches, looks proud, and cheers you on |
+
+Music detection uses the players' own system notifications: no microphone, no permission prompt, and it works with headphones. A quick alt-tab to a browser won't make him get up. He only leaves his work spot after about 45 seconds away from your editor, and if you drag him off, he walks back.
 
 ---
 
@@ -67,19 +123,22 @@ sequenceDiagram
     autonumber
     actor User
     participant App as macOS DesktopPet App (Swift)
+    participant Vision as Florence-2 Vision (Port 9005)
     participant STT as Whisper Server (Port 9000)
     participant LLM as Ollama byte-llm (Port 11434)
-    participant TTS as Kokoro TTS Server (Port 8000)
+    participant TTS as Kokoro / PersonaPlex TTS (Port 8880 / 9006)
 
+    App->>Vision: On-demand screen read (active window)
+    Vision-->>App: Extracted text / caption / UI regions
     User->>App: Voice command or text interaction
     alt Voice Input
         App->>STT: Stream Audio Bytes
         STT-->>App: Return Transcribed Text
     end
-    App->>LLM: Send CONTEXT + USER SAID
+    App->>LLM: Send CONTEXT + VISION CONTEXT + USER SAID
     LLM-->>App: Return "[ACTION: sitOnCorner] [EMOTION: love] I'm right here with you."
     App->>App: Trigger 3D Sprite Animation & State Transition
-    App->>TTS: Synthesize Text to Audio
+    App->>TTS: Synthesize Text to Audio (PersonaPlex first, Kokoro fallback)
     TTS-->>App: Return Audio Buffer
     App->>User: Play Voice Output & Perform 3D Animation
 ```
@@ -117,16 +176,26 @@ For a deep mathematical break-down, read our **[Empathy AI Architecture & Contin
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/your-username/Byte.git
+git clone https://github.com/Pratikdate/Byte.git
 cd Byte
 ```
 
-### 2. Launch Entire System (One Command)
-Run the launcher script to automatically start Ollama, Whisper STT, Kokoro TTS, and launch `DesktopPet.app`:
+### 2. Launch Entire System (Standalone macOS App)
+**Option A: Build & Run in Xcode (Recommended)**
+```bash
+open DesktopPet.xcodeproj
+# Cmd+B to build, Cmd+R to run
+```
+*On launch, `BackgroundServerManager` automatically detects (or starts) Ollama, pulls/registers the main trained model (`byte-llm`), and launches the Whisper, Kokoro, Florence-2, and PersonaPlex background microservices for you — no manual setup required.*
+
+**Option B: Background Launcher Script**
+Useful if you want the backend services running independently of the app (e.g. while developing):
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
+
+A five-minute walkthrough with troubleshooting lives in **[QUICKSTART.md](QUICKSTART.md)**.
 
 ---
 
@@ -143,10 +212,34 @@ chmod +x training/train_mlx.sh
 ./training/train_mlx.sh
 ```
 
-### Register Custom Model in Ollama:
+### Deploying the Fine-Tune to Ollama:
+`training/ByteModelfile` is `FROM llama3.2:1b`: the **base** model with Byte's prompt. Byte's personality fine-tune is a LoRA adapter that Ollama applies on top of that same base, so deploying it needs only ~50 MB, not a multi-GB fused copy.
+
 ```bash
-ollama create byte-llm -f training/ByteModelfile
+cd training
+python3 -m mlx_lm lora -c lora_config_1b.yaml   # train on train.jsonl / valid.jsonl (~35 min on an M-series Mac)
+./deploy_finetune.sh                            # convert to GGUF, create byte-llm:v2-lora, run the head-to-head
 ```
+
+`deploy_finetune.sh` never changes the model the app uses. It prints a scored comparison against the current `byte-llm` on real app prompts (tag format, Mac commands, memory use, reply time). Promote the fine-tune only if it wins:
+
+```bash
+ollama cp byte-llm byte-llm:pre-lora-backup && ollama cp byte-llm:v2-lora byte-llm
+```
+
+Details worth knowing:
+- The adapter is trained on the Llama 3.2 chat format, so `ByteModelfile.lora` uses that template. Plain `CONTEXT: … RESPONSE:` prompts don't match what it learned.
+- `build_lora_gguf.py` handles the MLX to llama.cpp conversion, including the Q/K row permutation llama.cpp uses. Without it, the adapter silently corrupts attention.
+- The older `adapters/` checkpoint (Aug 1, 200 steps) predates the current dataset. It scores worse than the base model, so don't deploy it.
+
+When `DesktopPet.app` starts, it makes sure **`byte-llm`** exists: it aliases `byte-llm:v1-fused` if you've built one, or otherwise creates `byte-llm:v1-base` from `llama3.2:1b` + ByteModelfile.
+
+### How Byte Personalizes (and Stays Fast) On-Device:
+- **Memory that persists:** facts, chat history, and learned Q-tables live in `~/Library/Application Support/Byte/`. Delete that folder to give Byte a fresh start.
+- **Facts stay clean:** a new name, city, or job replaces the old one; liking something you previously disliked flips the fact; repeated mentions make a fact rank higher.
+- **Relevant memories, not all memories:** each turn picks up to 8 facts about you, ranked by how related they are to what you just said, then by how often and how recently they came up, plus your name. This keeps the prompt within the 1B model's 2048-token window.
+- **Prompt layout built for speed:** unchanging instructions come first so Ollama reuses its cached prefix. On an M-series Mac this cut prompt processing from about 460 ms to about 40 ms per turn. The model is warmed up at launch and kept loaded for 30 minutes between chats.
+- **Safe Mac control:** `[CMD: ...]` actions are parsed against a short allowlist (open an app or web URL, volume, mute, dark mode, screenshot, sleep, Spotlight search) and run directly, never through a shell. Commands the model emits are honored only on turns where you asked for something, so on-screen text can't trigger them.
 
 ---
 
@@ -156,8 +249,11 @@ ollama create byte-llm -f training/ByteModelfile
 Byte/
 ├── DesktopPet/                   # Native macOS Swift overlay app
 │   ├── AIEngine.swift            # LLM prompt synthesis & response parsing
+│   ├── AppDelegate.swift         # App lifecycle + BackgroundServerManager (auto-starts local services)
 │   ├── PetScene.swift            # 3D SceneKit rendering & custom physics loop
 │   ├── PetBrain.swift            # State machine & priority queue
+│   ├── ByteVisionEngine.swift    # Screen-reading context (Accessibility API + Florence-2)
+│   ├── MemoryGraph.swift         # Long-term facts & behavioral rules about the user
 │   └── ReinforcementLearningModel.swift # Swift Q-Learning engine
 ├── DesktopPet.xcodeproj          # Xcode project configuration
 ├── docs/                         # In-depth architectural & ML documentation
@@ -171,9 +267,12 @@ Byte/
 │   ├── train.jsonl               # Master training dataset (38k+ pairs)
 │   └── valid.jsonl               # Validation dataset (6.8k pairs)
 ├── backend/                      # Python microservices
-│   ├── whisper_server.py         # Offline speech-to-text API
-│   └── tts_server.py             # Kokoro text-to-speech API
+│   ├── whisper_server.py         # Offline speech-to-text API (Port 9000)
+│   ├── tts_server.py             # Kokoro text-to-speech API (Port 8880)
+│   ├── florence_vision_server.py # Microsoft Florence-2 screen-reading API (Port 9005)
+│   └── personaplex_server.py     # NVIDIA PersonaPlex-7B full-duplex speech API (Port 9006, experimental)
 ├── assets/                       # Sprites, motion renders, and logos
+├── QUICKSTART.md                 # 5-minute setup + troubleshooting
 └── start.sh                      # Universal background launcher script
 ```
 

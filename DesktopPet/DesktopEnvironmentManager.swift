@@ -105,7 +105,7 @@ class DesktopEnvironmentManager {
                 var axFrame: CFTypeRef?
                 if AXUIElementCopyAttributeValue(dockElement, "AXFrame" as CFString, &axFrame) == .success {
                     var rect = CGRect.zero
-                    if AXValueGetValue(axFrame as! AXValue, .cgRect, &rect) {
+                    if let val = axFrame, CFGetTypeID(val) == AXValueGetTypeID(), AXValueGetValue(val as! AXValue, .cgRect, &rect) {
                         elements.append(DesktopElement(type: .taskbar, frame: rect, title: "Dock"))
                     }
                 } else {

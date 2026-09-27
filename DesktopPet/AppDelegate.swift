@@ -315,8 +315,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         if settingsWindow == nil {
             let view = NSHostingView(rootView: ByteSettingsView())
             let win = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
-                styleMask: [.titled, .closable, .miniaturizable],
+                contentRect: NSRect(x: 0, y: 0, width: 580, height: 580),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable],
                 backing: .buffered,
                 defer: false
             )
@@ -391,6 +391,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 win.isOpaque = false
                 win.backgroundColor = .clear
                 win.level = .floating
+                win.isReleasedWhenClosed = false
                 win.contentView = view
                 trainingWindow = win
             }
@@ -416,6 +417,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             win.isOpaque = false
             win.backgroundColor = .clear
             win.level = .floating
+            win.isReleasedWhenClosed = false
             win.contentView = view
             realtimeDebugWindow = win
         }
@@ -547,7 +549,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     // MARK: - Voice Input (Command Long-Press)
     private func beginPetListening() {
         guard !isListeningForPet else { return }
-        guard let scene = scnView.scene as? PetScene else { return }
+        guard let scnView = scnView, let scene = scnView.scene as? PetScene else { return }
         isListeningForPet = true
         scene.brain.isListeningToUser = true
         scene.showListeningState(true)
@@ -557,7 +559,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
     
     private func finishPetListening() {
         guard isListeningForPet else { return }
-        guard let scene = scnView.scene as? PetScene else { return }
+        guard let scnView = scnView, let scene = scnView.scene as? PetScene else { return }
         isListeningForPet = false
         scene.brain.isListeningToUser = false
         scene.showListeningState(false)
@@ -615,45 +617,182 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 // MARK: - Autonomous Background Services Manager
 class BackgroundServerManager {
     static let shared = BackgroundServerManager()
-    
+
+    /// Resolved once at launch from this source file's on-disk location, so the
+    /// manager works from any checkout instead of a single developer's machine.
+    /// Falls back to the app bundle's directory if the project has been moved
+    /// or the source path is unavailable (e.g. a stripped release build).
+    static let projectRoot: String = {
+        if let envRoot = ProcessInfo.processInfo.environment["BYTE_PROJECT_ROOT"] {
+            return envRoot
+        }
+        // AppDelegate.swift lives at "<repo>/DesktopPet/AppDelegate.swift"
+        let sourceURL = URL(fileURLWithPath: #filePath)
+        let candidateRoot = sourceURL.deletingLastPathComponent().deletingLastPathComponent().path
+        if FileManager.default.fileExists(atPath: "\(candidateRoot)/backend") {
+            return candidateRoot
+        }
+        return Bundle.main.bundlePath
+    }()
+
     func ensureServicesRunning() {
         DispatchQueue.global(qos: .utility).async {
-            self.ensureOllamaRunning()
+            self.ensureOllamaRunningAndModelRegistered()
             self.ensureWhisperServerRunning()
             self.ensureTTSServerRunning()
             self.ensureFlorenceVisionServerRunning()
+            self.ensurePersonaPlexServerRunning()
         }
     }
-    
-    private func ensureOllamaRunning() {
-        guard let url = URL(string: "http://localhost:11434/api/tags") else { return }
-        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2.0)
+
+    private func getOllamaExecutablePath() -> String? {
+        let candidatePaths = [
+            "/usr/local/bin/ollama",
+            "/opt/homebrew/bin/ollama",
+            "\(NSHomeDirectory())/.ollama/bin/ollama",
+            "\(NSHomeDirectory())/.homebrew/bin/ollama",
+            "/usr/bin/ollama"
+        ]
+        for path in candidatePaths {
+            if FileManager.default.fileExists(atPath: path) {
+                return path
+            }
+        }
+        return nil
+    }
+
+    private func getPythonExecutablePath() -> String {
+        let rootPath = Self.projectRoot
+        let candidatePythons = [
+            "\(rootPath)/.venv/bin/python3",
+            "\(rootPath)/.venv2/bin/python3",
+            "/opt/homebrew/bin/python3",
+            "/usr/local/bin/python3",
+            "/usr/bin/python3"
+        ]
+        for py in candidatePythons {
+            if FileManager.default.fileExists(atPath: py) {
+                return py
+            }
+        }
+        return "/usr/bin/python3"
+    }
+
+    private func ensureOllamaRunningAndModelRegistered() {
+        guard let tagsUrl = URL(string: "http://localhost:11434/api/tags") else { return }
+        
+        var isRunning = false
+        var responseData: Data? = nil
+        
+        var request = URLRequest(url: tagsUrl, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2.0)
         request.httpMethod = "GET"
         
         let sema = DispatchSemaphore(value: 0)
-        var isRunning = false
-        
-        let task = URLSession.shared.dataTask(with: request) { _, response, _ in
+        let task = URLSession.shared.dataTask(with: request) { data, response, _ in
             if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
                 isRunning = true
+                responseData = data
             }
             sema.signal()
         }
         task.resume()
         _ = sema.wait(timeout: .now() + 2.5)
         
+        let ollamaBin = getOllamaExecutablePath()
+        
         if !isRunning {
             print("🚀 [BackgroundServerManager] Starting local Ollama server...")
-            let proc = Process()
-            var ollamaPath = "/usr/local/bin/ollama"
-            if !FileManager.default.fileExists(atPath: ollamaPath) {
-                ollamaPath = "/opt/homebrew/bin/ollama"
-            }
-            if FileManager.default.fileExists(atPath: ollamaPath) {
-                proc.executableURL = URL(fileURLWithPath: ollamaPath)
+            if let binaryPath = ollamaBin {
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: binaryPath)
                 proc.arguments = ["serve"]
                 try? proc.run()
+                Thread.sleep(forTimeInterval: 3.0) // Allow Ollama to bind
+            } else {
+                print("⚠️ [BackgroundServerManager] Ollama binary not found in standard paths. Byte's chat brain needs it — asking the user to install it rather than installing software silently.")
+                notifyUser(
+                    title: "Byte needs Ollama",
+                    body: "Install Ollama (ollama.ai) so Byte can chat, then relaunch Byte."
+                )
+                return
             }
+        }
+
+        // Make sure "byte-llm" exists: alias the fine-tune if built, else create it from the base model
+        self.verifyAndRegisterByteModel(ollamaBin: ollamaBin, existingTagsData: responseData)
+        LocalOllamaProvider.refreshPromptStyle()
+        self.warmUpByteModel()
+    }
+
+    /// Loads byte-llm into memory at launch (a request with no prompt only loads the model),
+    /// so the user's first "hey Byte" doesn't wait on a cold model load.
+    private func warmUpByteModel() {
+        guard let url = URL(string: "http://localhost:11434/api/generate") else { return }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 60)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "model": "byte-llm",
+            "keep_alive": LocalOllamaProvider.keepAlive
+        ])
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                print("🔥 [BackgroundServerManager] byte-llm warmed up and resident for \(LocalOllamaProvider.keepAlive).")
+            } else {
+                print("⚠️ [BackgroundServerManager] byte-llm warm-up skipped: \(error?.localizedDescription ?? "model not ready")")
+            }
+        }.resume()
+    }
+
+    private func verifyAndRegisterByteModel(ollamaBin: String?, existingTagsData: Data?) {
+        var installedModels: [String] = []
+        if let data = existingTagsData,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let models = json["models"] as? [[String: Any]] {
+            installedModels = models.compactMap { $0["name"] as? String }
+        }
+
+        // The app always requests "byte-llm", which Ollama resolves to "byte-llm:latest".
+        if installedModels.contains("byte-llm:latest") {
+            print("✅ [BackgroundServerManager] Model 'byte-llm' is ready.")
+            return
+        }
+
+        let modelfilePath = "\(Self.projectRoot)/training/ByteModelfile"
+        guard let binaryPath = ollamaBin else { return }
+
+        if installedModels.contains("byte-llm:v1-fused") {
+            // Built by training/deploy_finetune.sh from the real LoRA fine-tune. Never
+            // rebuild this tag here: ByteModelfile is the base model and would overwrite it.
+            print("🧠 [BackgroundServerManager] Using fine-tuned 'byte-llm:v1-fused' as 'byte-llm'...")
+            let aliasProc = Process()
+            aliasProc.executableURL = URL(fileURLWithPath: binaryPath)
+            aliasProc.arguments = ["cp", "byte-llm:v1-fused", "byte-llm"]
+            try? aliasProc.run()
+            aliasProc.waitUntilExit()
+            print("✅ [BackgroundServerManager] Registered 'byte-llm:v1-fused' as main model 'byte-llm'.")
+        } else if FileManager.default.fileExists(atPath: modelfilePath) {
+            print("📦 [BackgroundServerManager] Pulling base model 'llama3.2:1b' for version 'byte-llm:v1-base'...")
+            let pullProc = Process()
+            pullProc.executableURL = URL(fileURLWithPath: binaryPath)
+            pullProc.arguments = ["pull", "llama3.2:1b"]
+            try? pullProc.run()
+            pullProc.waitUntilExit()
+
+            print("🧠 [BackgroundServerManager] Creating model version 'byte-llm:v1-base' from ByteModelfile...")
+            let proc = Process()
+            proc.executableURL = URL(fileURLWithPath: binaryPath)
+            proc.arguments = ["create", "byte-llm:v1-base", "-f", modelfilePath]
+            try? proc.run()
+            proc.waitUntilExit()
+
+            // Assign main alias 'byte-llm'
+            let aliasProc = Process()
+            aliasProc.executableURL = URL(fileURLWithPath: binaryPath)
+            aliasProc.arguments = ["cp", "byte-llm:v1-base", "byte-llm"]
+            try? aliasProc.run()
+            aliasProc.waitUntilExit()
+            print("✅ [BackgroundServerManager] Successfully registered 'byte-llm:v1-base' as main model 'byte-llm'.")
         }
     }
     
@@ -675,12 +814,13 @@ class BackgroundServerManager {
         _ = sema.wait(timeout: .now() + 2.5)
         
         if !isRunning {
-            let rootPath = "/Users/shanacoder/Documents/Byte"
-            let venvPy = "\(rootPath)/.venv/bin/python3"
+            let rootPath = Self.projectRoot
+            let pythonBin = getPythonExecutablePath()
             let scriptPath = "\(rootPath)/backend/whisper_server.py"
             if FileManager.default.fileExists(atPath: scriptPath) {
+                print("🚀 [BackgroundServerManager] Starting Whisper Speech-to-Text Server on port 9000...")
                 let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: FileManager.default.fileExists(atPath: venvPy) ? venvPy : "/usr/bin/python3")
+                proc.executableURL = URL(fileURLWithPath: pythonBin)
                 proc.arguments = [scriptPath]
                 try? proc.run()
             }
@@ -688,29 +828,42 @@ class BackgroundServerManager {
     }
 
     private func ensureTTSServerRunning() {
-        guard let url = URL(string: "http://localhost:8000/health") else { return }
+        guard let url = URL(string: "http://localhost:8880/health") else { return }
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2.0)
         request.httpMethod = "GET"
         
         let sema = DispatchSemaphore(value: 0)
         var isRunning = false
         
-        let task = URLSession.shared.dataTask(with: request) { _, response, _ in
+        var portTakenByOtherApp = false
+        let task = URLSession.shared.dataTask(with: request) { data, response, _ in
             if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
-                isRunning = true
+                // Any web app can answer /health with 200; only count it if it's Byte's voice.
+                let body = data.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                if body.contains("byte-kokoro-tts") {
+                    isRunning = true
+                } else {
+                    portTakenByOtherApp = true
+                }
             }
             sema.signal()
         }
         task.resume()
         _ = sema.wait(timeout: .now() + 2.5)
-        
+
+        if portTakenByOtherApp {
+            print("⚠️ [BackgroundServerManager] Port 8880 is used by another app, so Byte's Kokoro voice can't start. Byte will use the macOS voice. Set BYTE_TTS_PORT or free the port.")
+            return
+        }
+
         if !isRunning {
-            let rootPath = "/Users/shanacoder/Documents/Byte"
-            let venvPy = "\(rootPath)/.venv/bin/python3"
+            let rootPath = Self.projectRoot
+            let pythonBin = getPythonExecutablePath()
             let scriptPath = "\(rootPath)/backend/tts_server.py"
             if FileManager.default.fileExists(atPath: scriptPath) {
+                print("🚀 [BackgroundServerManager] Starting Kokoro TTS Server on port 8880...")
                 let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: FileManager.default.fileExists(atPath: venvPy) ? venvPy : "/usr/bin/python3")
+                proc.executableURL = URL(fileURLWithPath: pythonBin)
                 proc.arguments = [scriptPath]
                 try? proc.run()
             }
@@ -735,16 +888,65 @@ class BackgroundServerManager {
         _ = sema.wait(timeout: .now() + 2.5)
         
         if !isRunning {
-            let rootPath = "/Users/shanacoder/Documents/Byte"
-            let venvPy = "\(rootPath)/.venv/bin/python3"
+            let rootPath = Self.projectRoot
+            let pythonBin = getPythonExecutablePath()
             let scriptPath = "\(rootPath)/backend/florence_vision_server.py"
             if FileManager.default.fileExists(atPath: scriptPath) {
-                print("🚀 [BackgroundServerManager] Starting Florence-2-Base (232M) Vision Server on port 9005...")
+                print("🚀 [BackgroundServerManager] Starting Florence-2 Vision Server on port 9005...")
                 let proc = Process()
-                proc.executableURL = URL(fileURLWithPath: FileManager.default.fileExists(atPath: venvPy) ? venvPy : "/usr/bin/python3")
+                proc.executableURL = URL(fileURLWithPath: pythonBin)
                 proc.arguments = [scriptPath]
                 try? proc.run()
             }
+        }
+    }
+
+    private func ensurePersonaPlexServerRunning() {
+        guard let url = URL(string: "http://localhost:9006/health") else { return }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 2.0)
+        request.httpMethod = "GET"
+
+        let sema = DispatchSemaphore(value: 0)
+        var isRunning = false
+
+        let task = URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
+                isRunning = true
+            }
+            sema.signal()
+        }
+        task.resume()
+        _ = sema.wait(timeout: .now() + 2.5)
+
+        if !isRunning {
+            let rootPath = Self.projectRoot
+            let pythonBin = getPythonExecutablePath()
+            let scriptPath = "\(rootPath)/backend/personaplex_server.py"
+            if FileManager.default.fileExists(atPath: scriptPath) {
+                print("🚀 [BackgroundServerManager] Starting PersonaPlex-7B Full-Duplex Server on port 9006...")
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: pythonBin)
+                proc.arguments = [scriptPath]
+                try? proc.run()
+            }
+        }
+    }
+
+    /// Surfaces a local notification instead of taking side-effecting action
+    /// (like a silent package install) on the user's machine without asking.
+    private func notifyUser(title: String, body: String) {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            guard granted else {
+                print("ℹ️ [BackgroundServerManager] \(title): \(body)")
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+            center.add(request, withCompletionHandler: nil)
         }
     }
 }

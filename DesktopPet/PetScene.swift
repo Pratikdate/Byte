@@ -516,9 +516,7 @@ class PetScene: SCNScene {
             let floatUp = SKAction.moveBy(x: CGFloat.random(in: -15...15), y: 60, duration: 1.2 + Double(i) * 0.3)
             let fadeOut = SKAction.fadeAlpha(to: 0, duration: 1.0 + Double(i) * 0.3)
             let scale = SKAction.scale(to: 1.5, duration: 1.2)
-            heart.run(SKAction.group([floatUp, fadeOut, scale])) {
-                heart.removeFromParent()
-            }
+            heart.run(SKAction.sequence([SKAction.group([floatUp, fadeOut, scale]), SKAction.removeFromParent()]))
         }
     }
     
@@ -536,9 +534,7 @@ class PetScene: SCNScene {
         let floatUp = SKAction.moveBy(x: 15, y: 40, duration: 2.0)
         let grow = SKAction.scale(to: 1.8, duration: 2.0)
         let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.8)
-        zzz.run(SKAction.sequence([fadeIn, SKAction.group([floatUp, grow]), fadeOut])) {
-            zzz.removeFromParent()
-        }
+        zzz.run(SKAction.sequence([fadeIn, SKAction.group([floatUp, grow]), fadeOut, SKAction.removeFromParent()]))
     }
     
     private func showSparkleParticles() {
@@ -556,9 +552,7 @@ class PetScene: SCNScene {
             let drift = SKAction.moveBy(x: CGFloat.random(in: -10...10), y: CGFloat.random(in: 10...30), duration: 0.8)
             let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.3)
             let rotate = SKAction.rotate(byAngle: .pi, duration: 1.0)
-            sparkle.run(SKAction.sequence([delay, fadeIn, SKAction.group([drift, rotate]), fadeOut])) {
-                sparkle.removeFromParent()
-            }
+            sparkle.run(SKAction.sequence([delay, fadeIn, SKAction.group([drift, rotate]), fadeOut, SKAction.removeFromParent()]))
         }
     }
     
@@ -574,9 +568,7 @@ class PetScene: SCNScene {
         let drop = SKAction.moveBy(x: 3, y: -40, duration: 0.6)
         drop.timingMode = .easeIn
         let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.2)
-        sweat.run(SKAction.sequence([fadeIn, drop, fadeOut])) {
-            sweat.removeFromParent()
-        }
+        sweat.run(SKAction.sequence([fadeIn, drop, fadeOut, SKAction.removeFromParent()]))
     }
     
     private func showAngryCloudParticle() {
@@ -590,9 +582,7 @@ class PetScene: SCNScene {
         let fadeIn = SKAction.fadeAlpha(to: 1.0, duration: 0.1)
         let puff = SKAction.scale(to: 1.8, duration: 0.4)
         let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.5)
-        cloud.run(SKAction.sequence([fadeIn, puff, fadeOut])) {
-            cloud.removeFromParent()
-        }
+        cloud.run(SKAction.sequence([fadeIn, puff, fadeOut, SKAction.removeFromParent()]))
     }
     
     // MARK: - Update Loop
@@ -682,7 +672,7 @@ class PetScene: SCNScene {
         
         // Laser Pointer Logic
         if isLaserPointerActive {
-            laserNode.position = SCNVector3(worldX, worldY, 0)
+            laserNode?.position = SCNVector3(worldX, worldY, 0)
             
             if distanceToMouse < 1.5 {
                 // Caught it!
@@ -840,6 +830,12 @@ class PetScene: SCNScene {
         default: break
         }
         
+        // Watching the user work: eyes rest on their window with small curious glances.
+        if let watch = brain.behaviorDirector.watchTarget(),
+           [.sit, .idle, .headbang].contains(brain.currentAction) {
+            lookAt(targetX: watch.x, targetY: watch.y)
+        }
+
         // Hover Awareness (Overrides looking if mouse is close)
         if distanceToMouse < 3.0 && brain.currentAction != .sleep && brain.currentAction != .dizzy && brain.currentAction != .sulk {
              lookAt(targetX: mouseLocation.x, targetY: mouseLocation.y)
@@ -850,7 +846,7 @@ class PetScene: SCNScene {
         
         // DJ Headphones (Music/Spotify or Physical Headphones connected)
         let activeApp = DesktopEnvironmentManager.shared.activeAppTracker.lowercased()
-        if activeApp.contains("music") || activeApp.contains("spotify") || AudioMonitor.shared.isHeadphoneConnected {
+        if NowPlayingMonitor.shared.isPlaying || activeApp.contains("music") || activeApp.contains("spotify") || AudioMonitor.shared.isHeadphoneConnected {
             headphoneBandNode.isHidden = false
             
             // Make the existing headphones glow neon!
@@ -2119,9 +2115,7 @@ class PetScene: SCNScene {
             )
             let spin = SKAction.rotate(byAngle: CGFloat.random(in: -.pi...(.pi)), duration: 1.2)
             let fadeOut = SKAction.fadeAlpha(to: 0, duration: 0.4)
-            confetti.run(SKAction.sequence([delay, fadeIn, SKAction.group([drift, spin]), fadeOut])) {
-                confetti.removeFromParent()
-            }
+            confetti.run(SKAction.sequence([delay, fadeIn, SKAction.group([drift, spin]), fadeOut, SKAction.removeFromParent()]))
         }
     }
     
@@ -2133,8 +2127,6 @@ class PetScene: SCNScene {
         let padding: CGFloat = 12.0
         let bubbleWidth = max(textFrame.width + padding * 2, 60)
         let bubbleHeight = max(textFrame.height + padding * 2, 30)
-        
-        speechBubbleBG?.removeFromParent()
         
         let cornerRadius: CGFloat = 8.0
         let imageSize = NSSize(width: bubbleWidth + 40, height: bubbleHeight + 40)
@@ -2161,13 +2153,16 @@ class PetScene: SCNScene {
         }
         image.unlockFocus()
         
-        let newBG = SKSpriteNode(texture: SKTexture(image: image))
-        newBG.zPosition = -1
-        // Offset slightly to match the drawn rect position relative to center
-        newBG.position = CGPoint(x: 0, y: -5)
-        
-        speechContainer?.addChild(newBG)
-        speechBubbleBG = newBG
+        let newTexture = SKTexture(image: image)
+        if let bg = speechBubbleBG {
+            bg.texture = newTexture
+        } else {
+            let newBG = SKSpriteNode(texture: newTexture)
+            newBG.zPosition = -1
+            newBG.position = CGPoint(x: 0, y: -5)
+            speechContainer?.addChild(newBG)
+            speechBubbleBG = newBG
+        }
         
         speechContainer?.alpha = 1.0
     }

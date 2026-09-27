@@ -14,7 +14,8 @@ default_voice = 'am_onyx'
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "ok"}), 200
+    # "service" lets Byte tell its own voice server apart from any other app on the port.
+    return jsonify({"status": "ok", "service": "byte-kokoro-tts"}), 200
 
 @app.route('/synthesize', methods=['POST'])
 def synthesize():
@@ -62,6 +63,9 @@ def synthesize():
         return str(e), 500
 
 if __name__ == '__main__':
-    # Run the server on port 8000 (which AudioManager.swift expects)
-    print("Starting Kokoro TTS Server on port 8000...")
-    app.run(host='0.0.0.0', port=8000)
+    # 8880, not 8000: 8000 is the default for most dev servers (uvicorn, Django, ...), and
+    # when one of those held it, Byte's voice silently broke. Override with BYTE_TTS_PORT.
+    import os
+    port = int(os.getenv("BYTE_TTS_PORT", "8880"))
+    print(f"Starting Kokoro TTS Server on port {port}...")
+    app.run(host='127.0.0.1', port=port)

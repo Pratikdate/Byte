@@ -16,6 +16,25 @@ enum PetAction: String {
 enum PetEmotion: String {
     case happy, sad, angry, curious, sleepy, bored, thinking, normal, dizzy, shock, love, excited, embarrassed
     case proud
+
+    /// The model (and its training data) uses a richer emotion vocabulary than Byte has
+    /// faces for. Map those words onto the closest face instead of silently ignoring them;
+    /// about 40% of the fine-tune dataset's emotion tags are words like these.
+    static func fromModelTag(_ tag: String) -> PetEmotion? {
+        let key = tag.trimmingCharacters(in: .whitespaces).lowercased()
+        if let exact = PetEmotion(rawValue: key) { return exact }
+        switch key {
+        case "calm", "quiet":            return .normal
+        case "cozy", "coffee":           return .happy
+        case "working", "focused":       return .thinking
+        case "empathetic", "cold":       return .sad        // soft, sympathetic eyes
+        case "dj", "hyped":              return .excited
+        case "surprised":                return .shock
+        case "batterylow", "tired":      return .sleepy
+        case "loving", "grateful":       return .love
+        default:                         return nil
+        }
+    }
 }
 
 enum PetMode: String {
@@ -91,6 +110,12 @@ class PetIdleState: PetBaseState {
         // Every few seconds, score possible actions
         if actionTimer > nextActionTime {
             actionTimer = 0
+
+            // Music / focus / meeting behaviors take priority over ambient choices.
+            if let next = brain.behaviorDirector.handleIdleTick() {
+                nextActionTime = next
+                return
+            }
             
             if brain.exploreCount > 0 {
                 brain.exploreCount -= 1
@@ -133,6 +158,17 @@ class PetWanderState: PetBaseState {
         
         let elements = DesktopEnvironmentManager.shared.visibleElements.filter { $0.type == .window }
         var targetedWindow = false
+
+        // A caller that knows where Byte should go (bed corner, his work-watching spot)
+        // sets pendingWalkTarget; without this, the random target below overrode it.
+        if let requested = brain.pendingWalkTarget {
+            brain.pendingWalkTarget = nil
+            brain.didQWander = false
+            brain.currentAction = .wander
+            brain.onStartWalk?(requested.0, requested.1)
+            return
+        }
+        brain.arrivalAction = nil
         
         if !elements.isEmpty && Double.random(in: 0...1) < 0.3 {
             if let targetWindow = elements.randomElement() {
@@ -285,6 +321,13 @@ class PetBrain {
     var forceUpdate = false
     var isMuted = false
     var isTrainingMode = false
+
+    /// Where the next PetWanderState walk should go, and what to do on arrival.
+    var pendingWalkTarget: (CGFloat, CGFloat)?
+    var arrivalAction: PetAction?
+
+    /// Reads the room: dances to music, sits aside to watch during focused work, hushes in meetings.
+    lazy var behaviorDirector = BehaviorDirector(brain: self)
     
     init() {
         stateMachine.enter(PetIdleState.self) // Start idle — let AI decide what to do first
@@ -292,17 +335,20 @@ class PetBrain {
         NotificationCenter.default.addObserver(forName: NSNotification.Name("ActiveAppChanged"), object: nil, queue: .main) { [weak self] notification in
             guard let self = self, let appName = notification.object as? String else { return }
             
+            // Wake up if sleeping and app changes
+            if self.currentAction == .sleep {
+                self.applyAction(.idle)
+            }
+
+            // Don't hop around or comment while the user is focused or on a call.
+            if self.behaviorDirector.suppressesAmbient { return }
+
             // App-specific reactions
             let lowerApp = appName.lowercased()
             if lowerApp.contains("music") || lowerApp.contains("spotify") {
                 self.applyAction(.headbang)
             } else if lowerApp.contains("safari") || lowerApp.contains("chrome") || lowerApp.contains("browser") {
                 self.applyAction(.peekWindow)
-            }
-            
-            // Wake up if sleeping and app changes
-            if self.currentAction == .sleep {
-                self.applyAction(.idle)
             }
             
             // Occasionally comment on the new app — reactive event, but respect attention.
@@ -313,7 +359,9 @@ class PetBrain {
         
         NotificationCenter.default.addObserver(forName: NSNotification.Name("UserTypingFast"), object: nil, queue: .main) { [weak self] _ in
             guard let self = self else { return }
-            if self.currentAction == .idle && Double.random(in: 0...1) < 0.4 {
+            let focus = FocusEngine.shared.currentFocusLevel
+            let isFocusedWork = (focus == .deepWork || focus == .debugging)
+            if !isFocusedWork && !self.behaviorDirector.suppressesAmbient && self.currentAction == .idle && Double.random(in: 0...1) < 0.4 {
                 // If idle, occasionally dance to the typing rhythm
                 self.triggerTypingDance()
             }
@@ -331,12 +379,14 @@ class PetBrain {
             }
         }
         AudioMonitor.shared.onRhythmicMusic = { [weak self] in
-            if self?.currentAction == .idle || self?.currentAction == .wander {
-                self?.applyAction(.dance)
+            guard let self = self, !self.behaviorDirector.suppressesAmbient else { return }
+            if self.currentAction == .idle || self.currentAction == .wander {
+                self.applyAction(.dance)
             }
         }
         
         WeatherManager.shared.startMonitoring()
+        _ = behaviorDirector   // start listening for music now, not on first use
     }
     
     deinit {
@@ -376,6 +426,7 @@ class PetBrain {
         let isUserDirected = (userMessage != nil && !(userMessage?.isEmpty ?? true))
 
         if isListeningToUser && !isUserDirected { return } // Prevent background chatter while listening
+        if !isUserDirected && behaviorDirector.suppressesAmbient { return } // Quiet while they focus or are on a call
         // A user-directed message always gets through — never dropped behind an ambient query.
         if isQueryingAI && !isUserDirected { return }
 
@@ -388,10 +439,10 @@ class PetBrain {
             }
         }
 
-        if isUserDirected {
+        if isUserDirected, let msg = userMessage {
             // Barge-in: cut off any ambient speech so the reply feels immediate, not queued.
             AudioManager.shared.stopSpeaking()
-            InteractionDirector.shared.recordUserTurn(userMessage!)
+            InteractionDirector.shared.recordUserTurn(msg)
         }
 
         // Bump generation so any older in-flight request is discarded when it returns.
@@ -434,12 +485,17 @@ class PetBrain {
                     let ty = decision.target_y.map { CGFloat($0) }
                     self.handleSpatialCommand(action: decision.action, targetX: tx, targetY: ty)
                 } else if let action = PetAction(rawValue: decision.action) {
-                    self.applyAction(action)
+                    // While he's settled watching you work (or you're on a call), he answers
+                    // from his spot instead of getting up for a stretch or a backflip.
+                    let staysInSpot: Set<PetAction> = [.sit, .idle, .wave, .headbang, .bow]
+                    if !self.behaviorDirector.suppressesAmbient || staysInSpot.contains(action) {
+                        self.applyAction(action)
+                    }
                 } else {
                     self.evaluateNextAction()
                 }
 
-                if let emotion = PetEmotion(rawValue: decision.emotion) {
+                if let emotion = PetEmotion.fromModelTag(decision.emotion) {
                     self.currentEmotion = emotion
                 }
             },
@@ -509,8 +565,7 @@ class PetBrain {
         case .sleep:
             // Don't sleep immediately. Wander to an extreme empty corner first.
             isGoingToSleep = true
-            let (targetX, targetY) = findFreeCorner()
-            onStartWalk?(targetX, targetY)
+            pendingWalkTarget = findFreeCorner()
             currentAction = .wander
             stateMachine.enter(PetWanderState.self)
         case .idle:
@@ -578,6 +633,10 @@ class PetBrain {
             currentEmotion = .sleepy
             stateMachine.enter(PetSleepState.self)
             forceUpdate = true
+        } else if let action = arrivalAction {
+            arrivalAction = nil
+            applyAction(action)
+            behaviorDirector.didSettle()
         } else {
             if didQWander, let state = lastQState, let action = lastQAction {
                 let nextState = getCurrentSector()
@@ -664,6 +723,7 @@ class PetBrain {
         let oldAction = currentAction
         let oldEmotion = currentEmotion
         let idleTime = CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: CGEventType(rawValue: ~0)!)
+        behaviorDirector.update()
         
         // Update routine phase every 30 seconds (no need to compute every tick)
         if currentTime - lastRoutineCheck > 30.0 {
@@ -696,16 +756,14 @@ class PetBrain {
         let isLateNight = (currentRoutinePhase == .lateNight)
         if isLateNight && idleTime > 15.0 && currentAction == .idle {
             isGoingToSleep = true
-            let (targetX, targetY) = findFreeCorner()
-            onStartWalk?(targetX, targetY)
+            pendingWalkTarget = findFreeCorner()
             currentAction = .wander
             currentEmotion = .sleepy
             stateMachine.enter(PetWanderState.self)
         } else if idleTime > 25.0 {
             if currentAction == .idle {
                 isGoingToSleep = true
-                let (targetX, targetY) = findFreeCorner()
-                onStartWalk?(targetX, targetY)
+                pendingWalkTarget = findFreeCorner()
                 currentAction = .wander
                 currentEmotion = .sleepy
                 stateMachine.enter(PetWanderState.self)
@@ -831,6 +889,20 @@ class PetBrain {
         }
     }
     
+    /// A short in-character remark about something that just happened (a song, a finished
+    /// focus session). Callers check InteractionDirector.shouldSpeak first.
+    /// `event` is the short form of `context` used by the fine-tuned model's compact prompt.
+    func speakReaction(context: String, emotion: String, event: String? = nil) {
+        AIEngine.shared.generateComment(context: context, emotion: emotion, event: event) { [weak self] comment in
+            DispatchQueue.main.async {
+                guard let comment = comment, !comment.isEmpty else { return }
+                print("💬 [Byte] (\(event ?? "reaction")) \(comment)")
+                self?.onSentenceGenerated?(comment)
+                self?.onSpeechComplete?()
+            }
+        }
+    }
+
     // MARK: - Downloads Curiosity
     func triggerCuriosity(about fileName: String) {
         curiosity = min(100, curiosity + 40)
@@ -842,7 +914,7 @@ class PetBrain {
         // Reactive event — comment only if the user is around to notice.
         if !isMuted && InteractionDirector.shared.shouldSpeak(.reactive) {
             let context = "A new file just appeared in the user's Downloads folder: \(fileName)"
-            AIEngine.shared.generateComment(context: context, emotion: "curious") { [weak self] comment in
+            AIEngine.shared.generateComment(context: context, emotion: "curious", event: "new file in Downloads: \(fileName)") { [weak self] comment in
                 DispatchQueue.main.async {
                     if let comment = comment {
                         self?.onSentenceGenerated?(comment)
@@ -1193,15 +1265,13 @@ class QLearningManager {
     }
     
     private var fileURL: URL {
-        let sourceFileURL = URL(fileURLWithPath: #file)
-        let projectDir = sourceFileURL.deletingLastPathComponent().deletingLastPathComponent()
-        return projectDir.appendingPathComponent("spatial_qtable.json")
+        return ByteStorage.url(for: "spatial_qtable.json")
     }
 
     private func saveQTable() {
         do {
             let data = try JSONEncoder().encode(qTable)
-            try data.write(to: fileURL)
+            try data.write(to: fileURL, options: .atomic)
             UserDefaults.standard.set(qTable, forKey: userDefaultsKey)
         } catch {
             print("Failed to save Spatial Q-Table: \(error)")

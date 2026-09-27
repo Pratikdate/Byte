@@ -146,21 +146,134 @@ class GeminiAPIProvider: AIProvider {
     }
 }
 
+// MARK: - Compact Prompt (fine-tuned model)
+/// The context format Byte's LoRA fine-tune was trained on (see training/dataset_v2):
+///
+///   User: [USER PROFILE: name=Pratik] [WORKSPACE: Xcode active, PetScene.swift] [FOCUS: deep work]
+///         [NOW PLAYING: 'Kesariya' by Arijit Singh] [MEMORY: they listen to ...]
+///         [RECENT: User: "..." / Byte: "..."] [EVENT: ...] | User: "what's up?"
+///
+/// The fine-tune carries Byte's personality and tag format in its weights, so it doesn't
+/// need the ~1,000-token instruction block the base model gets, which also makes replies faster.
+enum CompactPrompt {
+    static func build(userMessage: String?, visionTags: [String] = [], event: String? = nil) -> String {
+        var tags: [String] = []
+        if let name = MemoryGraph.shared.userName {
+            tags.append("[USER PROFILE: name=\(name)]")
+        }
+
+        let dev = DeveloperContextMonitor.shared.currentContext
+        if !dev.activeAppName.isEmpty {
+            let file = dev.activeFileOrTitle.isEmpty || dev.activeFileOrTitle == dev.activeAppName
+                ? "" : ", \(clip(dev.activeFileOrTitle, 60))"
+            tags.append("[WORKSPACE: \(dev.activeAppName) active\(file)]")
+        }
+
+        switch FocusEngine.shared.currentFocusLevel {
+        case .deepWork:  tags.append("[FOCUS: deep work]")
+        case .debugging: tags.append("[FOCUS: debugging]")
+        case .meeting:   tags.append("[FOCUS: on a call]")
+        case .casual, .idle: break
+        }
+
+        if NowPlayingMonitor.shared.isPlaying, let track = NowPlayingMonitor.shared.track {
+            let by = track.artist.isEmpty ? "" : " by \(track.artist)"
+            tags.append("[NOW PLAYING: '\(clip(track.name, 60))'\(by)]")
+        }
+
+        let memory = MemoryGraph.shared.compactMemory(for: userMessage, musicContext: NowPlayingMonitor.shared.isPlaying)
+        if !memory.isEmpty {
+            tags.append("[MEMORY: \(memory)]")
+        }
+
+        tags += visionTags
+
+        let recent = InteractionDirector.shared.recentExchange(maxTurns: 2, excluding: userMessage)
+        if !recent.isEmpty {
+            tags.append("[RECENT: \(recent)]")
+        }
+
+        if let event = event ?? lateNightEvent() {
+            tags.append("[EVENT: \(event)]")
+        }
+
+        var prompt = "User: " + tags.joined(separator: " ")
+        if let msg = userMessage, !msg.isEmpty {
+            prompt += " | User: \"\(clip(msg, 300).replacingOccurrences(of: "\"", with: "'"))\""
+        }
+        return prompt
+    }
+
+    private static func lateNightEvent() -> String? {
+        let hour = Calendar.current.component(.hour, from: Date())
+        guard hour >= 23 || hour < 5 else { return nil }
+        let shown = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour)
+        return "still working at \(shown) \(hour >= 12 ? "PM" : "AM")"
+    }
+
+    private static func clip(_ s: String, _ n: Int) -> String {
+        return s.count > n ? String(s.prefix(n)) + "…" : s
+    }
+}
+
 // MARK: - Local Ollama Provider (Streaming)
 class LocalOllamaProvider: NSObject, AIProvider {
     private let endpoint = "http://localhost:11434/api/generate"
     private let modelName = "byte-llm"
+    /// Keep the model resident between chats. Ollama's default (5 min) unloads it, so the
+    /// first reply after a short break waits on a cold ~1.3 GB reload.
+    static let keepAlive = "30m"
+
+    /// True when `byte-llm` is the LoRA fine-tune, i.e. its Modelfile has an ADAPTER
+    /// (training/ByteModelfile.lora). Not the chat template: the base model inherits
+    /// Llama 3.2's chat template too. The app then sends CompactPrompt
+    /// instead of the long instruction prompt. Checked at launch, so promoting or rolling
+    /// back the model with `ollama cp` needs no app change.
+    static var usesCompactPrompt = false
+
+    /// Instruction-following jobs (the nightly ReflectionEngine) use the plain base model:
+    /// the fine-tune only speaks Byte's tagged reply format.
+    static let instructionModel = "llama3.2:1b"
+
+    static func refreshPromptStyle(completion: (() -> Void)? = nil) {
+        guard let url = URL(string: "http://localhost:11434/api/show") else { completion?(); return }
+        var request = URLRequest(url: url, timeoutInterval: 5)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["model": "byte-llm"])
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            let json = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            let modelfile = json?["modelfile"] as? String ?? ""
+            usesCompactPrompt = modelfile.contains("\nADAPTER ")
+            print("🧠 [LocalOllamaProvider] byte-llm is \(usesCompactPrompt ? "the fine-tune: using compact prompts" : "the base model: using full instruction prompts")")
+            completion?()
+        }.resume()
+    }
+
+    /// For prompts that need a general instruction-following model rather than Byte's voice.
+    func generateInstructionReply(prompt: String, completion: @escaping (String?) -> Void) {
+        request(model: Self.instructionModel, prompt: prompt, completion: completion)
+    }
 
     func generateComment(systemPrompt: String, completion: @escaping (String?) -> Void) {
+        print("🤖 [LocalOllamaProvider] Sending prompt to main Byte model '\(modelName)'...")
+        request(model: modelName, prompt: systemPrompt) { text in
+            // The fine-tune always answers with [ACTION]/[EMOTION]/[CMD] tags; a comment is speech only.
+            completion(text.map { LocalOllamaProvider.sanitizeSpeechForTTS($0) })
+        }
+    }
+
+    private func request(model: String, prompt: String, completion: @escaping (String?) -> Void) {
         guard let url = URL(string: endpoint) else {
             completion(nil)
             return
         }
 
         let payload: [String: Any] = [
-            "model": modelName,
-            "prompt": systemPrompt,
-            "stream": false
+            "model": model,
+            "prompt": prompt,
+            "stream": false,
+            "keep_alive": LocalOllamaProvider.keepAlive
         ]
 
         var request = URLRequest(url: url)
@@ -205,7 +318,8 @@ class LocalOllamaProvider: NSObject, AIProvider {
         let payload: [String: Any] = [
             "model": modelName,
             "prompt": systemPrompt,
-            "stream": false
+            "stream": false,
+            "keep_alive": LocalOllamaProvider.keepAlive
         ]
 
         var request = URLRequest(url: url)
@@ -251,7 +365,7 @@ class LocalOllamaProvider: NSObject, AIProvider {
                        let cleaned = raw.replacingOccurrences(of: #"(?i)\[?CMD:\s*"#, with: "", options: .regularExpression)
                                         .replacingOccurrences(of: "]", with: "").trimmingCharacters(in: .whitespaces)
                        if !cleaned.isEmpty && cleaned.lowercased() != "none" {
-                           AIEngine.executeSystemCommand(cleaned)
+                           AIEngine.executeModelCommand(cleaned)
                        }
                    }
                    
@@ -293,6 +407,7 @@ class LocalOllamaProvider: NSObject, AIProvider {
             "model": modelName,
             "prompt": systemPrompt,
             "stream": true,
+            "keep_alive": LocalOllamaProvider.keepAlive,
             "options": [
                 "temperature": 0.3,
                 "num_predict": 80,
@@ -347,8 +462,8 @@ class LocalOllamaProvider: NSObject, AIProvider {
                                 let cleaned = raw.replacingOccurrences(of: #"(?i)\[?ACTION:\s*"#, with: "", options: .regularExpression)
                                                  .replacingOccurrences(of: "]", with: "").trimmingCharacters(in: .whitespaces)
                                 if cleaned.lowercased().starts(with: "open ") || cleaned.lowercased().starts(with: "osascript") || cleaned.lowercased().starts(with: "screencapture") || cleaned.lowercased().starts(with: "pmset") {
-                                    print("🎯 [AIEngine] Executing ACTION-embedded CMD: '\(cleaned)'")
-                                    AIEngine.executeSystemCommand(cleaned)
+                                    print("🎯 [AIEngine] ACTION-embedded CMD: '\(cleaned)'")
+                                    AIEngine.executeModelCommand(cleaned)
                                     parsedAction = "sit"
                                 } else if !cleaned.isEmpty {
                                     parsedAction = cleaned
@@ -367,8 +482,8 @@ class LocalOllamaProvider: NSObject, AIProvider {
                                 let cleaned = raw.replacingOccurrences(of: #"(?i)\[?CMD:\s*"#, with: "", options: .regularExpression)
                                                  .replacingOccurrences(of: "]", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
                                 if !cleaned.isEmpty && cleaned.lowercased() != "none" {
-                                    print("🎯 [AIEngine] Executing streaming CMD: '\(cleaned)'")
-                                    AIEngine.executeSystemCommand(cleaned)
+                                    print("🎯 [AIEngine] Streaming CMD: '\(cleaned)'")
+                                    AIEngine.executeModelCommand(cleaned)
                                 }
                             }
                             
@@ -534,10 +649,67 @@ class LocalOllamaProvider: NSObject, AIProvider {
         // Restore name intros
         result = result.replacingOccurrences(of: "__BYTE_NAME__", with: "Byte")
 
+        // Stray halves of tags that survived the patterns above ("] Hey there.")
+        result = result.replacingOccurrences(of: #"[\[\]]"#, with: "", options: .regularExpression)
+
+        result = guardUserName(result)
+
         // Clean up artifacts: double spaces, leading/trailing punctuation mess
         result = result.replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
         result = result.trimmingCharacters(in: .whitespacesAndNewlines)
         
+        return result
+    }
+
+    /// Words that can follow "Hey" without being a name.
+    private static let vocativeWords: Set<String> = [
+        "there", "you", "buddy", "friend", "again", "hey", "hi", "yo", "okay", "ok", "wow", "look",
+        "sure", "nice", "welcome", "back", "morning", "afternoon", "evening", "mac", "chrome", "byte", "i"]
+
+    /// The model learned that greetings carry a name, so when Byte doesn't know the user's
+    /// name it invents one ("Hey Claude"). Drop an invented name, or replace a wrong one
+    /// with the real one, wherever it's used to address the user.
+    static func guardUserName(_ rawText: String) -> String {
+        // Tag-stripping upstream can leave leading whitespace ("[CMD: none] Hey Pradeep."
+        // -> " Hey Pradeep."), which broke the start-of-string anchor below.
+        let text = rawText.trimmingCharacters(in: .whitespaces)
+        let known = MemoryGraph.shared.userName
+        let knownFirst = known?.split(separator: " ").first.map(String.init)
+        // "Hey Claude." / "Morning, Claude!" / "Welcome back Claude," at the start…
+        // Not just at the start: filler ("Here is my take. Hey Claude.") can push the
+        // greeting into the middle of the reply.
+        let opener = #"(?:^|[.!?]\s+)((?:Hey|Hi|Hello|Yo|Oh|Morning|Good (?:morning|afternoon|evening)|Welcome back|Nice work|Look at you),?\s+)([A-Z][a-z]+)\b([.,!?]?)"#
+        // …or ", Claude." at the very end.
+        let closer = #",\s+([A-Z][a-z]+)([.!?]?)$"#
+
+        func fix(_ name: String) -> String? {       // nil = leave as is
+            if name.count < 2 || vocativeWords.contains(name.lowercased()) { return nil }
+            if let k = known, name == k || name == knownFirst { return nil }
+            return knownFirst ?? ""                  // wrong name → theirs; unknown → drop
+        }
+
+        var result = text
+        if let regex = try? NSRegularExpression(pattern: opener),
+           let m = regex.firstMatch(in: result, range: NSRange(result.startIndex..., in: result)),
+           let whole = Range(m.range, in: result),
+           let nameRange = Range(m.range(at: 2), in: result),
+           let replacement = fix(String(result[nameRange])) {
+            let lead = String(result[whole.lowerBound..<(Range(m.range(at: 1), in: result)?.lowerBound ?? whole.lowerBound)])
+            let greeting = Range(m.range(at: 1), in: result).map { String(result[$0]) } ?? ""
+            let punct = Range(m.range(at: 3), in: result).map { String(result[$0]) } ?? ""
+            let fixed = replacement.isEmpty
+                ? greeting.trimmingCharacters(in: CharacterSet(charactersIn: ", ")) + (punct.isEmpty ? "." : punct)
+                : greeting + replacement + punct
+            result.replaceSubrange(whole, with: lead + fixed)
+        }
+        if let regex = try? NSRegularExpression(pattern: closer),
+           let m = regex.firstMatch(in: result, range: NSRange(result.startIndex..., in: result)),
+           let nameRange = Range(m.range(at: 1), in: result),
+           let replacement = fix(String(result[nameRange])),
+           let whole = Range(m.range, in: result) {
+            let punct = Range(m.range(at: 2), in: result).map { String(result[$0]) } ?? ""
+            result.replaceSubrange(whole, with: replacement.isEmpty ? (punct.isEmpty ? "." : punct) : ", \(replacement)\(punct)")
+        }
         return result
     }
 }
@@ -666,7 +838,9 @@ class AIEngine {
     private let dialogueHistory = NSMutableArray()
     private let maxHistorySize = 20
 
-    func generateComment(context: String, emotion: String, userMessage: String? = nil, completion: @escaping (String?) -> Void) {
+    /// `event` is a short label for the compact prompt ("song started"); the full `context`
+    /// sentence is what the base model gets.
+    func generateComment(context: String, emotion: String, userMessage: String? = nil, event: String? = nil, completion: @escaping (String?) -> Void) {
 
         var userInstruction = ""
         if let msg = userMessage, !msg.isEmpty {
@@ -680,20 +854,20 @@ class AIEngine {
         let emotionalTone = emotionalInstructions(for: emotion)
 
         let systemPrompt = """
-        You are Byte, a small, curious male desktop creature (he/him). Speak naturally like a real being—conversational, sometimes silly, sometimes thoughtful.
-        FIRST-PERSON RULE: Always refer to yourself in the first person ("I", "me", "my", "myself"). NEVER refer to yourself in the third person (e.g. NEVER say "Byte is", "Byte thinks").
-        Keep it short: under 12 words. No emojis. One thought per line.
+        You are Byte, an energetic, witty, and free-spirited 3D desktop companion pet living on macOS. You speak naturally like an authentic digital best friend—spontaneous, warm, witty, and breezy.
+        Speak in the first person ("I", "me", "my"). Keep your commentary short, punchy, and spontaneous (a single casual burst).
         Current feeling: \(emotion). \(emotionalTone)
         Context: \(context)
         \(userInstruction)
 
-        CRITICAL: Be creative, weird, or funny. Never repeat phrases from your last 10 lines.
-        If you speak unprompted, act like you are "thinking aloud" to yourself about the Context. Do not demand the user's attention.
-
-        Write ONLY dialogue. No quotes, no actions, no asterisks.
+        Be creative, witty, and genuine. Write ONLY your spoken dialogue.
         """
 
-        provider.generateComment(systemPrompt: systemPrompt) { response in
+        let prompt = LocalOllamaProvider.usesCompactPrompt
+            ? CompactPrompt.build(userMessage: userMessage, event: event ?? String(context.prefix(120)))
+            : systemPrompt
+
+        provider.generateComment(systemPrompt: prompt) { response in
             if let response = response {
                 // Enhance with natural pauses & rhythm before playback
                 let enhanced = DialogueNaturalness.enhanceForSpeech(response, emotion: emotion)
@@ -751,8 +925,8 @@ class AIEngine {
             userInstruction = "\nYou are idling near the developer. FAVOR quiet observation. \(eqIntent) STRICT NO REPETITION & NO CLICHÉS: DO NOT use clichés like '*yawns* so sleepy' or 'hmm...'. Share a fresh, original thought or leave 'speech' empty.\n"
         }
 
-        let memoryContext = MemoryGraph.shared.getUserFactsString()
-        let behavioralRules = MemoryGraph.shared.getBehavioralRulesString()
+        let memoryContext = MemoryGraph.shared.personalizedContext(for: userMessage)
+        let behavioralRules = MemoryGraph.shared.getBehavioralRulesString(maxLearnedRules: 6)
         let emotionalTone = emotionalInstructions(for: currentEmotion)
         let conversation = InteractionDirector.shared.conversationContext()
         let attentionNote = InteractionDirector.shared.attentionDirective()
@@ -760,39 +934,46 @@ class AIEngine {
         let avoidLine = avoidOpeners.isEmpty
             ? ""
             : "DO NOT begin your reply with any of these recently-used openers: \(avoidOpeners.map { "\"\($0)\"" }.joined(separator: ", ")). Say something fresh.\n"
+        AIEngine.modelCommandsAllowedThisTurn = isUserDirected
 
         ByteVisionEngine.shared.prepareVisualContextForPrompt(userMessage: userMessage) { visionContext in
             let devContext = DeveloperContextMonitor.shared.formattedContextForAI()
 
+            // Static instructions first (cacheable prefix), per-turn context last.
             let systemPrompt = """
             You are an autonomous male AI desktop pet named Byte (he/him). You must decide your next physical action and what you want to say.
-            \(userHeader)PERSONALITY TRAIT: \(personality.promptModifier)
+            PERSONALITY TRAIT: \(personality.promptModifier)
+
+            CRITICAL RULES:
+            1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
+            2. FIRST-PERSON PRONOUN RULE: Always refer to yourself in the first person ("I", "me", "my"). NEVER say "Byte is" or "Byte thinks".
+            3. If the user spoke to you, answer what they said directly. Otherwise pick one action from the AVAILABLE ACTIONS list.
+            4. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
+            5. KEEP YOUR RESPONSE SHORT (under 15 words). Speak naturally.
+
+            Example Response:
+            [ACTION: sitOnCorner] [EMOTION: happy] Right here beside you!
 
             ENVIRONMENT CONTEXT: \(context)
             DEVELOPER WORKSPACE: \(devContext)
             VISUAL PERCEPTION & HIGHLIGHTS: \(visionContext)
             USER ATTENTION: \(attentionNote)
             \(conversation)
-            YOUR MEMORIES ABOUT USER: \(memoryContext)
+            ABOUT THE USER: \(memoryContext)
             YOUR BEHAVIORAL RULES:
             \(behavioralRules)
             YOUR CURRENT EMOTION: \(currentEmotion). \(emotionalTone)
-            \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
-
-            CRITICAL RULES:
-            1. You must respond by starting with the tags [ACTION: xxx] and [EMOTION: xxx].
-            2. FIRST-PERSON PRONOUN RULE: Always refer to yourself in the first person ("I", "me", "my"). NEVER say "Byte is" or "Byte thinks".
-            3. \(isUserDirected ? "ACTIVE LISTENING IS REQUIRED: The user spoke directly to you ('\(userMessage!)'). You MUST address their input directly in your speech response!" : "Pick one action from the AVAILABLE ACTIONS list.")
-            4. Pick an emotion that matches your choice (happy, sad, curious, angry, sleepy, bored, shock, love, normal, proud, excited, embarrassed).
-            5. KEEP YOUR RESPONSE SHORT (under 15 words). Speak naturally.
-
-            Example Response:
-            [ACTION: sitOnCorner] [EMOTION: happy] Right here beside you!
+            \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))
+            \(userHeader)\(userInstruction)
             """
 
-            RealtimeConversationLogger.shared.startModelTurn(systemPrompt: systemPrompt, userMessage: userMessage)
+            // The fine-tune was trained on compact context; the base model needs the full instructions.
+            let prompt = LocalOllamaProvider.usesCompactPrompt
+                ? CompactPrompt.build(userMessage: userMessage, visionTags: ByteVisionEngine.shared.compactVisionTags(userMessage: userMessage))
+                : systemPrompt
+            RealtimeConversationLogger.shared.startModelTurn(systemPrompt: prompt, userMessage: userMessage)
 
-            self.provider.generateAgentDecision(systemPrompt: systemPrompt) { decision in
+            self.provider.generateAgentDecision(systemPrompt: prompt) { decision in
                 if let decision = decision {
                     var validatedSpeech = decision.speech
                     if !validatedSpeech.isEmpty {
@@ -822,6 +1003,7 @@ class AIEngine {
         
         let personality = SettingsManager.shared.activePersonality
         let isUserDirected = (userMessage != nil && !(userMessage?.isEmpty ?? true))
+        AIEngine.modelCommandsAllowedThisTurn = false
 
         var userHeader = ""
         var userInstruction = ""
@@ -904,7 +1086,23 @@ class AIEngine {
                 cmdHint = "[CMD: open -a Discord]"
             } else if lowerMsg.contains("vscode") || lowerMsg.contains("vs code") || lowerMsg.contains("visual studio") {
                 cmdHint = #"[CMD: open -a "Visual Studio Code"]"#
-            // ── System commands ──
+            // ── System commands & File/PDF/Image Searching ──
+            } else if lowerMsg.contains("pdf") && (lowerMsg.contains("search") || lowerMsg.contains("find") || lowerMsg.contains("look for") || lowerMsg.contains("show")) {
+                let query = msg.replacingOccurrences(of: #"(?i).*(search|find|look for|show)\s+(for\s+)?(a\s+)?(pdf\s+)?(file\s+)?(named\s+)?"#, with: "", options: .regularExpression)
+                               .replacingOccurrences(of: #"(?i)\s*pdf.*"#, with: "", options: .regularExpression)
+                               .trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                let searchQuery = query.isEmpty ? "pdf" : "kind:pdf \(query)"
+                cmdHint = "[CMD: mdfind \"\(searchQuery)\"]"
+            } else if (lowerMsg.contains("image") || lowerMsg.contains("photo") || lowerMsg.contains("picture") || lowerMsg.contains("png") || lowerMsg.contains("jpg") || lowerMsg.contains("jpeg")) && (lowerMsg.contains("search") || lowerMsg.contains("find") || lowerMsg.contains("look for") || lowerMsg.contains("show")) {
+                let query = msg.replacingOccurrences(of: #"(?i).*(search|find|look for|show)\s+(for\s+)?(an?\s+)?(image|photo|picture|png|jpg|jpeg)?\s*(file\s+)?(of\s+)?(named\s+)?"#, with: "", options: .regularExpression)
+                               .trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                let searchQuery = query.isEmpty ? "kind:image" : "kind:image \(query)"
+                cmdHint = "[CMD: mdfind \"\(searchQuery)\"]"
+            } else if (lowerMsg.contains("search file") || lowerMsg.contains("find file") || lowerMsg.contains("search document") || lowerMsg.contains("find document")) {
+                let query = msg.replacingOccurrences(of: #"(?i).*(search|find)\s+(file|document)\s*(named\s+)?(for\s+)?"#, with: "", options: .regularExpression)
+                               .trimmingCharacters(in: .punctuationCharacters.union(.whitespaces))
+                let searchQuery = query.isEmpty ? "document" : query
+                cmdHint = "[CMD: mdfind \"\(searchQuery)\"]"
             } else if lowerMsg.contains("screenshot") || lowerMsg.contains("screen shot") || lowerMsg.contains("capture") {
                 cmdHint = "[CMD: screencapture ~/Desktop/screenshot.png]"
             } else if lowerMsg.contains("volume up") || lowerMsg.contains("increase volume") || lowerMsg.contains("louder") || lowerMsg.contains("turn up") {
@@ -943,14 +1141,15 @@ class AIEngine {
             if cmdHint != "[CMD: none]" {
                 let rawCmd = cmdHint.replacingOccurrences(of: "[CMD: ", with: "").replacingOccurrences(of: "]", with: "")
                 print("🎯 [AIEngine] Pre-executing detected user command: '\(rawCmd)'")
+                // Already run here, so the model's echo of it must not run it a second time.
                 AIEngine.executeSystemCommand(rawCmd)
                 userInstruction = "\nTHE USER SAID: \"\(msg)\". They asked you to open a website, app, or control Mac (\(cmdHint)). You MUST acknowledge performing this request directly in your speech (e.g. 'Opening that for you now!') and tag \(cmdHint). Do NOT ignore their request!\n"
             } else {
+                AIEngine.modelCommandsAllowedThisTurn = true
                 userInstruction = "\nTHE USER SAID: \"\(msg)\". Answer them naturally, directly, and warmly. Be engaging and curious! (No emojis!)\n"
             }
 
             userHeader = """
-
             ==================================================
             *** PRIORITY USER DIRECTIVE ***
             USER SPOKE TO YOU: "\(msg)"
@@ -958,12 +1157,14 @@ class AIEngine {
             ==================================================
             """
         } else {
-            let eqIntent = EmotionalIntelligenceEngine.shared.intentDirective()
-            userInstruction = "\nYou are Byte, a warm and curious male desktop pet (he/him). When speaking, feel free to ask a friendly, curious question to get to know the user better (their hobbies, day, project, or favorite things).\n"
+            let curiosity = MemoryGraph.shared.userName == nil
+                ? "If it feels natural, ask their name."
+                : "If it feels natural, ask a friendly question about their day, project, or hobbies."
+            userInstruction = "\nYou are Byte, a warm and curious male desktop pet (he/him). \(curiosity)\n"
         }
 
-        let memoryContext = MemoryGraph.shared.getUserFactsString()
-        let behavioralRules = MemoryGraph.shared.getBehavioralRulesString()
+        let memoryContext = MemoryGraph.shared.personalizedContext(for: userMessage)
+        let behavioralRules = MemoryGraph.shared.getBehavioralRulesString(maxLearnedRules: 6)
         let emotionalTone = emotionalInstructions(for: currentEmotion)
         let conversation = InteractionDirector.shared.conversationContext()
         let attentionNote = InteractionDirector.shared.attentionDirective()
@@ -976,22 +1177,13 @@ class AIEngine {
         ByteVisionEngine.shared.prepareVisualContextForPrompt(userMessage: userMessage) { visionContext in
             let devContext = DeveloperContextMonitor.shared.formattedContextForAI()
 
+            // Layout matters for speed on a small local model: everything that stays the same
+            // between turns comes first so Ollama can reuse its cached prompt prefix, and the
+            // per-turn context comes last, ending with the user's words where a 1B model
+            // attends to them most.
             let systemPrompt = """
             You are an autonomous male AI desktop pet named Byte (he/him). You must decide your next physical action and what you want to say.
-            \(userHeader)
             PERSONALITY TRAIT: \(personality.promptModifier)
-
-            ENVIRONMENT CONTEXT: \(context)
-            DEVELOPER WORKSPACE: \(devContext)
-            VISUAL PERCEPTION & HIGHLIGHTS: \(visionContext)
-            USER ATTENTION: \(attentionNote)
-            \(userEmotionalContext)
-            \(conversation)
-            YOUR MEMORIES ABOUT USER: \(memoryContext)
-            YOUR BEHAVIORAL RULES:
-            \(behavioralRules)
-            YOUR CURRENT EMOTION: \(currentEmotion). \(emotionalTone)
-            \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))\(userInstruction)
 
             ACTION DESCRIPTIONS:
             - idle, wander, sleep, jump, sit, spin, dance, sitOnCorner, sitOnMenuBar, climbWindow, pushWidget, tapWindow, sneeze, backflip, headbang, wave
@@ -1010,23 +1202,42 @@ class AIEngine {
             [ACTION: dance] [EMOTION: happy] [CMD: open -a Music] Opening Music for you now!
             [ACTION: sitOnCorner] [EMOTION: curious] [CMD: none] Right here! What are you working on?
             [ACTION: wave] [EMOTION: happy] [CMD: none] Hey! What kind of music do you like?
+
+            ENVIRONMENT CONTEXT: \(context)
+            DEVELOPER WORKSPACE: \(devContext)
+            VISUAL PERCEPTION & HIGHLIGHTS: \(visionContext)
+            USER ATTENTION: \(attentionNote)
+            \(userEmotionalContext)
+            \(conversation)
+            ABOUT THE USER: \(memoryContext)
+            YOUR BEHAVIORAL RULES:
+            \(behavioralRules)
+            YOUR CURRENT EMOTION: \(currentEmotion). \(emotionalTone)
+            \(avoidLine)AVAILABLE ACTIONS: \(availableActions.joined(separator: ", "))
+            \(userHeader)\(userInstruction)
             """
 
-            RealtimeConversationLogger.shared.startModelTurn(systemPrompt: systemPrompt, userMessage: userMessage)
+            // The fine-tune was trained on compact context; the base model needs the full instructions.
+            let prompt = LocalOllamaProvider.usesCompactPrompt
+                ? CompactPrompt.build(userMessage: userMessage, visionTags: ByteVisionEngine.shared.compactVisionTags(userMessage: userMessage))
+                : systemPrompt
+            RealtimeConversationLogger.shared.startModelTurn(systemPrompt: prompt, userMessage: userMessage)
 
             if let streamingProvider = self.provider as? LocalOllamaProvider {
-                streamingProvider.generateAgentDecisionStreaming(systemPrompt: systemPrompt, onAction: onAction, onSentence: onSentence, onComplete: onComplete)
+                streamingProvider.generateAgentDecisionStreaming(systemPrompt: prompt, onAction: onAction, onSentence: onSentence, onComplete: onComplete)
             } else {
                 // Fallback for non-streaming providers
-                self.provider.generateAgentDecision(systemPrompt: systemPrompt) { decision in
-                    if let d = decision {
-                        onAction(d)
-                        if !d.speech.isEmpty {
-                            onSentence(d.speech)
+                self.provider.generateAgentDecision(systemPrompt: prompt) { decision in
+                    DispatchQueue.main.async {
+                        if let d = decision {
+                            onAction(d)
+                            if !d.speech.isEmpty {
+                                onSentence(d.speech)
+                            }
+                            onComplete()
+                        } else {
+                            onComplete()
                         }
-                        onComplete()
-                    } else {
-                        onComplete()
                     }
                 }
             }
@@ -1039,56 +1250,169 @@ class AIEngine {
         }
     }
     
-    static func isCommandAllowed(_ command: String) -> Bool {
+    // MARK: - System Commands
+
+    /// A command Byte is allowed to run: a fixed executable plus arguments. Nothing goes
+    /// through a shell, so quoting tricks and metacharacters in model output have no effect.
+    struct SystemCommand: Equatable {
+        let executable: String
+        let arguments: [String]
+        /// mdfind: reveal the top result in Finder instead of discarding the output.
+        var revealFirstResult: Bool = false
+    }
+
+    /// Set per turn. Commands the *model* emits are honored only when the user asked for
+    /// something on this turn and no command was already run for it deterministically.
+    /// Idle turns include screen text from the vision engine in the prompt, and that text
+    /// must never be able to make Byte run commands.
+    static var modelCommandsAllowedThisTurn = false
+
+    /// Parses a CMD string into one of the few commands Byte supports, or nil.
+    static func parseAllowedCommand(_ command: String) -> SystemCommand? {
         let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty || trimmed.lowercased() == "none" {
-            return false
+        guard !trimmed.isEmpty, trimmed.lowercased() != "none", trimmed.count < 300 else { return nil }
+        let tokens = tokenize(trimmed)
+        guard let head = tokens.first?.lowercased() else { return nil }
+
+        func isAppName(_ s: String) -> Bool {
+            return (1...40).contains(s.count) && s.range(of: #"^[A-Za-z0-9 ._-]+$"#, options: .regularExpression) != nil
         }
-        
-        // SECURITY: Block shell metacharacters that enable command chaining or injection
-        let dangerousPatterns = [";", "&&", "||", "|", "`", "$(", "\n", "\r"]
-        for dangerous in dangerousPatterns {
-            if trimmed.contains(dangerous) {
-                print("⚠️ [AIEngine Security] Blocked command with dangerous shell metacharacter '\(dangerous)': \(trimmed)")
-                return false
+        func isWebURL(_ s: String) -> Bool {
+            guard let url = URL(string: s), let scheme = url.scheme?.lowercased(),
+                  scheme == "https" || scheme == "http", let host = url.host, !host.isEmpty else { return false }
+            return true
+        }
+
+        switch head {
+        case "open":
+            let args = Array(tokens.dropFirst())
+            if args.count == 2, args[0] == "-a", isAppName(args[1]) {
+                return SystemCommand(executable: "/usr/bin/open", arguments: ["-a", args[1]])
+            }
+            if args.count == 1, isWebURL(args[0]) {
+                return SystemCommand(executable: "/usr/bin/open", arguments: [args[0]])
+            }
+            if args.count == 3, args[0] == "-a", isAppName(args[1]), isWebURL(args[2]) {
+                return SystemCommand(executable: "/usr/bin/open", arguments: args)
+            }
+            return nil
+
+        case "screencapture":
+            // Ignore any model-chosen path; always write a fresh file to the Desktop.
+            let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+            let path = NSHomeDirectory() + "/Desktop/Byte Screenshot \(stamp).png"
+            return SystemCommand(executable: "/usr/sbin/screencapture", arguments: [path])
+
+        case "pmset":
+            let args = tokens.dropFirst().map { $0.lowercased() }
+            if args == ["sleepnow"] || args == ["displaysleepnow"] {
+                return SystemCommand(executable: "/usr/bin/pmset", arguments: Array(args))
+            }
+            return nil
+
+        case "osascript":
+            guard tokens.count == 3, tokens[1] == "-e" else { return nil }
+            let script = tokens[2].trimmingCharacters(in: .whitespaces)
+            let lower = script.lowercased()
+            // Models also write the equivalent System Events form; accept it, run the plain one.
+            let volumeScript = lower.replacingOccurrences(of: #"^tell app(lication)? "system events" to "#, with: "", options: .regularExpression)
+            if let match = volumeScript.range(of: #"^set volume output volume (\d{1,3})$"#, options: .regularExpression) {
+                let digits = volumeScript[match].split(separator: " ").last.map(String.init) ?? "50"
+                let level = min(100, max(0, Int(digits) ?? 50))
+                return SystemCommand(executable: "/usr/bin/osascript", arguments: ["-e", "set volume output volume \(level)"])
+            }
+            if lower == "set volume with output muted true" || lower == "set volume with output muted false" {
+                return SystemCommand(executable: "/usr/bin/osascript", arguments: ["-e", lower])
+            }
+            if let match = lower.range(of: #"^tell app(lication)? "system events" to set dark mode of appearance preferences to (true|false)$"#, options: .regularExpression) {
+                let value = lower[match].hasSuffix("true") ? "true" : "false"
+                return SystemCommand(executable: "/usr/bin/osascript",
+                                     arguments: ["-e", "tell application \"System Events\" to set dark mode of appearance preferences to \(value)"])
+            }
+            return nil
+
+        case "mdfind":
+            let query = tokens.dropFirst().joined(separator: " ").trimmingCharacters(in: .whitespaces)
+            guard (1...100).contains(query.count), !query.hasPrefix("-") else { return nil }
+            return SystemCommand(executable: "/usr/bin/mdfind", arguments: [query], revealFirstResult: true)
+
+        default:
+            return nil
+        }
+    }
+
+    /// Splits a command line on whitespace, honoring single and double quotes.
+    private static func tokenize(_ line: String) -> [String] {
+        var tokens: [String] = []
+        var current = ""
+        var quote: Character? = nil
+        var inToken = false
+        for ch in line {
+            if let q = quote {
+                if ch == q { quote = nil } else { current.append(ch) }
+            } else if ch == "\"" || ch == "'" {
+                quote = ch
+                inToken = true
+            } else if ch.isWhitespace {
+                if inToken { tokens.append(current); current = ""; inToken = false }
+            } else {
+                current.append(ch)
+                inToken = true
             }
         }
-        
-        let allowedPatterns: [String] = [
-            #"(?i)^open\s+-a\s+['"]?[A-Za-z0-9_ -]+['"]?\s*$"#,
-            #"(?i)^open\s+['"]?https?://[A-Za-z0-9_./?%&=+~#!:;@,*()'\-]+['"]?\s*$"#,
-            #"(?i)^open\s+-a\s+['"]?[A-Za-z0-9_ -]+['"]?\s+['"]?https?://[A-Za-z0-9_./?%&=+~#!:;@,*()'\-]+['"]?\s*$"#,
-            #"(?i)^open\s+[~/[A-Za-z0-9_/.-]+\s*$"#,
-            #"(?i)^osascript\s+-e\s+.+$"#,
-            #"(?i)^screencapture\s+[~A-Za-z0-9_./ -]+\s*$"#,
-            #"(?i)^pmset\s+[A-Za-z0-9_ -]+\s*$"#,
-            #"(?i)^top\s+.+$"#,
-            #"(?i)^df\s+.+$"#
-        ]
-        
-        for pattern in allowedPatterns {
-            if trimmed.range(of: pattern, options: [.regularExpression]) != nil {
-                return true
+        if inToken { tokens.append(current) }
+        return tokens
+    }
+
+    static func isCommandAllowed(_ command: String) -> Bool {
+        return parseAllowedCommand(command) != nil
+    }
+
+    /// Runs a command that came from the model's [CMD: ...] tag, if this turn allows it.
+    static func executeModelCommand(_ command: String) {
+        guard modelCommandsAllowedThisTurn else {
+            let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty && trimmed.lowercased() != "none" {
+                print("⚠️ [AIEngine Security] Ignored model-emitted command outside a user request: \(trimmed)")
             }
+            return
         }
-        return false
+        modelCommandsAllowedThisTurn = false   // at most one model command per turn
+        executeSystemCommand(command)
     }
 
     static func executeSystemCommand(_ command: String) {
         let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard isCommandAllowed(trimmed) else {
+        guard let parsed = parseAllowedCommand(trimmed) else {
             if !trimmed.isEmpty && trimmed.lowercased() != "none" {
                 print("⚠️ [AIEngine Security] Blocked unauthorized command execution attempt: \(trimmed)")
             }
             return
         }
-        
-        print("⚡ [AIEngine Security Approved] Executing macOS System Command: \(trimmed)")
+
+        print("⚡ [AIEngine Security Approved] Executing macOS System Command: \(parsed.executable) \(parsed.arguments)")
         DispatchQueue.global(qos: .userInitiated).async {
             let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/bin/bash")
-            task.arguments = ["-c", trimmed]
-            try? task.run()
+            task.executableURL = URL(fileURLWithPath: parsed.executable)
+            task.arguments = parsed.arguments
+            let output = Pipe()
+            if parsed.revealFirstResult { task.standardOutput = output }
+            do {
+                try task.run()
+            } catch {
+                print("⚠️ [AIEngine] Failed to run \(parsed.executable): \(error)")
+                return
+            }
+            guard parsed.revealFirstResult else { return }
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            task.waitUntilExit()
+            if let first = String(data: data, encoding: .utf8)?
+                .split(separator: "\n").first.map(String.init), !first.isEmpty {
+                let reveal = Process()
+                reveal.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                reveal.arguments = ["-R", first]
+                try? reveal.run()
+            }
         }
     }
 }

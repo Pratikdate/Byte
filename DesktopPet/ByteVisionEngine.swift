@@ -96,11 +96,13 @@ class ByteVisionEngine {
         let systemWide = AXUIElementCreateSystemWide()
         var focusedApp: CFTypeRef?
         let appResult = AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &focusedApp)
-        guard appResult == .success, let focusedApp = focusedApp else { return nil }
+        guard appResult == .success, let focusedApp = focusedApp,
+              CFGetTypeID(focusedApp) == AXUIElementGetTypeID() else { return nil }
 
         var focusedElement: CFTypeRef?
         let elementResult = AXUIElementCopyAttributeValue(focusedApp as! AXUIElement, kAXFocusedUIElementAttribute as CFString, &focusedElement)
-        guard elementResult == .success, let focusedElement = focusedElement else { return nil }
+        guard elementResult == .success, let focusedElement = focusedElement,
+              CFGetTypeID(focusedElement) == AXUIElementGetTypeID() else { return nil }
 
         var selectedText: CFTypeRef?
         let textResult = AXUIElementCopyAttributeValue(focusedElement as! AXUIElement, kAXSelectedTextAttribute as CFString, &selectedText)
@@ -326,6 +328,29 @@ class ByteVisionEngine {
             context = "[USER HIGHLIGHTED/SELECTED TEXT: \"\(trun)\"] | Visual Context: \(context)"
         }
         return context
+    }
+
+    /// Vision context as separate tags for the fine-tune's compact prompt, in the same
+    /// forms its training data uses. Call after prepareVisualContextForPrompt(). Screen
+    /// text is only included when this message asked about the screen; otherwise the
+    /// cached scan may be stale.
+    func compactVisionTags(userMessage: String?) -> [String] {
+        var tags: [String] = []
+        if let img = currentImageContext, !img.isEmpty {
+            tags.append("[\(img)]")
+        }
+        if let sel = getSelectedText(), !sel.isEmpty {
+            let trimmed = sel.count > 200 ? String(sel.prefix(200)) + "..." : sel
+            tags.append("[USER HIGHLIGHTED/SELECTED TEXT: \"\(trimmed.replacingOccurrences(of: "\"", with: "'"))\"]")
+        }
+        let screen = currentVisualContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        let askedAboutScreen = userMessage.map { !$0.isEmpty && detectVisionIntent(in: $0) } ?? false
+        let placeholders = ["No visual target detected.", "Developer is focused in editor."]
+        if askedAboutScreen, !screen.isEmpty, !placeholders.contains(screen) {
+            let trimmed = screen.count > 160 ? String(screen.prefix(160)) + "..." : screen
+            tags.append("[SCREEN TEXT: '\(trimmed.replacingOccurrences(of: "'", with: "’"))']")
+        }
+        return tags
     }
 
     /// Prepares fresh visual, selected text, and image context before LLM prompt generation, guaranteeing completion before AI prompt assembly.

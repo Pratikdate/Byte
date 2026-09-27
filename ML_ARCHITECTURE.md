@@ -80,11 +80,23 @@ Byte features a zero-overhead visual perception engine powered by **Microsoft Fl
 
 ---
 
-## 6. Summary of Results
+## 6. Experimental Full-Duplex Speech-to-Speech Engine (`nvidia/personaplex-7b-v1`)
 
-By combining **State-Machine architecture, Q-Learning, Local LLMs, Local Voice I/O, and Florence-2-Base (232M) Visual Perception**, the following results are achieved:
+Byte includes an experimental full-duplex real-time conversational engine powered by **NVIDIA PersonaPlex-7B-v1** (`backend/personaplex_server.py` on port 9006).
+
+### Architecture Highlights:
+* **Full-Duplex Interruption & Backchanneling**: Uses a dual-stream Moshi/Helium transformer architecture enabling simultaneous audio listening and speech synthesis with automatic interruption handling.
+* **Persona Text & Voice Conditioning**: Supports real-time text prompt configuration for Byte's companion personality as well as audio token conditioning for voice timbre.
+* **WebSocket Framing**: Streamlined WebSocket protocol (`/ws/duplex`) streaming 24kHz audio frames and dual-stream text tokens.
+
+---
+
+## 7. Summary of Results
+
+By combining **State-Machine architecture, Q-Learning, Local LLMs, Local Voice I/O, Florence-2-Base (232M) Visual Perception, and PersonaPlex-7B Full-Duplex Speech**, the following results are achieved:
 
 1.  **Elimination of Robotic Behavior:** Hardcoded pets quickly become predictable and boring. Because Byte balances the Bellman Equation with Epsilon-Greedy exploration and LLM-driven dialogue, his actions are constantly evolving and genuinely surprising.
 2.  **Privacy:** Not a single byte of your desktop activity, screen captures, voice recordings, or application data leaves your machine. 
 3.  **Adaptive Routines:** Over time, users find that Byte naturally synchronizes with their workflows—quietly observing during heavy coding sessions, and actively soliciting attention when the user steps away or closes their windows.
+
 

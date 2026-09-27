@@ -7,7 +7,8 @@ class AudioManager {
     static let shared = AudioManager()
 
     private let whisperEndpoint = "http://localhost:9000/transcribe"
-    private let kokoroEndpoint = "http://localhost:8000/synthesize"
+    private let kokoroEndpoint = "http://localhost:8880/synthesize"
+    private let personaplexEndpoint = "http://localhost:9006/synthesize_speech"
 
     private let audioEngine = AVAudioEngine()
     private var audioPlayer: AVAudioPlayerNode?
@@ -22,6 +23,10 @@ class AudioManager {
 
     private var accumulatedAudio = Data()
     private var lastSendTime = Date.distantPast
+    /// Only one live-partial request at a time. Each one re-sends the whole utterance so
+    /// far; firing every 0.5s regardless piled up requests faster than Whisper could
+    /// answer them, so every one timed out and the server pinned the CPU.
+    private var partialInFlight = false
 
     func startListening() {
         guard !isListening else { return }
@@ -45,6 +50,7 @@ class AudioManager {
         audioQueue.async {
             self.accumulatedAudio.removeAll()
             self.lastSendTime = Date()
+            self.partialInFlight = false
             self.captureAudioAndTranscribe()
         }
     }
@@ -84,11 +90,12 @@ class AudioManager {
             return
         }
 
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: url.appendingQuery("final=1"))
         request.httpMethod = "POST"
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         request.httpBody = dataToSend
-        request.timeoutInterval = 2.5
+        // The accurate model needs ~3s for a 4s sentence on a Mac CPU; 2.5s always timed out.
+        request.timeoutInterval = 10.0
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
@@ -189,10 +196,11 @@ class AudioManager {
             self.accumulatedAudio.append(audioData)
 
             let now = Date()
-            if now.timeIntervalSince(self.lastSendTime) < 0.5 {
+            if self.partialInFlight || now.timeIntervalSince(self.lastSendTime) < 0.5 {
                 return
             }
             self.lastSendTime = now
+            self.partialInFlight = true
 
             let dataToSend = self.accumulatedAudio
 
@@ -202,14 +210,15 @@ class AudioManager {
                 return
             }
 
-            var request = URLRequest(url: url)
+            var request = URLRequest(url: url.appendingQuery("final=0"))   // fast model for live text
             request.httpMethod = "POST"
             request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
             request.httpBody = dataToSend
-            request.timeoutInterval = 2.0
+            request.timeoutInterval = 6.0
 
             URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
+            self.audioQueue.async { self.partialInFlight = false }
 
             if let error = error {
                 print("[AudioManager] Whisper request error: \(error.localizedDescription)")
@@ -225,11 +234,10 @@ class AudioManager {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let text = json["text"] as? String,
                    !text.isEmpty {
+                    // A live partial: show it, but never end listening on it (the server used
+                    // to mark every reply final, which cut the user off mid-sentence).
                     DispatchQueue.main.async {
                         self.onTranscriptionUpdate?(text)
-                        if json["is_final"] as? Bool == true {
-                            self.onTranscriptionFinished?(text)
-                        }
                     }
                 }
             } catch {
@@ -281,83 +289,99 @@ class AudioManager {
             "voice_id": "am_onyx" // American Male TTS voice profile
         ]
 
-        guard let url = URL(string: kokoroEndpoint) else {
-            print("[AudioManager] Invalid Kokoro endpoint URL")
-            DispatchQueue.main.async {
-                SystemTTSFallback.shared.speak(text, emotion: emotion) {
-                    DispatchQueue.main.async {
-                        self.isDownloading = false
-                        if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
-                            self.onSpeakingFinished?()
-                        }
-                        self.processDownloadQueue()
-                    }
-                }
-            }
-            return
-        }
+        // Try Kokoro endpoint first, then PersonaPlex endpoint (port 9006), then System TTS
+        let targetEndpoint = URL(string: kokoroEndpoint) ?? URL(string: personaplexEndpoint)!
 
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: targetEndpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 10.0 // More time for network variance
+        request.timeoutInterval = 5.0
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         } catch {
-            print("[AudioManager] Failed to serialize Kokoro payload: \(error)")
-            DispatchQueue.main.async {
-                SystemTTSFallback.shared.speak(text, emotion: emotion) {
-                    DispatchQueue.main.async {
-                        self.isDownloading = false
-                        if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
-                            self.onSpeakingFinished?()
-                        }
-                        self.processDownloadQueue()
-                    }
-                }
-            }
-            return
+            print("[AudioManager] Failed to serialize TTS payload: \(error)")
         }
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
-            // Fallback to system TTS if Kokoro unavailable
-            if error != nil || data == nil {
-                print("[AudioManager] Kokoro TTS unavailable, using system TTS")
-                DispatchQueue.main.async {
-                    self.isSpeaking = true
-                    SystemTTSFallback.shared.speak(text, emotion: emotion) {
-                        DispatchQueue.main.async {
-                            self.isSpeaking = false
-                            self.isDownloading = false
-                            if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
-                                self.onSpeakingFinished?()
-                            }
-                            self.processDownloadQueue()
-                        }
-                    }
-                }
+            // Only a 200 with real WAV bytes counts. Anything else (a connection error, or
+            // another app on the port answering 405 with JSON) used to be "played" as audio,
+            // which failed silently and left Byte mute.
+            guard error == nil, status == 200, let audioData = data, Self.isWAV(audioData) else {
+                print("[AudioManager] Kokoro returned no audio (HTTP \(status), \(error?.localizedDescription ?? "not WAV")). Trying fallback voice.")
+                self.speakWithFallback(text, emotion: emotion, speed: speed)
                 return
             }
 
-            guard let audioData = data else {
-                print("[AudioManager] No audio data from Kokoro")
+            self.enqueueSynthesizedAudio(audioData)
+        }.resume()
+    }
+
+    private static func isWAV(_ data: Data) -> Bool {
+        return data.count > 44 && data.prefix(4) == Data("RIFF".utf8)
+    }
+
+    private func enqueueSynthesizedAudio(_ audioData: Data) {
+        DispatchQueue.main.async {
+            self.readyAudioQueue.append(audioData)
+            self.isDownloading = false
+            self.processDownloadQueue() // keep downloading next items in background!
+            self.processPlaybackQueue() // trigger playback if it's idle
+        }
+    }
+
+    /// Kokoro failed. Use PersonaPlex only if it's running a real model (in mock mode it
+    /// returns placeholder tones, not speech); otherwise speak with the macOS voice.
+    private func speakWithFallback(_ text: String, emotion: String, speed: Float) {
+        guard let healthURL = URL(string: "http://localhost:9006/health"),
+              let synthURL = URL(string: personaplexEndpoint) else {
+            speakWithSystemVoice(text, emotion: emotion)
+            return
+        }
+
+        var healthReq = URLRequest(url: healthURL)
+        healthReq.timeoutInterval = 1.5
+        URLSession.shared.dataTask(with: healthReq) { data, _, _ in
+            let json = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+            guard let isMock = json?["is_mock"] as? Bool, !isMock else {
+                self.speakWithSystemVoice(text, emotion: emotion)
+                return
+            }
+
+            var pReq = URLRequest(url: synthURL)
+            pReq.httpMethod = "POST"
+            pReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            pReq.httpBody = try? JSONSerialization.data(withJSONObject: ["text": text, "speed": speed])
+            pReq.timeoutInterval = 5.0
+            URLSession.shared.dataTask(with: pReq) { pData, pResp, pErr in
+                if pErr == nil, (pResp as? HTTPURLResponse)?.statusCode == 200,
+                   let audioData = pData, Self.isWAV(audioData) {
+                    self.enqueueSynthesizedAudio(audioData)
+                } else {
+                    self.speakWithSystemVoice(text, emotion: emotion)
+                }
+            }.resume()
+        }.resume()
+    }
+
+    private func speakWithSystemVoice(_ text: String, emotion: String) {
+        print("[AudioManager] Using macOS system voice")
+        DispatchQueue.main.async {
+            self.isSpeaking = true
+            SystemTTSFallback.shared.speak(text, emotion: emotion) {
                 DispatchQueue.main.async {
+                    self.isSpeaking = false
                     self.isDownloading = false
+                    if self.readyAudioQueue.isEmpty && self.downloadQueue.isEmpty {
+                        self.onSpeakingFinished?()
+                    }
                     self.processDownloadQueue()
                 }
-                return
             }
-
-            DispatchQueue.main.async {
-                self.readyAudioQueue.append(audioData)
-                self.isDownloading = false
-                self.processDownloadQueue() // keep downloading next items in background!
-                self.processPlaybackQueue() // trigger playback if it's idle
-            }
-        }.resume()
+        }
     }
 
     private func processPlaybackQueue() {
@@ -421,5 +445,13 @@ class AudioManager {
             try? FileManager.default.removeItem(at: tempURL)
             processPlaybackQueue()
         }
+    }
+}
+
+private extension URL {
+    func appendingQuery(_ query: String) -> URL {
+        guard var components = URLComponents(url: self, resolvingAgainstBaseURL: false) else { return self }
+        components.query = [components.query, query].compactMap { $0 }.joined(separator: "&")
+        return components.url ?? self
     }
 }

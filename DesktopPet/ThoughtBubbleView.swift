@@ -12,24 +12,24 @@ struct ThoughtBubbleView: View {
             
             Text(thoughtText)
                 .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundColor(Color(red: 0.06, green: 0.09, blue: 0.16))
                 .multilineTextAlignment(.leading)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(
             ZStack {
-                VisualEffectBlur(material: .hudWindow, blendingMode: .withinWindow)
-                Color.black.opacity(0.4)
-                LinearGradient(colors: [Color.cyan.opacity(0.15), Color.purple.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                VisualEffectBlur(material: .popover, blendingMode: .withinWindow)
+                Color.white.opacity(0.92)
+                LinearGradient(colors: [Color.cyan.opacity(0.08), Color.blue.opacity(0.04)], startPoint: .topLeading, endPoint: .bottomTrailing)
             }
         )
         .cornerRadius(18)
         .overlay(
             RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                .stroke(Color(red: 0.85, green: 0.88, blue: 0.92), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
+        .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
         .scaleEffect(isVisible ? 1.0 : 0.8)
         .opacity(isVisible ? 1.0 : 0.0)
         .onAppear {

@@ -48,8 +48,7 @@ class InteractionDirector {
     private let maxThread = 20
 
     private var fileURL: URL {
-        let currentDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-        return currentDir.appendingPathComponent("chat_history.json")
+        return ByteStorage.url(for: "chat_history.json")
     }
 
     private init() {
@@ -62,7 +61,7 @@ class InteractionDirector {
         DispatchQueue.global(qos: .background).async {
             do {
                 let data = try JSONEncoder().encode(threadCopy)
-                try data.write(to: url)
+                try data.write(to: url, options: .atomic)
             } catch {
                 print("[InteractionDirector] Failed to save chat history: \(error)")
             }
@@ -159,6 +158,11 @@ class InteractionDirector {
                 return false
             }
 
+            // 3. Read the room: never talk over a call, and don't make small talk mid-focus.
+            let focus = FocusEngine.shared.currentFocusLevel
+            if focus == .meeting { return false }
+            if focus == .deepWork && trigger == .ambient { return false }
+
             if trigger == .reactive {
                 if attention == .away { return false }
                 return sinceLastSpoke >= reactiveMinGap
@@ -220,16 +224,36 @@ class InteractionDirector {
     }
 
     /// Formatted recent conversation for the LLM prompt (empty string if none).
+    /// The prompt only gets the last few turns, each trimmed. The static instructions already
+    /// use about half of byte-llm's 2048-token window, and when a prompt overflows, Ollama
+    /// drops the *start*, which is where Byte's persona and rules are.
+    private let promptTurns = 8
+    private let maxTurnChars = 200
+
     func conversationContext() -> String {
         guard !thread.isEmpty else { return "" }
         var out = "==================================================\n"
         out += "*** RECENT CONVERSATION HISTORY (In Chronological Order) ***\n"
-        for turn in thread {
-            out += "\(turn.speaker): \(turn.text)\n"
+        for turn in thread.suffix(promptTurns) {
+            let text = turn.text.count > maxTurnChars ? String(turn.text.prefix(maxTurnChars)) + "…" : turn.text
+            out += "\(turn.speaker): \(text)\n"
         }
         out += "CONVERSATION RULE: You MUST maintain context from the recent conversation history above! If the user asks a follow-up or refers to earlier messages, use this history.\n"
         out += "==================================================\n"
         return out
+    }
+
+    /// The last exchange in the fine-tune's compact style: `User: "..." / Byte: "..."`.
+    /// Leaves out a trailing user turn equal to `excluding` (the message being answered).
+    func recentExchange(maxTurns: Int = 2, excluding current: String? = nil) -> String {
+        var turns = thread
+        if let current = current, turns.last?.speaker == "User", turns.last?.text == current {
+            turns.removeLast()
+        }
+        return turns.suffix(maxTurns).map { turn in
+            let text = turn.text.count > 120 ? String(turn.text.prefix(120)) + "…" : turn.text
+            return "\(turn.speaker): \"\(text.replacingOccurrences(of: "\"", with: "'"))\""
+        }.joined(separator: " / ")
     }
 
     /// Openers Byte has used recently, so the prompt can forbid reusing them.

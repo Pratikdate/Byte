@@ -119,15 +119,13 @@ class ReinforcementLearningModel {
     // MARK: - Persistence
     
     private var fileURL: URL {
-        let sourceFileURL = URL(fileURLWithPath: #file)
-        let projectDir = sourceFileURL.deletingLastPathComponent().deletingLastPathComponent()
-        return projectDir.appendingPathComponent("rl_qtable.json")
+        return ByteStorage.url(for: "rl_qtable.json")
     }
     
     private func saveModel() {
         do {
             let data = try JSONEncoder().encode(qTable)
-            try data.write(to: fileURL)
+            try data.write(to: fileURL, options: .atomic)
             // Still save to UserDefaults as a backup
             UserDefaults.standard.set(data, forKey: saveKey)
         } catch {
