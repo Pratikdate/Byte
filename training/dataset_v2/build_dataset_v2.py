@@ -10,6 +10,7 @@ Usage: python3 build_dataset_v2.py
 """
 import collections
 import json
+import re
 import os
 import random
 
@@ -21,6 +22,20 @@ TRAINING = os.path.dirname(HERE)
 MAX_REPEATS_PER_REPLY = 2         # original data: curb stock phrases
 MAX_REPEATS_CURATED = 6           # curated: the same good line across different contexts is the point
 CURATED_WEIGHT = 2                # contexts per reply = case["n"] * CURATED_WEIGHT
+# Extra weight for skills a new behavior must never crowd out (v3 lost Mac commands
+# after the conversation data grew).
+CATEGORY_WEIGHT = {"command": 3, "memory": 3}
+
+# Filler the original data bolted onto hundreds of replies ("Here is my take. <reply>"),
+# which the model then repeats constantly. Each keeps a few natural uses; after that the
+# filler is stripped and the rest of the reply kept.
+TICS = [
+    (re.compile(r"^(Here is my take|Here is what I see)[.:]\s+", re.I), "here is my take"),
+    (re.compile(r"\s*\bI mean it[.!]?$", re.I), "i mean it"),
+    (re.compile(r"^(Heh|Mhm|Mmm)[.!]?\s+", re.I), "heh"),
+    (re.compile(r"\s*\b(Heh|Mhm|Mmm)[.!]?$", re.I), "heh"),
+]
+MAX_TIC_USES = 40
 MINUTES = [26, 34, 45, 52, 68, 90]
 
 
@@ -44,6 +59,23 @@ def load_original() -> tuple:
     return rows, rejected
 
 
+def detic(rows: list) -> tuple:
+    uses, stripped = collections.Counter(), 0
+    for r in rows:
+        reply = r["messages"][1]["content"]
+        tags, _, speech = reply.rpartition("] ")
+        for pattern, name in TICS:
+            if not pattern.search(speech):
+                continue
+            uses[name] += 1
+            cleaned = pattern.sub("", speech).strip()
+            if uses[name] > MAX_TIC_USES and cleaned:
+                speech = cleaned[0].upper() + cleaned[1:]
+                stripped += 1
+        r["messages"][1]["content"] = f"{tags}] {speech}"
+    return rows, stripped
+
+
 def dedupe(rows: list, max_repeats: int = MAX_REPEATS_PER_REPLY) -> list:
     seen_pairs, reply_uses, out = set(), collections.Counter(), []
     for r in rows:
@@ -61,7 +93,7 @@ def expand_curated(rng: random.Random) -> list:
     out = []
     for case in CASES:
         for reply_template in case["replies"]:
-            for _ in range(case["n"] * CURATED_WEIGHT):
+            for _ in range(case["n"] * CURATED_WEIGHT * CATEGORY_WEIGHT.get(case["cat"], 1)):
                 artist = rng.choice(list(ARTISTS))
                 editor, file, lang = rng.choice(EDITORS)
                 slots = dict(name=rng.choice(NAMES), artist=artist, track=rng.choice(ARTISTS[artist]),
@@ -103,6 +135,7 @@ def write(path: str, rows: list) -> None:
 def main() -> None:
     rng = random.Random(42)
     original, rejected = load_original()
+    original, stripped = detic(original)
     cleaned = dedupe(original)
     curated = dedupe(expand_curated(rng), MAX_REPEATS_CURATED)
     train, valid = split(cleaned + curated, rng)
@@ -115,6 +148,7 @@ def main() -> None:
     cats = collections.Counter(r["_cat"] for r in train + valid)
     print(f"original: {len(original) + sum(rejected.values())} rows, rejected {dict(rejected)}, "
           f"{len(original) - len(cleaned)} duplicates removed -> {len(cleaned)}")
+    print(f"verbal tics stripped from {stripped} replies (each filler kept {MAX_TIC_USES} times)")
     print(f"curated:  {len(curated)} rows across {len(cats) - 1} behaviors: "
           + ", ".join(f"{c}={n}" for c, n in cats.most_common() if c != "original"))
     print(f"wrote data_v2/train.jsonl ({len(train)}) and data_v2/valid.jsonl ({len(valid)})")

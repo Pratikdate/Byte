@@ -4,7 +4,7 @@ Prompts use the exact compact format DesktopPet/AIEngine.swift's CompactPrompt s
 (field order: profile, workspace, focus, now playing, memory, recent, event, then the
 user's words), so this tests the app's real path, not a lab setup.
 
-Usage: python3 eval_personalization.py [model]        (default: byte-llm)
+Usage: python3 eval_personalization.py [model] [--json result.json]   (default: byte-llm)
 """
 import json
 import os
@@ -16,7 +16,9 @@ from collections import defaultdict
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset_v2"))
 from validate import ACTIONS, command_allowed  # noqa: E402
 
-MODEL = sys.argv[1] if len(sys.argv) > 1 else "byte-llm"
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+MODEL = ARGS[0] if ARGS else "byte-llm"
+JSON_OUT = sys.argv[sys.argv.index("--json") + 1] if "--json" in sys.argv else None
 TAGS = re.compile(r"\[ACTION:\s*(\w+)\]\s*\[EMOTION:\s*(\w+)\]\s*\[CMD:\s*([^\]]*)\]\s*(.*)", re.S)
 COMMON_NAMES = {"alex", "sam", "john", "sarah", "mike", "emma", "david", "anna", "chris", "maya", "pratik", "liam"}
 
@@ -169,6 +171,9 @@ def main() -> None:
     passed = sum(p for p, _ in results.values())
     print(f"\nBehavior: {passed}/{total} ({100 * passed // total}%)   "
           f"Style (valid tags, short, first person, no emoji): {total - style_fail}/{total} ({100 * (total - style_fail) // total}%)")
+    if JSON_OUT:
+        json.dump({"model": MODEL, "behavior": passed / total, "style": (total - style_fail) / total,
+                   "categories": {c: p / n for c, (p, n) in results.items()}}, open(JSON_OUT, "w"), indent=2)
     print("\nWhat went wrong:")
     for cat, desc, phrase, out, probs in fails[:40]:
         extra = f" [{', '.join(probs)}]" if probs else ""

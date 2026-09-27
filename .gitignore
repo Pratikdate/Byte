@@ -36,3 +36,5 @@ training/training_data/versions/
 chat_history.json
 training/.fused_tmp/
 *.gguf
+training/eval_results/
+training/adapters_candidate_*/
